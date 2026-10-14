@@ -2,7 +2,7 @@ import json
 import unittest
 
 from nexora_language import parse
-from nexora_ir import NEXORAIRError, decode_ir, encode_ast
+from nexora_ir import NEXORAIRError, decode_ir, encode_ast, execute_ir
 
 class NEXORAIRTests(unittest.TestCase):
     def test_versioned_round_trip_is_deterministic(self):
@@ -33,6 +33,29 @@ class NEXORAIRTests(unittest.TestCase):
         doc["ast"]["children"][0]["children"] = []
         with self.assertRaisesRegex(NEXORAIRError, "requires"):
             decode_ir(json.dumps(doc))
+
+
+    def test_execute_ir_matches_reference_program(self):
+        source = 'let total = 2 + 3 * 4; print(total); print("bonjour " + "monde");'
+        self.assertEqual(execute_ir(encode_ast(parse(source))), [14, "bonjour monde"])
+
+    def test_execute_ir_rejects_undefined_identifier(self):
+        with self.assertRaisesRegex(ValueError, "undefined variable"):
+            execute_ir(encode_ast(parse("print(absent);")))
+
+    def test_execute_ir_rejects_boolean_arithmetic(self):
+        with self.assertRaisesRegex(ValueError, "integer operands"):
+            execute_ir(encode_ast(parse("print(true + 1);")))
+
+    def test_decode_rejects_invalid_binding_name(self):
+        doc = json.loads(encode_ast(parse("let x = 1;")))
+        doc["ast"]["children"][0]["value"] = "not valid"
+        with self.assertRaisesRegex(NEXORAIRError, "identifier"):
+            execute_ir(json.dumps(doc))
+
+    def test_execute_ir_rejects_division_by_zero(self):
+        with self.assertRaisesRegex(ValueError, "division by zero"):
+            execute_ir(encode_ast(parse("print(4 / 0);")))
 
 if __name__ == "__main__":
     unittest.main()
