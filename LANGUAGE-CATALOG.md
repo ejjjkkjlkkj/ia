@@ -97,6 +97,14 @@ Les dossiers d'implémentation individuels se trouvent dans `models/<id>/`. Voir
 Référence de langage retenue : [spécification U](https://ulanguage.org/u_language). D'autres projets utilisent également le nom « U »; cette piste désigne explicitement le langage documenté par ulanguage.org.
 
 
+## Langage expérimental : NEXORA
+
+| ID | Langage | Priorité | Piste proposée | Limite à vérifier |
+|---|---|---|---|---|
+| nexora | NEXORA (langage universel expérimental du projet) | Priorité de recherche | Faire évoluer le prototype d’interpréteur vers une spécification stable, un IR typé, un compilateur et des tests numériques avant d’envisager un modèle IA natif. | À ce stade, seul un interpréteur de référence limité est visé; pas de compilateur production, backend OS/UEFI, runtime freestanding ni modèle IA entraînable validé. Ne pas confondre NEXORA avec U (ulanguage.org). |
+
+Cette entrée décrit une piste expérimentale, pas une preuve que NEXORA peut actuellement compiler ou entraîner un modèle IA.
+
 ## Langages supplémentaires retenus après recherche
 
 | ID | Langage | Priorité | Piste proposée | Limite à vérifier |
