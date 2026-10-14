@@ -30,7 +30,12 @@ class NEXORARuntimeError(ValueError):
     pass
 
 def tokenize(source: str) -> list[Token]:
-    """Tokenize UTF-8/Unicode source text; reject unknown characters."""
+    """Tokenize bounded UTF-8/Unicode source text; reject unknown characters."""
+    try:
+        if len(source.encode("utf-8")) > 1_000_000:
+            raise NEXORASyntaxError("source byte limit exceeded")
+    except UnicodeEncodeError as exc:
+        raise NEXORASyntaxError("source contains invalid Unicode scalar values") from exc
     tokens: list[Token] = []
     pos = 0
     while pos < len(source):
@@ -125,6 +130,8 @@ class Parser:
             return node
         if token.kind == "NUMBER":
             self.i += 1
+            if len(token.value) > 1234:
+                raise NEXORASyntaxError(f"integer literal exceeds 4096-bit limit at offset {token.offset}")
             return Node("number", int(token.value))
         if token.kind == "STRING":
             self.i += 1
@@ -142,7 +149,10 @@ class Parser:
         raise NEXORASyntaxError(f"expected expression at offset {token.offset}, got {token.value!r}")
 
 def parse(source: str) -> Node:
-    return Parser(tokenize(source)).parse()
+    try:
+        return Parser(tokenize(source)).parse()
+    except RecursionError as exc:
+        raise NEXORASyntaxError("maximum parser nesting depth exceeded") from exc
 
 def run(source: str) -> list[Any]:
     """Interpret a source program and return values passed to print()."""
