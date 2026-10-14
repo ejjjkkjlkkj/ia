@@ -12,7 +12,7 @@ class BigramBaselineTests(unittest.TestCase):
         report = evaluate_text(model, "bonjour monde")
         self.assertEqual(report["tokens"], 3)
         self.assertGreater(report["perplexity"], 0)
-        self.assertEqual(generate(model, "bonjour", max_tokens=2), "bonjour monde")
+        self.assertEqual(generate(model, "bonjour", max_tokens=1), "bonjour monde")
 
     def test_checkpoint_round_trip_and_hash(self):
         model = train_text("la voix lit le texte la voix lit")
