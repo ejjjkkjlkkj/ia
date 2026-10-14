@@ -9,7 +9,9 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import re
+import tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -64,38 +66,103 @@ def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
     }
 
 
+def _validate_model_payload(model: Any) -> None:
+    """Reject malformed model data before it reaches probability or generation code."""
+    required = {
+        "schema_version", "model_type", "alpha", "vocabulary", "counts",
+        "training_tokens", "training_corpus_sha256",
+    }
+    if not isinstance(model, dict) or set(model) != required:
+        raise ValueError("checkpoint fields do not match the model schema")
+    if type(model["schema_version"]) is not int or model["schema_version"] != SCHEMA_VERSION:
+        raise ValueError("unsupported model schema version")
+    if model["model_type"] != "smoothed-bigram-baseline":
+        raise ValueError("unsupported model type")
+    alpha = model["alpha"]
+    if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
+        raise ValueError("alpha must be a finite positive number")
+    vocabulary = model["vocabulary"]
+    if (not isinstance(vocabulary, list) or not vocabulary
+            or any(not isinstance(token, str) or not token for token in vocabulary)
+            or vocabulary != sorted(set(vocabulary))
+            or EOS not in vocabulary or BOS in vocabulary):
+        raise ValueError("invalid vocabulary")
+    training_tokens = model["training_tokens"]
+    if type(training_tokens) is not int or training_tokens <= 0:
+        raise ValueError("invalid training token count")
+    corpus_hash = model["training_corpus_sha256"]
+    if not isinstance(corpus_hash, str) or re.fullmatch(r"[0-9a-f]{64}", corpus_hash) is None:
+        raise ValueError("invalid training corpus SHA-256")
+    counts = model["counts"]
+    if not isinstance(counts, dict) or BOS not in counts:
+        raise ValueError("invalid transition counts")
+    allowed_previous = set(vocabulary) - {EOS}
+    allowed_previous.add(BOS)
+    allowed_next = set(vocabulary)
+    total = 0
+    eos_count = 0
+    for previous, row in counts.items():
+        if not isinstance(previous, str) or previous not in allowed_previous:
+            raise ValueError("invalid previous-token key in counts")
+        if not isinstance(row, dict) or not row:
+            raise ValueError("transition rows must be non-empty objects")
+        for token, count in row.items():
+            if not isinstance(token, str) or token not in allowed_next:
+                raise ValueError("transition token is not in vocabulary")
+            if type(count) is not int or count <= 0:
+                raise ValueError("transition counts must be positive integers")
+            total += count
+            if token == EOS:
+                eos_count += count
+    if total != training_tokens + 1 or eos_count != 1 or sum(counts[BOS].values()) != 1:
+        raise ValueError("transition counts do not match training token totals")
+
+
 def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
-    """Write an integrity-checked JSON checkpoint atomically and return its hash."""
+    """Validate and atomically write an integrity-checked JSON checkpoint."""
     payload = dict(model)
     payload.pop("checkpoint_sha256", None)
+    _validate_model_payload(payload)
     digest = _sha256(_canonical_json(payload))
     checkpoint = dict(payload)
     checkpoint["checkpoint_sha256"] = digest
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(
-        json.dumps(checkpoint, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=destination.parent,
+            prefix=f".{destination.name}.", suffix=".tmp", delete=False,
+        ) as stream:
+            temporary_path = Path(stream.name)
+            stream.write(json.dumps(checkpoint, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_path, destination)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink()
+            except FileNotFoundError:
+                pass
     return digest
 
-
 def load_checkpoint(path: str | Path) -> dict[str, Any]:
-    """Load a checkpoint only when its schema and content hash are valid."""
-    checkpoint = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(checkpoint, dict) or checkpoint.get("schema_version") != SCHEMA_VERSION:
+    """Load only a structurally valid checkpoint whose content hash matches."""
+    try:
+        checkpoint = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("cannot read checkpoint JSON") from exc
+    if not isinstance(checkpoint, dict):
         raise ValueError("unsupported or malformed checkpoint schema")
     supplied_hash = checkpoint.pop("checkpoint_sha256", None)
     actual_hash = _sha256(_canonical_json(checkpoint))
     if not isinstance(supplied_hash, str) or supplied_hash != actual_hash:
         raise ValueError("checkpoint SHA-256 mismatch")
-    if checkpoint.get("model_type") != "smoothed-bigram-baseline":
-        raise ValueError("unsupported model type")
-    if not isinstance(checkpoint.get("counts"), dict) or not checkpoint.get("vocabulary"):
-        raise ValueError("checkpoint is missing model data")
+    _validate_model_payload(checkpoint)
     checkpoint["checkpoint_sha256"] = supplied_hash
     return checkpoint
-
 
 def next_token_probability(model: dict[str, Any], previous: str, token: str) -> float:
     """Return add-alpha smoothed conditional probability."""
