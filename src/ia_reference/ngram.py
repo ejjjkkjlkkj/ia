@@ -16,9 +16,10 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 BOS = "<BOS>"
 EOS = "<EOS>"
+UNK = "<UNK>"
 TOKEN_PATTERN = re.compile(r"\w+|[^\w\s]", re.UNICODE)
 
 
@@ -54,10 +55,10 @@ def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
         key: dict(sorted(next_counts.items()))
         for key, next_counts in sorted(counts.items())
     }
-    vocabulary = sorted(set(tokens) | {EOS})
+    vocabulary = sorted(set(tokens) | {EOS, UNK})
     return {
         "schema_version": SCHEMA_VERSION,
-        "model_type": "smoothed-bigram-baseline",
+        "model_type": "smoothed-bigram-baseline-v2",
         "alpha": alpha,
         "vocabulary": vocabulary,
         "counts": normalized_counts,
@@ -76,7 +77,7 @@ def _validate_model_payload(model: Any) -> None:
         raise ValueError("checkpoint fields do not match the model schema")
     if type(model["schema_version"]) is not int or model["schema_version"] != SCHEMA_VERSION:
         raise ValueError("unsupported model schema version")
-    if model["model_type"] != "smoothed-bigram-baseline":
+    if model["model_type"] != "smoothed-bigram-baseline-v2":
         raise ValueError("unsupported model type")
     alpha = model["alpha"]
     if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
@@ -85,7 +86,7 @@ def _validate_model_payload(model: Any) -> None:
     if (not isinstance(vocabulary, list) or not vocabulary
             or any(not isinstance(token, str) or not token for token in vocabulary)
             or vocabulary != sorted(set(vocabulary))
-            or EOS not in vocabulary or BOS in vocabulary):
+            or EOS not in vocabulary or UNK not in vocabulary or BOS in vocabulary):
         raise ValueError("invalid vocabulary")
     training_tokens = model["training_tokens"]
     if type(training_tokens) is not int or training_tokens <= 0:
@@ -165,10 +166,15 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
     return checkpoint
 
 def next_token_probability(model: dict[str, Any], previous: str, token: str) -> float:
-    """Return add-alpha smoothed conditional probability."""
+    """Return a normalized add-alpha probability, mapping OOV tokens to UNK."""
+    vocabulary = model["vocabulary"]
+    vocabulary_set = set(vocabulary)
+    if token not in vocabulary_set:
+        token = UNK
+    if previous != BOS and previous not in vocabulary_set:
+        previous = UNK
     alpha = float(model["alpha"])
     counts = model["counts"].get(previous, {})
-    vocabulary = model["vocabulary"]
     total = sum(counts.values())
     return (int(counts.get(token, 0)) + alpha) / (total + alpha * len(vocabulary))
 
@@ -200,6 +206,8 @@ def generate(model: dict[str, Any], prompt: str = "", max_tokens: int = 20) -> s
         raise ValueError("max_tokens must be non-negative")
     output = tokenize(prompt)
     previous = output[-1] if output else BOS
+    if previous != BOS and previous not in model["vocabulary"]:
+        previous = UNK
     counts = model["counts"]
     for _ in range(max_tokens):
         choices = counts.get(previous, {})
