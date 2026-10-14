@@ -86,3 +86,12 @@ Toute modification du catalogue doit garder les IDs synchronisés entre les deux
 | scratch | Scratch | Petit modèle pédagogique construit par blocs, avec poids explicites et apprentissage démontrable | Ne pas prétendre qu'un projet Scratch entraîne un grand modèle de langage; documenter taille, opérations et limites |
 
 Les dossiers d'implémentation individuels se trouvent dans `models/<id>/`. Voir [MODELS-INDEX.md](MODELS-INDEX.md). Chaque dossier commence en `NOT_IMPLEMENTED` tant qu'aucune implémentation et aucun entraînement ne sont prouvés.
+
+
+## Piste supplémentaire : U
+
+| ID | Langage | Piste de fabrication du modèle | Limite à vérifier |
+|---|---|---|---|
+| u | U (ulanguage.org) | Prototype de calcul tensoriel, modèle miniature entraînable, checkpoints et inférence dans le langage U | Vérifier le compilateur/version, la syntaxe réellement supportée et la chaîne U → C avant toute déclaration de compilation; le code généré en C ne remplace pas les sources U du modèle |
+
+Référence de langage retenue : [spécification U](https://ulanguage.org/u_language). D'autres projets utilisent également le nom « U »; cette piste désigne explicitement le langage documenté par ulanguage.org.
