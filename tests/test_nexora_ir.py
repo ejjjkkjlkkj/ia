@@ -47,7 +47,7 @@ class NEXORAIRTests(unittest.TestCase):
             execute_ir(encode_ast(parse("print(absent);")))
 
     def test_execute_ir_rejects_boolean_arithmetic(self):
-        with self.assertRaisesRegex(ValueError, "integer operands"):
+        with self.assertRaisesRegex(ValueError, "numeric operands"):
             execute_ir(encode_ast(parse("print(true + 1);")))
 
     def test_decode_rejects_invalid_binding_name(self):
