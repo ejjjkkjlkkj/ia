@@ -31,13 +31,13 @@ concurrency:
 
 jobs:
   repository-integrity:
-    name: Integrity / ${{ matrix.runner }} / Python ${{ matrix.python }}
+    name: Integrity / ${{ matrix.target.runner }} / Python ${{ matrix.python }}
     timeout-minutes: 10
     strategy:
       fail-fast: false
       max-parallel: 20
       matrix:
-        include:
+        target:
           - runner: ubuntu-x64
             os: ubuntu-latest
           - runner: ubuntu-arm64
@@ -49,11 +49,11 @@ jobs:
           - runner: windows-arm64
             os: windows-11-arm
           - runner: macos-arm64
-            os: macos-latest
+            os: macos-26
           - runner: macos-intel
             os: macos-15-intel
         python: ["3.11", "3.12", "3.13"]
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.target.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
