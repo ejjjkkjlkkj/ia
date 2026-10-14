@@ -1,0 +1,54 @@
+name: IA baseline model functional tests
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "src/ia_reference/**"
+      - "tests/**"
+      - ".github/workflows/model-baseline.yml"
+  pull_request:
+    paths:
+      - "src/ia_reference/**"
+      - "tests/**"
+      - ".github/workflows/model-baseline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ia-model-baseline-\${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Baseline / \${{ matrix.os }} / Python \${{ matrix.python }}
+    runs-on: \${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-26]
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: \${{ matrix.python }}
+      - name: Compile source
+        run: python -m compileall -q src tests
+      - name: Run tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+      - name: CLI train / checkpoint / inference smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'the screen reader reads text the screen reader speaks text\n' > "$RUNNER_TEMP/train.txt"
+          printf 'the screen reader reads text\n' > "$RUNNER_TEMP/eval.txt"
+          PYTHONPATH=src python -m ia_reference.ngram train "$RUNNER_TEMP/train.txt" "$RUNNER_TEMP/model.json"
+          PYTHONPATH=src python -m ia_reference.ngram evaluate "$RUNNER_TEMP/model.json" "$RUNNER_TEMP/eval.txt"
+          PYTHONPATH=src python -m ia_reference.ngram generate "$RUNNER_TEMP/model.json" --prompt "the screen reader" --max-tokens 5
