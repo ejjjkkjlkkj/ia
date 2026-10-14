@@ -19,6 +19,7 @@ class BigramBaselineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "nested" / "model.json"
             expected_hash = save_checkpoint(model, path)
+            self.assertEqual(list(path.parent.glob(".model.json.*.tmp")), [])
             restored = load_checkpoint(path)
             self.assertEqual(restored["checkpoint_sha256"], expected_hash)
             self.assertEqual(generate(restored, "la", max_tokens=3), generate(model, "la", max_tokens=3))
@@ -32,6 +33,15 @@ class BigramBaselineTests(unittest.TestCase):
             path.write_text(json.dumps(checkpoint), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "SHA-256"):
                 load_checkpoint(path)
+
+    def test_invalid_model_structure_is_rejected_before_save(self):
+        model = train_text("bonjour monde bonjour")
+        model["counts"]["bonjour"]["not-in-vocabulary"] = 1
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "bad.json"
+            with self.assertRaisesRegex(ValueError, "not in vocabulary"):
+                save_checkpoint(model, path)
+            self.assertFalse(path.exists())
 
     def test_invalid_training_inputs_are_rejected(self):
         with self.assertRaises(ValueError):
