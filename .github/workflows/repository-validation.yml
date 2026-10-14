@@ -1,0 +1,73 @@
+name: IA repository validation
+
+on:
+  push:
+    branches: [main, "**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ia-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-integrity:
+    name: Validate catalog, model index and local links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate required project files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          required = ["README.md", "LANGUAGE-CATALOG.md", "MODELS-INDEX.md", "MODEL-SPEC.md"]
+          missing = [name for name in required if not Path(name).is_file()]
+          if missing:
+              raise SystemExit("FAIL: missing required files: " + ", ".join(missing))
+          print("PASS: required project files exist")
+          PY
+      - name: Check local Markdown links
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          files = [Path("README.md"), Path("LANGUAGE-CATALOG.md"), Path("MODELS-INDEX.md"), Path("MODEL-SPEC.md")]
+          errors = []
+          pattern = re.compile(r'(?<!!)\[[^\]]*\]\(([^)]+)\)')
+          for source in files:
+              text = source.read_text(encoding="utf-8")
+              for target in pattern.findall(text):
+                  target = target.strip().split("#", 1)[0]
+                  if not target or re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", target) or target.startswith("#"):
+                      continue
+                  path = (source.parent / target.split("?", 1)[0]).resolve()
+                  if not path.exists():
+                      errors.append(f"{source}: missing local target {target}")
+          if errors:
+              print("\n".join(errors))
+              raise SystemExit(f"FAIL: {len(errors)} broken local Markdown link(s)")
+          print("PASS: local Markdown links resolve")
+          PY
+      - name: Verify model track index coverage
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          index = Path("MODELS-INDEX.md").read_text(encoding="utf-8")
+          targets = re.findall(r'\]\((models/[^)]+/README\.md)\)', index)
+          missing = [target for target in targets if not Path(target).is_file()]
+          if missing:
+              print("\n".join(missing))
+              raise SystemExit(f"FAIL: {len(missing)} indexed model track(s) lack README.md")
+          if not targets:
+              raise SystemExit("FAIL: no model tracks found in MODELS-INDEX.md")
+          print(f"PASS: {len(targets)} indexed model tracks have README.md")
+          PY
