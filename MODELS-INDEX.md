@@ -36,6 +36,18 @@ Chaque dossier doit progressivement contenir le code du modèle, le pipeline d'e
 
 - [`models/u/`](models/u/README.md) — **U (ulanguage.org)** : prototype numérique et entraînement miniature; vérifier la chaîne U → C et conserver le modèle source en U.
 
+## Langages supplémentaires retenus
+
+- [`models/julia/`](models/julia/README.md) — **Julia** : Tenseurs, différentiation automatique, entraînement et inférence; excellent candidat pour prototyper le modèle lui-même.
+- [`models/mojo/`](models/mojo/README.md) — **Mojo** : Modèle et noyaux numériques CPU/GPU; langage conçu pour l’infrastructure IA.
+- [`models/chapel/`](models/chapel/README.md) — **Chapel** : Calcul parallèle, entraînement expérimental et opérations distribuées.
+- [`models/r/`](models/r/README.md) — **R** : Modèles statistiques, prototypes d’apprentissage, évaluation et analyses de données.
+- [`models/apl/`](models/apl/README.md) — **APL** : Opérations sur tableaux et prototype de petit modèle entraînable.
+- [`models/j/`](models/j/README.md) — **J** : Calcul sur tableaux, prototype numérique et expérimentation concise.
+- [`models/k/`](models/k/README.md) — **K** : Calcul compact sur tableaux et données; prototype expérimental.
+- [`models/q/`](models/q/README.md) — **q** : Calcul tabulaire et séries temporelles; modèle miniature sur données numériques.
+- [`models/lua/`](models/lua/README.md) — **Lua** : Modèle léger, moteur d’inférence embarqué ou orchestration; possibilité d’implémenter un petit modèle natif.
+
 ## Contrat
 - [ ] Code source du modèle dans le langage du dossier.
 - [ ] Tests numériques et entraînement reproductible.
