@@ -76,6 +76,13 @@ jobs:
         shell: bash
         run: |
           python -c "import re; from pathlib import Path; files=[Path(p) for p in ['README.md','LANGUAGE-CATALOG.md','MODELS-INDEX.md','MODEL-SPEC.md']]; pat=re.compile(r'(?<!!)\[[^\]]*\]\(([^)]+)\)'); bad=[]; [(bad.append(f'{f}: {t}') if t and not re.match(r'^[a-zA-Z][a-zA-Z0-9+.-]*:',t) and not t.startswith('#') and not (f.parent/t.split('#',1)[0].split('?',1)[0]).exists() else None) for f in files for t in pat.findall(f.read_text(encoding='utf-8'))]; print('broken links:',bad); raise SystemExit(bool(bad))"
+      - name: Run universal-model test suite on this OS/Python pair
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest -q
       - name: Record platform proof
         shell: bash
-        run: python -c "import os,platform,sys; print('RUNNER=',os.getenv('RUNNER_NAME')); print('OS=',platform.platform()); print('ARCH=',platform.machine()); print('Python=',sys.version); print('STATUS=PASS for repository integrity only')"
+        run: python -c "import os,platform,sys; print('RUNNER=',os.getenv('RUNNER_NAME')); print('OS=',platform.platform()); print('ARCH=',platform.machine()); print('Python=',sys.version); print('STATUS=PASS for repository integrity and tests only')"
