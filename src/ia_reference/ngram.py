@@ -38,7 +38,7 @@ def _sha256(data: bytes) -> str:
 
 def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
     """Fit a smoothed bigram model from text without network access or dependencies."""
-    if not math.isfinite(alpha) or alpha <= 0:
+    if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
         raise ValueError("alpha must be a finite number greater than zero")
     tokens = tokenize(text)
     if not tokens:
