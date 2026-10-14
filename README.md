@@ -2,16 +2,16 @@
 
 ## Objectif exact
 
-Ce dépôt sert à **fabriquer les modèles IA eux-mêmes** en utilisant les mêmes langages et identifiants que `ejjjkkjlkkj/accessibility`. Il ne doit pas être réduit à un agent qui appelle un modèle existant, à des adaptateurs de compilateurs, ni à des profils par langage au-dessus d'un unique modèle tiers.
+Ce dépôt vise à construire **un modèle IA universel partagé** pour les langues naturelles et les langages de programmation, avec un contrat mathématique et un format de poids communs, puis à l'implémenter/porter dans les langages du catalogue synchronisé avec `ejjjkkjlkkj/accessibility`. Il ne doit pas être réduit à un agent qui appelle un modèle existant ni à des profils par langage au-dessus d'un modèle tiers.
 
-Pour chaque langage du catalogue, le travail vise à implémenter, selon les capacités réelles du langage :
+Pour chaque langage du catalogue, le travail vise à contribuer au **même modèle universel** via un port de référence, des kernels, des outils d'entraînement/inférence ou un runtime explicitement documenté :
 1. les composants du modèle (tenseurs, opérations, couches, attention, embeddings, perte, rétropropagation et optimiseur) ;
 2. le pipeline d'entraînement et de validation ;
 3. l'import/export des poids et le format de checkpoint ;
 4. l'inférence locale et les tests reproductibles ;
 5. une spécialisation pour les tâches de code, dont le langage ciblé, si les données, les ressources et les benchmarks le justifient.
 
-Les langages peuvent partager une **spécification mathématique et un format de poids interopérable**, mais chaque piste doit contenir du code qui construit, entraîne ou exécute réellement le modèle dans ce langage. Le partage d'un fichier de poids ne prouve pas qu'un modèle a été entraîné dans ce langage.
+Les langages partagent une **spécification mathématique, un tokenizer versionné et un format de poids interopérable**. Chaque piste doit préciser ce qu'elle implémente réellement; les dossiers ne signifient pas qu'un modèle indépendant doit être entraîné pour chaque langage. Le partage d'un checkpoint prouve l'interopérabilité seulement si le chargement et les résultats sont testés.
 
 ## Règles de vérité
 
@@ -68,8 +68,8 @@ Les assembleurs x86-64, AArch64 et RISC-V sont des pistes de noyaux numériques 
 Exécuter les tests et le code généré dans un environnement isolé avec limites de ressources. Exiger une approbation avant toute opération destructive, publication, fusion ou modification de firmware/NVRAM. Un test d'émulateur ne prouve pas le fonctionnement sur matériel physique.
 
 
-## Modèles IA indépendants par langage
+## Modèle universel partagé
 
-Chaque langage possède son propre dossier de piste dans `models/`. L'objectif est de construire le modèle dans le langage correspondant, avec son code, son entraînement, ses poids, son inférence et ses preuves. Ce sont des pistes initialisées, pas 28 modèles déjà terminés.
+L'objectif est **un modèle commun**, pas une collection obligatoire de modèles séparés. `models/<id>/` décrit les ports, kernels, runtimes, benchmarks et limites par langage. Une spécialisation ou un expert ne sera ajouté que si des mesures montrent un gain réel. La première implémentation exécutable byte-level est documentée dans [UNIVERSAL-MODEL-ARCHITECTURE.md](UNIVERSAL-MODEL-ARCHITECTURE.md); elle accepte l'UTF-8 de langues et de code, mais reste une baseline statistique et ne prouve pas encore une compréhension universelle.
 
-Voir [MODELS-INDEX.md](MODELS-INDEX.md) pour la liste complète, y compris C, Rust, Go, D et Scratch.
+Voir [MODELS-INDEX.md](MODELS-INDEX.md) pour la cartographie des pistes d'implémentation.
