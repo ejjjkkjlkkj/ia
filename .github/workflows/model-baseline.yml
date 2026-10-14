@@ -44,11 +44,23 @@ jobs:
           PYTHONPATH: src
         run: python -m unittest discover -s tests -v
       - name: CLI train / checkpoint / inference smoke test
-        shell: bash
+        shell: python {0}
         run: |
-          set -euo pipefail
-          printf 'the screen reader reads text the screen reader speaks text\n' > "$RUNNER_TEMP/train.txt"
-          printf 'the screen reader reads text\n' > "$RUNNER_TEMP/eval.txt"
-          PYTHONPATH=src python -m ia_reference.ngram train "$RUNNER_TEMP/train.txt" "$RUNNER_TEMP/model.json"
-          PYTHONPATH=src python -m ia_reference.ngram evaluate "$RUNNER_TEMP/model.json" "$RUNNER_TEMP/eval.txt"
-          PYTHONPATH=src python -m ia_reference.ngram generate "$RUNNER_TEMP/model.json" --prompt "the screen reader" --max-tokens 5
+          import os
+          import subprocess
+          import sys
+          import tempfile
+          from pathlib import Path
+
+          env = os.environ.copy()
+          env["PYTHONPATH"] = str(Path("src").resolve())
+          with tempfile.TemporaryDirectory() as directory:
+              root = Path(directory)
+              train = root / "train.txt"
+              heldout = root / "heldout.txt"
+              checkpoint = root / "model.json"
+              train.write_text("the screen reader reads text the screen reader speaks text\n", encoding="utf-8")
+              heldout.write_text("the screen reader reads text\n", encoding="utf-8")
+              subprocess.run([sys.executable, "-m", "ia_reference.ngram", "train", str(train), str(checkpoint)], env=env, check=True)
+              subprocess.run([sys.executable, "-m", "ia_reference.ngram", "evaluate", str(checkpoint), str(heldout)], env=env, check=True)
+              subprocess.run([sys.executable, "-m", "ia_reference.ngram", "generate", str(checkpoint), "--prompt", "the screen reader", "--max-tokens", "5"], env=env, check=True)
