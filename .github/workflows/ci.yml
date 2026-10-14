@@ -38,7 +38,7 @@ jobs:
           done
 
       - name: Validate model-track READMEs
-        shell: python
+        shell: python {0}
         run: |
           import pathlib, sys
           root = pathlib.Path("models")
@@ -59,7 +59,7 @@ jobs:
           print("PASS: every discovered track has a non-empty README")
 
       - name: Check Markdown relative links
-        shell: python
+        shell: python {0}
         run: |
           import pathlib, re, sys
           root = pathlib.Path(".")
