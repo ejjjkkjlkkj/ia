@@ -66,3 +66,10 @@ Les assembleurs x86-64, AArch64 et RISC-V sont des pistes de noyaux numériques 
 ## Sécurité et reproductibilité
 
 Exécuter les tests et le code généré dans un environnement isolé avec limites de ressources. Exiger une approbation avant toute opération destructive, publication, fusion ou modification de firmware/NVRAM. Un test d'émulateur ne prouve pas le fonctionnement sur matériel physique.
+
+
+## Modèles IA indépendants par langage
+
+Chaque langage possède son propre dossier de piste dans `models/`. L'objectif est de construire le modèle dans le langage correspondant, avec son code, son entraînement, ses poids, son inférence et ses preuves. Ce sont des pistes initialisées, pas 28 modèles déjà terminés.
+
+Voir [MODELS-INDEX.md](MODELS-INDEX.md) pour la liste complète, y compris C, Rust, Go, D et Scratch.
