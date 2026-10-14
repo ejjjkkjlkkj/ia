@@ -88,8 +88,8 @@ class Parser:
         if token.value == "let":
             self.i += 1
             name = self.current()
-            if name.kind != "IDENT":
-                raise NEXORASyntaxError(f"expected identifier at offset {name.offset}")
+            if name.kind != "IDENT" or name.value in {"let", "print", "true", "false"}:
+                raise NEXORASyntaxError(f"expected non-reserved identifier at offset {name.offset}")
             self.i += 1
             self.require("=")
             return Node("let", name.value, (self.expression(),))
