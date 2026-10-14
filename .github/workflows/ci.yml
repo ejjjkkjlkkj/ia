@@ -1,0 +1,106 @@
+name: IA Models and Language Catalogue CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ia-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  catalogue-and-docs:
+    name: Validate catalogue and model-track scaffolding
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify required project documents
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in README.md LANGUAGE-CATALOG.md MODEL-SPEC.md TRAINING-ROADMAP.md MODELS-INDEX.md; do
+            test -s "$f" || { echo "FAIL: missing or empty $f"; exit 1; }
+            echo "PASS: $f"
+          done
+
+      - name: Validate model-track READMEs
+        shell: python
+        run: |
+          import pathlib, sys
+          root = pathlib.Path("models")
+          if not root.is_dir():
+              print("FAIL: models/ directory missing")
+              sys.exit(1)
+          tracks = sorted(p for p in root.iterdir() if p.is_dir())
+          missing = [str(p / "README.md") for p in tracks if not (p / "README.md").is_file() or not (p / "README.md").stat().st_size]
+          print(f"Discovered model tracks: {len(tracks)}")
+          for track in tracks:
+              print(("FAIL: " if track / "README.md" in missing else "PASS: ") + str(track))
+          if missing:
+              print("Missing track README files:", *missing, sep="\n")
+              sys.exit(1)
+          if not tracks:
+              print("FAIL: no model tracks found")
+              sys.exit(1)
+          print("PASS: every discovered track has a non-empty README")
+
+      - name: Check Markdown relative links
+        shell: python
+        run: |
+          import pathlib, re, sys
+          root = pathlib.Path(".")
+          failures = []
+          for path in root.rglob("*.md"):
+              if ".git" in path.parts or ".github" in path.parts:
+                  continue
+              text = path.read_text(encoding="utf-8", errors="replace")
+              for target in re.findall(r"!?(?:\[[^\]]*\])\(([^)]+)\)", text):
+                  target = target.strip().split()[0].strip("<>")
+                  if not target or target.startswith(("http://", "https://", "mailto:", "#", "data:")):
+                      continue
+                  target = target.split("#", 1)[0].split("?", 1)[0]
+                  if target and not (path.parent / target).resolve().exists():
+                      failures.append(f"{path}: broken relative link: {target}")
+          if failures:
+              print("\n".join(failures))
+              sys.exit(1)
+          print("PASS: Markdown relative links")
+
+      - name: Compile-check Python files when present
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find . -path './.git' -prune -o -name '*.py' -print -quit | grep -q .; then
+            python -m compileall -q .
+            echo "PASS: Python syntax compilation"
+          else
+            echo "PARTIAL: no Python implementation files found"
+          fi
+
+      - name: Run existing tests when available
+        shell: bash
+        run: |
+          set -euo pipefail
+          if find . -path './.git' -prune -o \( -name 'test_*.py' -o -name '*_test.py' \) -print -quit | grep -q .; then
+            python -m pip install pytest
+            python -m pytest -q
+          else
+            echo "PARTIAL: no Python tests discovered; model training and inference are not claimed"
+          fi
+
+      - name: Whitespace check
+        run: git diff --check
