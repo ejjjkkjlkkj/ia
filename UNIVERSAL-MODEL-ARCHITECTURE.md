@@ -22,7 +22,7 @@ Construire un modèle commun capable de traiter les langues naturelles et les la
 
 `src/ia_reference/universal.py` est un modèle statistique bigramme sur octets UTF-8, entraînable localement sans dépendance tierce. Il peut accepter des corpus mixtes, écrire/recharger un checkpoint avec SHA-256, générer et mesurer la perplexité sur un corpus séparé. Il **n'est pas un Transformer**, ne comprend pas les langages et ne valide pas encore un modèle universel de qualité.
 
-La baseline `src/ia_reference/ngram.py` reste conservée comme référence mot/bigramme; elle ne représente pas le modèle cible.
+La baseline `src/ia_reference/ngram.py` reste une référence mot/bigramme versionnée en schéma 2. Elle inclut un token `UNK` explicite pour les tokens hors vocabulaire, des probabilités lissées normalisées, une validation structurelle stricte du checkpoint et une écriture atomique avec SHA-256. Elle ne représente pas le modèle cible et les anciens checkpoints de schéma 1 sont rejetés explicitement.
 
 ## Portes de validation
 
