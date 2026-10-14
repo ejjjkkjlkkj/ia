@@ -30,6 +30,10 @@ class NEXORALanguageTests(unittest.TestCase):
     def test_float_results_can_be_used_in_arithmetic(self):
         self.assertEqual(run("print((5 / 2) + 1);"), [3.5])
 
+    def test_reserved_words_cannot_be_binding_names(self):
+        with self.assertRaisesRegex(NEXORASyntaxError, "non-reserved identifier"):
+            run("let print = 1;")
+
     def test_oversized_source_is_rejected(self):
         with self.assertRaisesRegex(NEXORASyntaxError, "source byte limit"):
             tokenize(" " * 1_000_001)
