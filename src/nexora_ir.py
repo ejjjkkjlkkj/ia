@@ -98,13 +98,10 @@ def decode_ir(data: str) -> dict[str, Any]:
     return _validate_node(envelope["ast"], 0, [MAX_NODES])
 
 
-def execute_ir(data: str) -> list[Any]:
-    """Execute validated IR using the same deliberately small semantics as NEXORA.
 
-    No Python eval/exec, imports, filesystem, process, or network access are used.
-    The IR is fully validated before execution; execution also has a statement
-    budget so an oversized program cannot run indefinitely.
-    """
+def execute_ir(data: str) -> list[Any]:
+    """Execute validated IR without Python eval/exec or external side effects."""
+    import math
     from nexora_language import NEXORARuntimeError
 
     ast = decode_ir(data)
@@ -120,6 +117,9 @@ def execute_ir(data: str) -> list[Any]:
         if steps[0] < 0:
             raise NEXORAIRError("IR execution step limit exceeded")
 
+    def numeric(value: Any) -> bool:
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+
     def evaluate(node: dict[str, Any]) -> Any:
         step()
         kind, value, children = node["kind"], node["value"], node["children"]
@@ -131,39 +131,43 @@ def execute_ir(data: str) -> list[Any]:
             return environment[value]
         if kind == "unary":
             operand = evaluate(children[0])
-            if not isinstance(operand, int) or isinstance(operand, bool):
-                raise NEXORARuntimeError("unary '-' requires an integer")
-            return -operand
-        if kind == "binary":
+            if not numeric(operand):
+                raise NEXORARuntimeError("unary '-' requires a number")
+            result = -operand
+        elif kind == "binary":
             left, right = evaluate(children[0]), evaluate(children[1])
             if value == "+" and isinstance(left, str) and isinstance(right, str):
                 result = left + right
                 if len(result.encode("utf-8")) > MAX_IR_BYTES:
                     raise NEXORARuntimeError("string result exceeds IR safety limit")
                 return result
-            if (not isinstance(left, int) or isinstance(left, bool)
-                    or not isinstance(right, int) or isinstance(right, bool)):
-                raise NEXORARuntimeError(f"operator {value} requires integer operands")
+            if not numeric(left) or not numeric(right):
+                raise NEXORARuntimeError(f"operator {value} requires numeric operands")
             if value == "+": result = left + right
             elif value == "-": result = left - right
             elif value == "*": result = left * right
             elif value == "/":
                 if right == 0:
                     raise NEXORARuntimeError("division by zero")
-                return left / right
+                result = left / right
             else:
                 raise NEXORAIRError("unsupported validated operator")
-            if result.bit_length() > 4096:
-                raise NEXORARuntimeError("integer result exceeds 4096-bit limit")
-            return result
-        raise NEXORAIRError(f"node {kind} is not an expression")
+        else:
+            raise NEXORAIRError(f"node {kind} is not an expression")
+
+        if isinstance(result, int) and result.bit_length() > 4096:
+            raise NEXORARuntimeError("integer result exceeds 4096-bit limit")
+        if isinstance(result, float) and not math.isfinite(result):
+            raise NEXORARuntimeError("numeric result is not finite")
+        return result
 
     for statement in ast["children"]:
         step()
         kind = statement["kind"]
         if kind == "let":
             name = statement["value"]
-            if not isinstance(name, str) or not __import__("re").fullmatch(r"[^\\W\\d]\\w*", name, __import__("re").UNICODE):
+            if (not isinstance(name, str) or not name.isidentifier()
+                    or name in {"let", "print", "true", "false"}):
                 raise NEXORAIRError("invalid variable identifier")
             if name in environment:
                 raise NEXORARuntimeError(f"variable already defined: {name}")
