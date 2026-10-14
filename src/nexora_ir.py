@@ -1,0 +1,98 @@
+"""Versioned, bounded JSON intermediate representation for the NEXORA prototype.
+
+This is a serialization contract for the current AST subset, not machine code.
+"""
+from __future__ import annotations
+
+import json
+from typing import Any
+
+IR_VERSION = 1
+MAX_IR_BYTES = 1_000_000
+MAX_NODES = 20_000
+MAX_DEPTH = 256
+
+class NEXORAIRError(ValueError):
+    """Raised when NEXORA IR is malformed or exceeds safety bounds."""
+
+def _node_to_object(node: Any, depth: int = 0, budget: list[int] | None = None) -> dict[str, Any]:
+    from nexora_language import Node
+    if budget is None:
+        budget = [MAX_NODES]
+    if depth > MAX_DEPTH:
+        raise NEXORAIRError("IR nesting limit exceeded")
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise NEXORAIRError("IR node limit exceeded")
+    if not isinstance(node, Node):
+        raise NEXORAIRError("expected NEXORA AST node")
+    return {
+        "kind": node.kind,
+        "value": node.value,
+        "children": [_node_to_object(child, depth + 1, budget) for child in node.children],
+    }
+
+def _validate_node(obj: Any, depth: int, budget: list[int]) -> dict[str, Any]:
+    if depth > MAX_DEPTH:
+        raise NEXORAIRError("IR nesting limit exceeded")
+    budget[0] -= 1
+    if budget[0] < 0:
+        raise NEXORAIRError("IR node limit exceeded")
+    if not isinstance(obj, dict) or set(obj) != {"kind", "value", "children"}:
+        raise NEXORAIRError("each IR node must contain exactly kind, value, children")
+    kind, value, children = obj["kind"], obj["value"], obj["children"]
+    if not isinstance(kind, str) or not isinstance(children, list):
+        raise NEXORAIRError("invalid IR node field types")
+    allowed = {
+        "program": (None, None), "let": ("str", 1), "print": (None, 1),
+        "expr": (None, 1), "number": ("number", 0), "string": ("str", 0),
+        "boolean": ("bool", 0), "identifier": ("str", 0),
+        "unary": ("unary_op", 1), "binary": ("binary_op", 2),
+    }
+    if kind not in allowed:
+        raise NEXORAIRError(f"unknown IR node kind: {kind}")
+    expected_value, expected_children = allowed[kind]
+    if expected_value == "str" and not isinstance(value, str):
+        raise NEXORAIRError(f"{kind} value must be a string")
+    if expected_value == "number" and (not isinstance(value, int) or isinstance(value, bool)):
+        raise NEXORAIRError("number value must be an integer")
+    if expected_value == "bool" and not isinstance(value, bool):
+        raise NEXORAIRError("boolean value must be a boolean")
+    if expected_value == "unary_op" and value != "-":
+        raise NEXORAIRError("unsupported unary operator")
+    if expected_value == "binary_op" and value not in {"+", "-", "*", "/"}:
+        raise NEXORAIRError("unsupported binary operator")
+    if expected_value is None and value is not None:
+        raise NEXORAIRError(f"{kind} node value must be null")
+    if expected_children is not None and len(children) != expected_children:
+        raise NEXORAIRError(f"{kind} node requires {expected_children} children")
+    if kind == "program" and value is not None:
+        raise NEXORAIRError("program value must be null")
+    return {"kind": kind, "value": value,
+            "children": [_validate_node(child, depth + 1, budget) for child in children]}
+
+def encode_ast(ast: Any) -> str:
+    """Serialize a parsed NEXORA AST to canonical, versioned JSON."""
+    obj = _node_to_object(ast)
+    validated = _validate_node(obj, 0, [MAX_NODES])
+    envelope = {"format": "nexora-ir", "version": IR_VERSION, "ast": validated}
+    data = json.dumps(envelope, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    if len(data.encode("utf-8")) > MAX_IR_BYTES:
+        raise NEXORAIRError("IR byte limit exceeded")
+    return data
+
+def decode_ir(data: str) -> dict[str, Any]:
+    """Validate a versioned IR document and return its AST object."""
+    if not isinstance(data, str):
+        raise NEXORAIRError("IR input must be text")
+    if len(data.encode("utf-8")) > MAX_IR_BYTES:
+        raise NEXORAIRError("IR byte limit exceeded")
+    try:
+        envelope = json.loads(data)
+    except (json.JSONDecodeError, UnicodeError) as exc:
+        raise NEXORAIRError("invalid IR JSON") from exc
+    if not isinstance(envelope, dict) or set(envelope) != {"format", "version", "ast"}:
+        raise NEXORAIRError("invalid IR envelope")
+    if envelope["format"] != "nexora-ir" or envelope["version"] != IR_VERSION:
+        raise NEXORAIRError("unsupported IR format or version")
+    return _validate_node(envelope["ast"], 0, [MAX_NODES])
