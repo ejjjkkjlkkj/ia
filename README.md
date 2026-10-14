@@ -13,6 +13,10 @@ Pour chaque langage du catalogue, le travail vise à contribuer au **même modè
 
 Les langages partagent une **spécification mathématique, un tokenizer versionné et un format de poids interopérable**. Chaque piste doit préciser ce qu'elle implémente réellement; les dossiers ne signifient pas qu'un modèle indépendant doit être entraîné pour chaque langage. Le partage d'un checkpoint prouve l'interopérabilité seulement si le chargement et les résultats sont testés.
 
+## Langage universel NEXORA
+
+Le dépôt contient aussi le prototype initial du langage **NEXORA**, distinct du langage existant U : [spécification NEXORA](NEXORA-LANGUAGE-SPEC.md), lexer/parseur/interpréteur de référence dans `src/nexora_language.py`, et tests dans `tests/test_nexora_language.py`. Le prototype gère un sous-ensemble syntaxique avec identifiants Unicode et arithmétique; il n'est pas encore un compilateur ni un langage prêt pour l'OS/UEFI. Les backends et la représentation intermédiaire seront ajoutés après stabilisation de la grammaire et des tests de conformité.
+
 ## Règles de vérité
 
 - Aucun modèle n'est déclaré entraîné tant que les poids produits, la configuration, les données, la commande, les journaux, le hash et les résultats sur un jeu de test tenu à l'écart ne sont pas disponibles.
