@@ -34,6 +34,8 @@ Chaque dossier doit progressivement contenir le code du modèle, le pipeline d'e
 - [`models/typescript/`](models/typescript/README.md) — **TypeScript** : Calcul numérique et entraînement testés à l'exécution.
 - [`models/scratch/`](models/scratch/README.md) — **Scratch** : Petit modèle pédagogique par blocs, données synthétiques et apprentissage démontrable; pas un LLM géant.
 
+- [`models/u/`](models/u/README.md) — **U (ulanguage.org)** : prototype numérique et entraînement miniature; vérifier la chaîne U → C et conserver le modèle source en U.
+
 ## Contrat
 - [ ] Code source du modèle dans le langage du dossier.
 - [ ] Tests numériques et entraînement reproductible.
