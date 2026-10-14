@@ -1,0 +1,5 @@
+# Exemple NEXORA — prototype interprété, pas un compilateur natif.
+let base = 6;
+let resultat = base * 7;
+print(resultat);
+print("NEXORA fonctionne");
