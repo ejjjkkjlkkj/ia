@@ -80,3 +80,7 @@ Voir [MODELS-INDEX.md](MODELS-INDEX.md) pour la cartographie des pistes d'implé
 
 
 NEXORA IR v1 contract: [NEXORA-IR-V1.md](NEXORA-IR-V1.md). The IR is a bounded JSON serialization of the prototype AST, not a native compiler backend.
+
+## Séparation obligatoire des pistes
+
+- [Implémentations indépendantes par langage et rôle distinct de NEXORA](docs/INDEPENDENT-LANGUAGE-IMPLEMENTATIONS-AND-NEXORA.md)
