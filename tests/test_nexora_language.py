@@ -30,6 +30,14 @@ class NEXORALanguageTests(unittest.TestCase):
     def test_float_results_can_be_used_in_arithmetic(self):
         self.assertEqual(run("print((5 / 2) + 1);"), [3.5])
 
+    def test_oversized_source_is_rejected(self):
+        with self.assertRaisesRegex(NEXORASyntaxError, "source byte limit"):
+            tokenize(" " * 1_000_001)
+
+    def test_oversized_integer_literal_is_rejected(self):
+        with self.assertRaisesRegex(NEXORASyntaxError, "4096-bit limit"):
+            run("print(" + "9" * 1235 + ");")
+
     def test_unknown_character_fails(self):
         with self.assertRaises(NEXORASyntaxError):
             tokenize("print(1); @")
