@@ -39,6 +39,9 @@ class NEXORAIRTests(unittest.TestCase):
         source = 'let total = 2 + 3 * 4; print(total); print("bonjour " + "monde");'
         self.assertEqual(execute_ir(encode_ast(parse(source))), [14, "bonjour monde"])
 
+    def test_execute_ir_preserves_float_arithmetic_semantics(self):
+        self.assertEqual(execute_ir(encode_ast(parse("print((5 / 2) + 1);"))), [3.5])
+
     def test_execute_ir_rejects_undefined_identifier(self):
         with self.assertRaisesRegex(ValueError, "undefined variable"):
             execute_ir(encode_ast(parse("print(absent);")))
