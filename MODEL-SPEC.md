@@ -1,6 +1,6 @@
 # Spécification de référence — modèle IA entraînable
 
-Statut initial : SPECIFIED / IMPLEMENTATION NOT VALIDATED. Ce document définit un premier modèle de recherche compact destiné à prouver le pipeline d'entraînement dans chaque langage. Il ne prétend pas qu'un modèle a déjà été entraîné.
+Statut initial : SPECIFIED / IMPLEMENTATION NOT VALIDATED. Ce document définit le contrat d'un modèle universel partagé compact et les exigences pour ses ports. Il ne prétend pas qu'un Transformer universel a déjà été entraîné. Voir UNIVERSAL-MODEL-ARCHITECTURE.md pour l'architecture globale et la baseline réellement disponible.
 
 ## Première cible
 
@@ -19,7 +19,7 @@ Un petit modèle de langage causal de type Transformer, entraînable sur CPU ave
 
 ## Formats et interopérabilité
 
-Chaque checkpoint contient : version de schéma, configuration du modèle, vocabulaire/tokenizer versionné, noms et formes des tenseurs, type numérique, poids, étape d'entraînement et hash. Le chargement rejette les formes incorrectes, versions inconnues et fichiers tronqués. Les implémentations doivent passer les mêmes vecteurs de test avec des tolérances documentées.
+Chaque checkpoint contient : version de schéma, configuration du modèle, vocabulaire/tokenizer versionné, noms et formes des tenseurs, type numérique, poids, étape d'entraînement et hash. Le chargement rejette les formes incorrectes, versions inconnues et fichiers tronqués. Les implémentations doivent passer les mêmes vecteurs de test avec des tolérances documentées et charger le même format de checkpoint universel. Des checkpoints propres à un port sont des artefacts de test, pas des modèles séparés par défaut.
 
 ## Jeux de données et séparation
 
@@ -37,7 +37,7 @@ Commencer avec un jeu synthétique versionné, généré de façon déterministe
 
 ## Implémentations par langage
 
-Le contrat mathématique est commun, mais chaque piste doit implémenter ses propres composants dans le langage déclaré. Des bibliothèques peuvent servir d'accélérateurs ou de dépendances explicites; une simple invocation d'un modèle préentraîné externe ne satisfait pas le test. Les noyaux assembleur doivent être comparés à une référence sûre et ne peuvent remplacer à eux seuls le pipeline complet.
+Le contrat mathématique et le modèle visé sont communs; chaque piste implémente ou optimise des composants dans le langage déclaré et doit prouver l'interopérabilité avec le checkpoint partagé. Des bibliothèques peuvent servir d'accélérateurs ou de dépendances explicites; une simple invocation d'un modèle préentraîné externe ne satisfait pas le test. Les noyaux assembleur doivent être comparés à une référence sûre et ne peuvent remplacer à eux seuls le pipeline complet.
 
 ## Non-objectifs de la première preuve
 
