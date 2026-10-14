@@ -68,6 +68,8 @@ def _validate_node(obj: Any, depth: int, budget: list[int]) -> dict[str, Any]:
         raise NEXORAIRError(f"{kind} node requires {expected_children} children")
     if kind == "program" and value is not None:
         raise NEXORAIRError("program value must be null")
+    if kind == "let" and (not value.isidentifier() or value in {"let", "print", "true", "false"}):
+        raise NEXORAIRError("invalid variable identifier")
     return {"kind": kind, "value": value,
             "children": [_validate_node(child, depth + 1, budget) for child in children]}
 
