@@ -1,68 +1,79 @@
-# Shared language catalog for AI and accessibility
+# Catalogue commun de langages — construction de modèles IA
 
-Catalog version: 1. Stable IDs are the cross-repository contract. Keep IDs unchanged; add new languages only with compiler/toolchain evidence and a declared target scope.
+Version du catalogue : 2. Les IDs sont le contrat entre `ejjjkkjlkkj/ia` et `ejjjkkjlkkj/accessibility`.
 
-## Primary systems-language tracks
+**But de ce dépôt :** utiliser ces langages pour construire le modèle IA lui-même. Un simple adaptateur, une configuration d'agent ou l'appel à un modèle externe ne satisfait pas cet objectif.
 
-| ID | Language | AI engineering package | Screen reader / UEFI / OS target scope |
+## Pistes systèmes principales
+
+| ID | Langage | Piste de fabrication du modèle | Limite à vérifier |
 |---|---|---|---|
-| c | C | C parser/clang diagnostics, build/test runner, FFI analysis | Native reader; EFI/EDK2; freestanding kernel |
-| cpp | C++ | AST/toolchain support, ABI and template diagnostics | Native reader; EFI feasibility; freestanding kernel |
-| rust | Rust | rust-analyzer/cargo diagnostics, borrow-checker-aware fixes | Native reader; EFI target; no_std kernel |
-| zig | Zig | compiler diagnostics, build system, cross-target analysis | Native reader; EFI feasibility; freestanding kernel |
-| ada | Ada | GNAT diagnostics, contracts and runtime-profile checks | Native reader; EFI feasibility; kernel feasibility |
-| asm-x86_64 | x86-64 Assembly | assembler/disassembler, ABI and instruction tests | Support modules for EFI/kernel; not an independent full reader |
-| asm-aarch64 | AArch64 Assembly | assembler/disassembler and ABI tests | Architecture-specific EFI/kernel support |
-| asm-riscv64 | RISC-V Assembly | assembler/disassembler and ABI tests | Architecture-specific EFI/kernel support |
-| go | Go | gofmt, go test, go vet, compiler/runtime diagnostics | Native reader; EFI/kernel only after runtime/ABI proof |
-| d | D | DMD/LDC diagnostics, dub test and runtime audit | Native reader; EFI/kernel feasibility gates |
-| nim | Nim | Nim compiler, generated-C inspection, nimble/test | Native reader; EFI/kernel runtime gates |
-| swift | Swift | Swift compiler/package diagnostics and tests | Apple-native reader; EFI/kernel only with proven runtime |
-| pascal | Free Pascal / Object Pascal | FPC diagnostics, unit tests and ABI analysis | Native reader; EFI/kernel feasibility gates |
-| odin | Odin | compiler/build diagnostics and tests | Native reader; EFI/kernel feasibility gates |
-| fortran | Fortran | compiler diagnostics and numerical-library tests | Auxiliary/native reader components; EFI/kernel only with runtime proof |
-| csharp | C# | Roslyn diagnostics, dotnet test, analyzers | Hosted native reader; EFI/kernel blocked unless freestanding runtime is proven |
-| objc | Objective-C | Clang/Apple SDK diagnostics | Apple-native reader; generic EFI/kernel blocked unless runtime is proven |
+| c | C | tenseurs CPU, opérations numériques, entraînement minimal, inférence et noyaux optimisés | allocations, stabilité numérique, bibliothèques et parallélisme |
+| cpp | C++ | cœur tensoriel, autodiff, entraînement, kernels CPU/GPU et inférence | dépendances, ABI et reproductibilité |
+| rust | Rust | tenseurs sûrs, autodiff, pipeline d'entraînement, checkpoints et inférence | bibliothèques numériques, SIMD/GPU et mémoire |
+| zig | Zig | cœur numérique, allocations explicites, entraînement CPU et inférence | maturité des bibliothèques et accélérateurs |
+| ada | Ada | tenseurs et entraînement numérique typé, tests de précision | écosystème ML et performances |
+| asm-x86_64 | x86-64 Assembly | kernels bas niveau de tenseurs et opérations vectorisées utilisés par le cœur | composant d'optimisation, pas modèle complet autonome |
+| asm-aarch64 | AArch64 Assembly | kernels SIMD/NEON et primitives numériques | composant d'optimisation, pas modèle complet autonome |
+| asm-riscv64 | RISC-V Assembly | primitives numériques et extensions vectorielles lorsque disponibles | composant d'optimisation, dépend du matériel |
+| go | Go | tenseurs, pipeline d'entraînement CPU, sérialisation et inférence | maturité des bibliothèques numériques |
+| d | D | cœur numérique, entraînement CPU, gestion des données et inférence | dépendances/runtime et précision |
+| nim | Nim | implémentation du modèle, boucle d'entraînement et inférence, avec inspection du code généré | dépendances et reproductibilité |
+| swift | Swift | tenseurs, modèle et entraînement via outils/bibliothèques compatibles | portabilité hors plateformes prises en charge |
+| pascal | Free Pascal / Object Pascal | tenseurs CPU, modèle minimal, entraînement et checkpoints | bibliothèques numériques et performances |
+| odin | Odin | cœur numérique explicite, boucle d'entraînement et inférence | écosystème ML et accélération |
+| fortran | Fortran | kernels numériques, tenseurs et opérations d'entraînement | couches de modèle, données et écosystème |
+| csharp | C# | modèle, tenseurs, entraînement et inférence via implémentation .NET | runtime et dépendances nécessaires |
+| objc | Objective-C | implémentation et intégration du modèle sur les cibles prises en charge | dépendance éventuelle aux frameworks de plateforme |
 
-## Feasibility candidates
+## Candidats à prouver avant d'annoncer une piste complète
 
-| ID | Language | First required gate |
+| ID | Langage | Première preuve exigée |
 |---|---|---|
-| v | V | Reproducible compiler/runtime and target audit |
-| crystal | Crystal | LLVM/runtime/GC and freestanding feasibility |
-| modula2 | Modula-2 | Maintained compiler and target ABI proof |
-| cobol | COBOL | Compiler and concrete systems use case; no placeholder kernel |
-| pli | PL/I | Toolchain/target evidence and concrete use case |
+| v | V | opérations numériques, tests de précision et entraînement miniature |
+| crystal | Crystal | faisabilité runtime/GC, tenseurs et entraînement miniature |
+| modula2 | Modula-2 | compilateur maintenu, opérations numériques et checkpoint |
+| cobol | COBOL | cas concret et prototype numérique entraînable, sans piste fictive |
+| pli | PL/I | compilateur disponible, tenseurs et test d'entraînement reproductible |
 
-## Hosted/platform-specific candidates
+## Langages hébergés et spécifiques à une plateforme
 
-| ID | Language | Intended AI package | Target limitation |
+| ID | Langage | Piste de fabrication du modèle | Limite à vérifier |
 |---|---|---|---|
-| java | Java | javac/JVM tooling, language server, test harness | Hosted screen reader possible; UEFI/kernel not assumed |
-| kotlin | Kotlin | compiler/Gradle diagnostics and tests | Hosted screen reader possible; UEFI/kernel not assumed |
-| python | Python | AST/type/lint/test tooling and local agent integrations | Hosted tools/readers; not a freestanding kernel by default |
-| javascript | JavaScript | parser/linter/test/browser automation | Hosted/browser integrations; not a freestanding kernel by default |
-| typescript | TypeScript | type checker, AST and build/test integration | Hosted/browser integrations; not a freestanding kernel by default |
+| java | Java | tenseurs, entraînement, checkpoints et inférence dans l'écosystème JVM | coût du runtime et bibliothèques retenues |
+| kotlin | Kotlin | modèle et pipeline d'entraînement sur JVM, avec tests propres | dépendances et portabilité |
+| python | Python | référence expérimentale du modèle, entraînement, évaluation et outillage de corpus | runtime hébergé; ne pas le présenter comme freestanding |
+| javascript | JavaScript | modèle numérique et entraînement CPU/plateforme pris en charge | mémoire, performances et environnement |
+| typescript | TypeScript | modèle numérique, entraînement et tests avec sortie JavaScript vérifiée | types effacés à l'exécution; limites de runtime |
 
-## Per-language AI package contract
+## Contrat obligatoire de chaque piste
 
-Every ID gets a machine-readable registry entry with:
-- supported compiler/toolchain versions and exact commands;
-- file extensions, parser/AST and language server if available;
-- formatter, linter, type checker, compiler and test runner;
-- safe sandbox profile and resource limits;
-- retrieval/index strategy and code-corpus provenance;
-- shared-model adapter settings, if any;
-- language-specific evaluation tasks and held-out regression cases;
-- status, blockers, logs and artifact hashes.
+Chaque langage doit progressivement fournir :
+- une implémentation versionnée de tenseurs et d'opérations;
+- une implémentation du modèle causal minimal, pas seulement une liaison à un modèle externe;
+- une boucle d'entraînement capable de produire des poids;
+- la sauvegarde et le rechargement de checkpoints;
+- une commande d'inférence qui charge les poids réellement produits;
+- des tests numériques partagés et une comparaison de tolérance avec la référence;
+- un entraînement reproductible sur données synthétiques ou licenciées, avec séparation train/validation/test;
+- journaux, configuration, version de compilateur/runtime, empreinte des artefacts, mesures mémoire/temps et résultats;
+- un statut indépendant : `NOT_IMPLEMENTED`, `PARTIAL`, `BLOCKED`, `NOT_VALIDATED` ou `PASS`.
 
-Do not create a new foundation model per language merely by renaming the same weights. A model is considered language-specialized only when the actual adapter/weights, training or adaptation recipe, dataset license/provenance, benchmark and comparison to the shared baseline are recorded. Otherwise label it as a language-specific toolchain/agent profile over the shared local model.
+## Règles de preuve
 
-## Synchronization rule
+- « Le code compile » ne signifie pas « le modèle a été entraîné ».
+- « L'entraînement démarre » ne signifie pas « il se termine ».
+- « Un checkpoint existe » ne prouve pas une qualité utile : l'évaluation sur des données tenues à l'écart est obligatoire.
+- Le partage d'un format de poids est permis; prétendre que des poids externes sont un modèle fabriqué ici ne l'est pas.
+- Les pistes assembleur fournissent des noyaux bas niveau mesurables et ne sont pas présentées comme des applications complètes indépendantes.
+- Les bibliothèques et runtimes peuvent être utilisés et déclarés; le cœur du modèle et son pipeline doivent rester inspectables et testés dans la piste du langage.
+- Données, licences, ressources de calcul et limites de chaque langage doivent être documentées.
 
-The canonical engineering plan is in `ejjjkkjlkkj/accessibility`:
+## Synchronisation
+
+La liste canonique de l'accessibilité se trouve dans `ejjjkkjlkkj/accessibility` :
 - `docs/LANGUAGE_CARTOGRAPHY_SCREENREADER_UEFI_OS.md`
 - `docs/EXECUTION_PLAN_ALL_LANGUAGE_RELEASE_GATES.md`
 - `projects/manifest.json`
 
-When either repository adds a language, update both catalogs in one change set or explicitly record the synchronization blocker. The accessibility project status is not evidence that an AI model exists, and vice versa.
+Toute modification du catalogue doit garder les IDs synchronisés entre les deux dépôts. Les statuts IA et accessibilité restent indépendants.
