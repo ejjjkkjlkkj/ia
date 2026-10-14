@@ -96,3 +96,82 @@ def decode_ir(data: str) -> dict[str, Any]:
     if envelope["format"] != "nexora-ir" or envelope["version"] != IR_VERSION:
         raise NEXORAIRError("unsupported IR format or version")
     return _validate_node(envelope["ast"], 0, [MAX_NODES])
+
+
+def execute_ir(data: str) -> list[Any]:
+    """Execute validated IR using the same deliberately small semantics as NEXORA.
+
+    No Python eval/exec, imports, filesystem, process, or network access are used.
+    The IR is fully validated before execution; execution also has a statement
+    budget so an oversized program cannot run indefinitely.
+    """
+    from nexora_language import NEXORARuntimeError
+
+    ast = decode_ir(data)
+    if ast["kind"] != "program":
+        raise NEXORAIRError("IR root must be a program")
+
+    environment: dict[str, Any] = {}
+    output: list[Any] = []
+    steps = [MAX_NODES]
+
+    def step() -> None:
+        steps[0] -= 1
+        if steps[0] < 0:
+            raise NEXORAIRError("IR execution step limit exceeded")
+
+    def evaluate(node: dict[str, Any]) -> Any:
+        step()
+        kind, value, children = node["kind"], node["value"], node["children"]
+        if kind in ("number", "string", "boolean"):
+            return value
+        if kind == "identifier":
+            if value not in environment:
+                raise NEXORARuntimeError(f"undefined variable: {value}")
+            return environment[value]
+        if kind == "unary":
+            operand = evaluate(children[0])
+            if not isinstance(operand, int) or isinstance(operand, bool):
+                raise NEXORARuntimeError("unary '-' requires an integer")
+            return -operand
+        if kind == "binary":
+            left, right = evaluate(children[0]), evaluate(children[1])
+            if value == "+" and isinstance(left, str) and isinstance(right, str):
+                result = left + right
+                if len(result.encode("utf-8")) > MAX_IR_BYTES:
+                    raise NEXORARuntimeError("string result exceeds IR safety limit")
+                return result
+            if (not isinstance(left, int) or isinstance(left, bool)
+                    or not isinstance(right, int) or isinstance(right, bool)):
+                raise NEXORARuntimeError(f"operator {value} requires integer operands")
+            if value == "+": result = left + right
+            elif value == "-": result = left - right
+            elif value == "*": result = left * right
+            elif value == "/":
+                if right == 0:
+                    raise NEXORARuntimeError("division by zero")
+                return left / right
+            else:
+                raise NEXORAIRError("unsupported validated operator")
+            if result.bit_length() > 4096:
+                raise NEXORARuntimeError("integer result exceeds 4096-bit limit")
+            return result
+        raise NEXORAIRError(f"node {kind} is not an expression")
+
+    for statement in ast["children"]:
+        step()
+        kind = statement["kind"]
+        if kind == "let":
+            name = statement["value"]
+            if not isinstance(name, str) or not __import__("re").fullmatch(r"[^\\W\\d]\\w*", name, __import__("re").UNICODE):
+                raise NEXORAIRError("invalid variable identifier")
+            if name in environment:
+                raise NEXORARuntimeError(f"variable already defined: {name}")
+            environment[name] = evaluate(statement["children"][0])
+        elif kind == "print":
+            output.append(evaluate(statement["children"][0]))
+        elif kind == "expr":
+            evaluate(statement["children"][0])
+        else:
+            raise NEXORAIRError(f"node {kind} is not a statement")
+    return output
