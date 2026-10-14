@@ -93,6 +93,8 @@ jobs:
 
       - name: Run existing tests when available
         shell: bash
+        env:
+          PYTHONPATH: src
         run: |
           set -euo pipefail
           if find . -path './.git' -prune -o \( -name 'test_*.py' -o -name '*_test.py' \) -print -quit | grep -q .; then
