@@ -23,6 +23,13 @@ class NEXORALanguageTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORARuntimeError, "division by zero"):
             run("print(4 / 0);")
 
+    def test_boolean_is_not_an_integer(self):
+        with self.assertRaisesRegex(NEXORARuntimeError, "numeric operands"):
+            run("print(true + 1);")
+
+    def test_float_results_can_be_used_in_arithmetic(self):
+        self.assertEqual(run("print((5 / 2) + 1);"), [3.5])
+
     def test_unknown_character_fails(self):
         with self.assertRaises(NEXORASyntaxError):
             tokenize("print(1); @")
