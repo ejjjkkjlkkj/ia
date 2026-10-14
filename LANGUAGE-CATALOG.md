@@ -77,3 +77,12 @@ La liste canonique de l'accessibilité se trouve dans `ejjjkkjlkkj/accessibility
 - `projects/manifest.json`
 
 Toute modification du catalogue doit garder les IDs synchronisés entre les deux dépôts. Les statuts IA et accessibilité restent indépendants.
+
+
+## Piste supplémentaire : Scratch
+
+| ID | Langage | Piste de fabrication du modèle | Limite à vérifier |
+|---|---|---|---|
+| scratch | Scratch | Petit modèle pédagogique construit par blocs, avec poids explicites et apprentissage démontrable | Ne pas prétendre qu'un projet Scratch entraîne un grand modèle de langage; documenter taille, opérations et limites |
+
+Les dossiers d'implémentation individuels se trouvent dans `models/<id>/`. Voir [MODELS-INDEX.md](MODELS-INDEX.md). Chaque dossier commence en `NOT_IMPLEMENTED` tant qu'aucune implémentation et aucun entraînement ne sont prouvés.
