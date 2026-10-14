@@ -9,6 +9,9 @@ on:
       - "MODELS-INDEX.md"
       - "MODEL-SPEC.md"
       - "models/**"
+      - "src/**"
+      - "tests/**"
+      - "UNIVERSAL-MODEL-ARCHITECTURE.md"
       - ".github/workflows/multi-os-validation.yml"
   pull_request:
     paths:
