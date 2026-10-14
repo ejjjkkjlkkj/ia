@@ -1,21 +1,29 @@
 # Modèle IA — Python
 
-**Statut initial : NOT_IMPLEMENTED.** Cette piste indépendante vise à construire un modèle dans Python; aucun modèle entraîné n'est livré par ce fichier.
+**Statut : PARTIAL.** Une baseline statistique bigramme exécutable existe dans `src/ia_reference/ngram.py`. Elle est entraînable depuis un corpus UTF-8, génère du texte de façon déterministe, évalue un fichier distinct et écrit/recharge un checkpoint JSON avec vérification SHA-256.
 
-## Objectif
-Implémentation expérimentale de référence, entraînement et évaluation.
+Cette baseline n'est **ni un réseau neuronal ni un Transformer**. Elle valide une première chaîne d'exécution reproductible, mais ne satisfait pas les critères de `MODEL-SPEC.md`. La matrice CI Linux/Windows/macOS doit confirmer les tests avant que l'entraînement et l'inférence soient déclarés validés.
 
-## Travail requis
-1. Définir un modèle compatible avec les capacités et limites du langage.
-2. Implémenter les opérations numériques et les tests de référence.
-3. Construire un modèle entraînable et une boucle d'apprentissage reproductible.
-4. Entraîner sur des données synthétiques/licenciées avec séparation train/validation/test.
-5. Sauvegarder/recharger les poids et vérifier l'inférence.
-6. Enregistrer commandes, versions, journaux, hashes, temps, mémoire et résultats dans `STATUS.md`.
+## Exécuter
 
-Pour Scratch, documenter les limites de taille et démontrer l'apprentissage dans le projet par blocs; ne pas prétendre qu'il entraîne un grand modèle de langage. La compilation ou l'appel à un modèle externe ne suffit pas. Spécification : [../../MODEL-SPEC.md](../../MODEL-SPEC.md).
+Voir [la documentation de la baseline](../../docs/REFERENCE_MODEL_BASELINE.md).
 
-- Modèle implémenté : NOT_IMPLEMENTED
-- Entraînement exécuté : NOT_VALIDATED
-- Checkpoint : NOT_IMPLEMENTED
-- Inférence : NOT_VALIDATED
+Depuis la racine du dépôt :
+
+```bash
+PYTHONPATH=src python -m ia_reference.ngram train corpus.txt model.json
+PYTHONPATH=src python -m ia_reference.ngram evaluate model.json heldout.txt
+PYTHONPATH=src python -m ia_reference.ngram generate model.json --prompt "the screen reader" --max-tokens 20
+PYTHONPATH=src python -m unittest discover -s tests -v
+```
+
+Le modèle est construit à partir du texte fourni. Aucun modèle préentraîné, service cloud, clé API ou dépendance tierce n'est requis.
+
+## Statut par capacité
+
+- Baseline statistique implémentée : PARTIAL
+- Réseau neuronal / Transformer : NOT_IMPLEMENTED
+- Entraînement de la baseline exécuté et validé par CI : NOT_VALIDATED
+- Checkpoint avec vérification d'intégrité : IMPLEMENTED, tests CI en attente
+- Inférence de la baseline : IMPLEMENTED, tests CI en attente
+- Modèle de production / spécialisation code : NOT_IMPLEMENTED
