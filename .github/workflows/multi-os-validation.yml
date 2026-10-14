@@ -1,0 +1,44 @@
+name: Multi-OS IA validation
+
+on:
+  push:
+    branches: [main, "**"]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ia-multi-os-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-integrity:
+    name: Integrity / ${{ matrix.os }} / Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Check required specification files
+        run: |
+          python -c "from pathlib import Path; required=['README.md','LANGUAGE-CATALOG.md','MODELS-INDEX.md','MODEL-SPEC.md']; missing=[p for p in required if not Path(p).is_file()]; print('missing:', missing); raise SystemExit(bool(missing))"
+      - name: Check indexed model tracks
+        run: |
+          python -c "import re; from pathlib import Path; s=Path('MODELS-INDEX.md').read_text(encoding='utf-8'); paths=re.findall(r'\]\((models/[^)]+/README\.md)\)',s); missing=[p for p in paths if not Path(p).is_file()]; print(f'indexed={len(paths)} missing={missing}'); raise SystemExit(not paths or bool(missing))"
+      - name: Validate core Markdown links
+        run: |
+          python -c "import re; from pathlib import Path; files=[Path(p) for p in ['README.md','LANGUAGE-CATALOG.md','MODELS-INDEX.md','MODEL-SPEC.md']]; pat=re.compile(r'(?<!!)\[[^\]]*\]\(([^)]+)\)'); bad=[]; [(bad.append(f'{f}: {t}') if t and not re.match(r'^[a-zA-Z][a-zA-Z0-9+.-]*:',t) and not t.startswith('#') and not (f.parent/t.split('#',1)[0].split('?',1)[0]).exists() else None) for f in files for t in pat.findall(f.read_text(encoding='utf-8'))]; print('broken links:',bad); raise SystemExit(bool(bad))"
+      - name: Record platform proof
+        run: python -c "import os,platform,sys; print('OS=',platform.platform()); print('Python=',sys.version); print('RUNNER_OS=',os.getenv('RUNNER_OS')); print('STATUS=PASS for repository integrity only')"
