@@ -35,15 +35,19 @@ jobs:
     timeout-minutes: 10
     strategy:
       fail-fast: false
-      max-parallel: 15
+      max-parallel: 20
       matrix:
         include:
           - runner: ubuntu-x64
             os: ubuntu-latest
           - runner: ubuntu-arm64
             os: ubuntu-24.04-arm
+          - runner: ubuntu-26.04-x64
+            os: ubuntu-26.04
           - runner: windows-x64
             os: windows-latest
+          - runner: windows-arm64
+            os: windows-11-arm
           - runner: macos-arm64
             os: macos-latest
           - runner: macos-intel
