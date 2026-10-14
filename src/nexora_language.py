@@ -163,18 +163,29 @@ def run(source: str) -> list[Any]:
                 raise NEXORARuntimeError("unary '-' requires a number")
             return -value
         if node.kind == "binary":
+            import math
             left, right = (evaluate(child) for child in node.children)
-            try:
-                if node.value == "+": return left + right
-                if node.value == "-": return left - right
-                if node.value == "*": return left * right
-                if node.value == "/":
-                    if right == 0: raise NEXORARuntimeError("division by zero")
-                    if not isinstance(left, (int, float)) or not isinstance(right, (int, float)):
-                        raise NEXORARuntimeError("division requires numbers")
-                    return left / right
-            except TypeError as exc:
-                raise NEXORARuntimeError(f"incompatible operands for {node.value}") from exc
+            if node.value == "+" and isinstance(left, str) and isinstance(right, str):
+                result = left + right
+                if len(result.encode("utf-8")) > 1_000_000:
+                    raise NEXORARuntimeError("string result exceeds safety limit")
+                return result
+            numeric = lambda value: isinstance(value, (int, float)) and not isinstance(value, bool)
+            if not numeric(left) or not numeric(right):
+                raise NEXORARuntimeError(f"operator {node.value} requires numeric operands")
+            if node.value == "+": result = left + right
+            elif node.value == "-": result = left - right
+            elif node.value == "*": result = left * right
+            elif node.value == "/":
+                if right == 0: raise NEXORARuntimeError("division by zero")
+                result = left / right
+            else:
+                raise NEXORARuntimeError(f"unsupported operator: {node.value}")
+            if isinstance(result, int) and result.bit_length() > 4096:
+                raise NEXORARuntimeError("integer result exceeds 4096-bit limit")
+            if isinstance(result, float) and not math.isfinite(result):
+                raise NEXORARuntimeError("numeric result is not finite")
+            return result
         raise NEXORARuntimeError(f"unsupported node: {node.kind}")
 
     for statement in tree.children:
