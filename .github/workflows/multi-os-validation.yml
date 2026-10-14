@@ -19,6 +19,11 @@ on:
       - "LANGUAGE-CATALOG.md"
       - "MODELS-INDEX.md"
       - "MODEL-SPEC.md"
+      - "NEXORA-LANGUAGE-SPEC.md"
+      - "NEXORA-IR-V1.md"
+      - "UNIVERSAL-MODEL-ARCHITECTURE.md"
+      - "src/**"
+      - "tests/**"
       - "models/**"
       - ".github/workflows/multi-os-validation.yml"
   workflow_dispatch:
