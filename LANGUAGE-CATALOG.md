@@ -95,3 +95,20 @@ Les dossiers d'implémentation individuels se trouvent dans `models/<id>/`. Voir
 | u | U (ulanguage.org) | Prototype de calcul tensoriel, modèle miniature entraînable, checkpoints et inférence dans le langage U | Vérifier le compilateur/version, la syntaxe réellement supportée et la chaîne U → C avant toute déclaration de compilation; le code généré en C ne remplace pas les sources U du modèle |
 
 Référence de langage retenue : [spécification U](https://ulanguage.org/u_language). D'autres projets utilisent également le nom « U »; cette piste désigne explicitement le langage documenté par ulanguage.org.
+
+
+## Langages supplémentaires retenus après recherche
+
+| ID | Langage | Priorité | Piste proposée | Limite à vérifier |
+|---|---|---|---|---|
+| julia | Julia | Priorité élevée | Tenseurs, différentiation automatique, entraînement et inférence; excellent candidat pour prototyper le modèle lui-même. | Confirmer dépendances, reproductibilité des paquets et export des poids. |
+| mojo | Mojo | Priorité élevée | Modèle et noyaux numériques CPU/GPU; langage conçu pour l’infrastructure IA. | La prise en charge Windows native est limitée; validation possible sous WSL/Linux et selon matériel. |
+| chapel | Chapel | Priorité moyenne | Calcul parallèle, entraînement expérimental et opérations distribuées. | Écosystème IA moins mature; démontrer un modèle autonome plutôt qu’un pilote de bibliothèques. |
+| r | R | Priorité moyenne | Modèles statistiques, prototypes d’apprentissage, évaluation et analyses de données. | Moins adapté au cœur bas niveau/UEFI; documenter runtime et dépendances. |
+| apl | APL | Piste numérique expérimentale | Opérations sur tableaux et prototype de petit modèle entraînable. | Syntaxe et écosystème spécialisés; choisir un interpréteur précis et vérifier les performances. |
+| j | J | Piste numérique expérimentale | Calcul sur tableaux, prototype numérique et expérimentation concise. | Valider autodiff, gestion des poids et entraînement reproductible. |
+| k | K | Piste numérique expérimentale | Calcul compact sur tableaux et données; prototype expérimental. | Écosystème et accès aux outils peuvent être limités; préciser implémentation/licence. |
+| q | q | Piste spécialisée | Calcul tabulaire et séries temporelles; modèle miniature sur données numériques. | Écosystème associé à kdb+; vérifier licence, disponibilité et portabilité avant de s’engager. |
+| lua | Lua | Priorité moyenne | Modèle léger, moteur d’inférence embarqué ou orchestration; possibilité d’implémenter un petit modèle natif. | Écosystème moderne d’entraînement plus restreint; ne pas confondre intégration d’un moteur externe et modèle écrit en Lua. |
+
+Les priorités sont des choix de planification, pas des preuves de compilation ou d'entraînement. Les pistes APL/J/K/q sont exploratoires et ne doivent pas être annoncées comme modèles fonctionnels sans tests concrets.
