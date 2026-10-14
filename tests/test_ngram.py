@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ia_reference.ngram import evaluate_text, generate, load_checkpoint, save_checkpoint, train_text
+from ia_reference.ngram import UNK, evaluate_text, generate, load_checkpoint, next_token_probability, save_checkpoint, train_text
 
 
 class BigramBaselineTests(unittest.TestCase):
@@ -13,6 +13,22 @@ class BigramBaselineTests(unittest.TestCase):
         self.assertEqual(report["tokens"], 3)
         self.assertGreater(report["perplexity"], 0)
         self.assertEqual(generate(model, "bonjour", max_tokens=1), "bonjour monde")
+
+    def test_oov_tokens_map_to_unk_and_probabilities_normalize(self):
+        model = train_text("alpha beta alpha gamma")
+        self.assertIn(UNK, model["vocabulary"])
+        self.assertEqual(
+            next_token_probability(model, "alpha", "never-seen"),
+            next_token_probability(model, "alpha", UNK),
+        )
+        total = sum(next_token_probability(model, "alpha", token) for token in model["vocabulary"])
+        self.assertAlmostEqual(total, 1.0, places=12)
+        report = evaluate_text(model, "unseen-token")
+        self.assertGreater(report["perplexity"], 0)
+
+    def test_boolean_smoothing_parameter_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "alpha"):
+            train_text("alpha beta", alpha=True)
 
     def test_checkpoint_round_trip_and_hash(self):
         model = train_text("la voix lit le texte la voix lit")
