@@ -77,3 +77,6 @@ Exécuter les tests et le code généré dans un environnement isolé avec limit
 L'objectif est **un modèle commun**, pas une collection obligatoire de modèles séparés. `models/<id>/` décrit les ports, kernels, runtimes, benchmarks et limites par langage. Une spécialisation ou un expert ne sera ajouté que si des mesures montrent un gain réel. La première implémentation exécutable byte-level est documentée dans [UNIVERSAL-MODEL-ARCHITECTURE.md](UNIVERSAL-MODEL-ARCHITECTURE.md); elle accepte l'UTF-8 de langues et de code, mais reste une baseline statistique et ne prouve pas encore une compréhension universelle.
 
 Voir [MODELS-INDEX.md](MODELS-INDEX.md) pour la cartographie des pistes d'implémentation.
+
+
+NEXORA IR v1 contract: [NEXORA-IR-V1.md](NEXORA-IR-V1.md). The IR is a bounded JSON serialization of the prototype AST, not a native compiler backend.
