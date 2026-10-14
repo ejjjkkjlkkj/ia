@@ -1,8 +1,8 @@
 # Index des modèles IA par langage
 
-Objectif : un répertoire et une piste de modèle distincts par langage, et non un unique modèle externe enveloppé par des adaptateurs.
+Objectif : un modèle universel partagé, avec des pistes d'implémentation/portage, kernels et runtimes par langage. Les dossiers ne signifient pas qu'un modèle indépendant doit être entraîné pour chaque langage.
 
-Chaque dossier doit progressivement contenir le code du modèle, le pipeline d'entraînement, les tests, la sauvegarde/relecture des poids, l'inférence et les preuves. Les assembleurs fournissent des noyaux bas niveau pour un modèle hôte; Scratch vise un modèle pédagogique à petite échelle.
+Chaque dossier documente la contribution réelle de ce langage au contrat commun : port de référence, kernels, entraînement/inférence, interopérabilité, tests et limites. Le checkpoint universel reste partagé quand le runtime le permet. Les assembleurs fournissent des noyaux bas niveau; Scratch est une piste pédagogique, pas une cible de production. Voir UNIVERSAL-MODEL-ARCHITECTURE.md.
 
 ## Pistes
 - [`models/c/`](models/c/README.md) — **C** : Tenseurs FP32, entraînement causal CPU, checkpoints et inférence.
