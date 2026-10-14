@@ -15,16 +15,16 @@
 - [ ] Entraîner sur un corpus synthétique déterministe et vérifier que la perte évolue.
 - [ ] Sauvegarder/recharger un checkpoint et exécuter une inférence séparée.
 - [ ] Enregistrer commandes, journaux, hash, temps et mémoire.
-- [ ] Répéter indépendamment en Rust et comparer les résultats.
+- [ ] Porter le même contrat en Rust et comparer les résultats au modèle de référence, sans créer un objectif de modèle indépendant par langage.
 
 ## Phase 2 — matrice des langages
 
-Pour chaque ID du `LANGUAGE-CATALOG.md`, exécuter les étapes séparément :
+Pour chaque ID du `LANGUAGE-CATALOG.md`, évaluer séparément la contribution au même modèle universel :
 1. confirmer compilateur/runtime et dépendances disponibles;
 2. implémenter les opérations primitives dans ce langage;
 3. passer les vecteurs de référence;
-4. implémenter le modèle et l'entraînement;
-5. produire puis recharger un checkpoint;
+4. implémenter/porter les composants du modèle commun et l'entraînement si le runtime le permet;
+5. produire un checkpoint de test ou charger le checkpoint universel partagé, puis vérifier l'interopérabilité;
 6. mesurer l'inférence et la qualité sur le test retenu;
 7. enregistrer les limites et le statut réel.
 
