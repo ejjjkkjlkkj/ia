@@ -113,17 +113,29 @@ class NEXORAIRTests(unittest.TestCase):
             decode_ir(data)
 
     def test_execute_ir_normalizes_large_integer_float_conversion(self):
-        value = "9" * 1233
-        data = (
-            '{"format":"nexora-ir","version":1,"ast":'
-            '{"kind":"program","value":null,"children":['
-            '{"kind":"print","value":null,"children":['
-            '{"kind":"binary","value":"/","children":['
-            '{"kind":"number","value":' + value + ',"children":[]},'
-            '{"kind":"number","value":1,"children":[]} ]}]}]}'
-        )
+        value = int("9" * 1233)
+        document = {
+            "format": "nexora-ir",
+            "version": 1,
+            "ast": {
+                "kind": "program",
+                "value": None,
+                "children": [{
+                    "kind": "print",
+                    "value": None,
+                    "children": [{
+                        "kind": "binary",
+                        "value": "/",
+                        "children": [
+                            {"kind": "number", "value": value, "children": []},
+                            {"kind": "number", "value": 1, "children": []},
+                        ],
+                    }],
+                }],
+            },
+        }
         with self.assertRaisesRegex(ValueError, "numeric operation exceeds supported range"):
-            execute_ir(data)
+            execute_ir(json.dumps(document))
 
 if __name__ == "__main__":
     unittest.main()
