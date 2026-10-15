@@ -49,6 +49,17 @@ jobs:
               if ! python -m py_compile "$file" >>"$report" 2>&1; then failed=1; fi
             done < <(find . -path './.git' -prune -o -path './.venv' -prune -o -name '*.py' -print0)
           fi
+          if [ -d tests ]; then
+            echo "Python regression tests" | tee -a "$report"
+            if python -m pip install --disable-pip-version-check pytest >>"$report" 2>&1; then
+              if ! PYTHONPATH=src python -m pytest -q tests >>"$report" 2>&1; then failed=1; fi
+            else
+              echo "pytest install unavailable; falling back to unittest discovery" | tee -a "$report"
+              if ! PYTHONPATH=src python -m unittest discover -s tests -v >>"$report" 2>&1; then failed=1; fi
+            fi
+          else
+            echo "PARTIAL: no tests/ directory; Python regression suite not discovered" | tee -a "$report"
+          fi
           while IFS= read -r -d '' file; do
             echo "JSON: $file" | tee -a "$report"
             if ! python -m json.tool "$file" >/dev/null 2>>"$report"; then failed=1; fi
