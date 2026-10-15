@@ -52,7 +52,7 @@ class NEXORAIRTests(unittest.TestCase):
 
     def test_decode_rejects_surrogate_in_string_literal(self):
         doc = json.loads(encode_ast(parse('print("ok");')))
-        doc["ast"]["children"][0]["children"][0]["value"] = "\\ud800"
+        doc["ast"]["children"][0]["children"][0]["value"] = "\ud800"
         with self.assertRaisesRegex(NEXORAIRError, "Unicode scalar"):
             decode_ir(json.dumps(doc))
 
