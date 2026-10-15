@@ -63,7 +63,7 @@ class NEXORALanguageTests(unittest.TestCase):
 
     def test_invalid_unicode_scalar_is_rejected(self):
         with self.assertRaisesRegex(NEXORASyntaxError, "invalid Unicode"):
-            tokenize("\\ud800")
+            tokenize("\ud800")
 
 
 if __name__ == "__main__":
