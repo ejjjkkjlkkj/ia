@@ -79,17 +79,49 @@ def validate_patch(patch: str) -> None:
 
 
 def run_tests() -> tuple[int, str]:
+    results: list[str] = []
+    manifests = sorted(
+        p for p in ROOT.rglob("Cargo.toml")
+        if ".git" not in p.parts and "target" not in p.parts and "node_modules" not in p.parts
+        and len(p.relative_to(ROOT).parts) <= 6
+    )
+    if manifests:
+        for manifest in manifests:
+            command = ["cargo", "test", "--manifest-path", str(manifest)]
+            if (manifest.parent / "Cargo.lock").is_file():
+                command.append("--locked")
+            try:
+                result = subprocess.run(command, cwd=ROOT, text=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=1800)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                return 2, f"BLOCKED: Rust test execution failed for {manifest}: {exc}"
+            results.append(f"$ {' '.join(command)}\n{result.stdout[-6000:]}")
+            if result.returncode:
+                return result.returncode, "\n".join(results)[-16000:]
     tests = ROOT / "tests"
-    if not tests.is_dir():
-        return 2, "BLOCKED: tests/ directory not found"
-    result = subprocess.run(ALLOWED_TESTS[0], cwd=ROOT, text=True,
-                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=900)
-    if result.returncode == 0:
-        return 0, result.stdout[-12000:]
-    fallback = subprocess.run(ALLOWED_TESTS[1], cwd=ROOT, text=True,
-                              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=900)
-    return fallback.returncode, (result.stdout + "\n--- unittest fallback ---\n" + fallback.stdout)[-12000:]
-
+    if tests.is_dir():
+        command = ["python", "-m", "pytest", "-q"]
+        try:
+            result = subprocess.run(command, cwd=ROOT, text=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=900)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            result = None
+            results.append(f"pytest unavailable/failed to start: {exc}")
+        if result is not None and result.returncode == 0:
+            results.append(result.stdout[-6000:])
+        else:
+            fallback = ["python", "-m", "unittest", "discover", "-s", "tests"]
+            try:
+                result = subprocess.run(fallback, cwd=ROOT, text=True,
+                                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=900)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                return 2, f"BLOCKED: Python tests failed to start: {exc}"
+            results.append(f"$ {' '.join(fallback)}\n{result.stdout[-6000:]}")
+            if result.returncode:
+                return result.returncode, "\n".join(results)[-16000:]
+    if not manifests and not tests.is_dir():
+        return 2, "BLOCKED: no supported Rust manifest or tests/ directory found"
+    return 0, "\n".join(results)[-16000:]
 
 def once() -> None:
     run_id = str(uuid.uuid4())
