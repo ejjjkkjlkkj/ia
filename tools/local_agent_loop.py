@@ -193,7 +193,8 @@ def _run_native_checks(changed_paths: list[str]) -> tuple[int, str]:
         for parent in (candidate.parent, *candidate.parents):
             if parent == ROOT.parent:
                 break
-            if (parent / marker).is_file():
+            marker_path = parent / marker
+            if marker_path.is_file() or ("*" in marker and any(parent.glob(marker))):
                 return parent
         return None
 
@@ -281,7 +282,7 @@ def _run_native_checks(changed_paths: list[str]) -> tuple[int, str]:
         blocked = require("gprbuild", "Ada source")
         if blocked:
             return blocked
-        projects = {project_root(path, path.name) for path in paths
+        projects = {project_root(path, "*.gpr") for path in paths
                     if path.suffix.lower() in {".adb", ".ads"}}
         projects.discard(None)
         if not projects:
