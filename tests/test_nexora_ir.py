@@ -120,6 +120,15 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORAIRError, "4096-bit limit"):
             decode_ir(data)
 
+    def test_decode_normalizes_extremely_long_json_integer(self):
+        value = "9" * 5000
+        data = (
+            '{"format":"nexora-ir","version":1,"ast":'
+            '{"kind":"number","value":' + value + ',"children":[]}}'
+        )
+        with self.assertRaises(NEXORAIRError):
+            decode_ir(data)
+
     def test_execute_ir_normalizes_large_integer_float_conversion(self):
         value = int("9" * 1233)
         document = {
