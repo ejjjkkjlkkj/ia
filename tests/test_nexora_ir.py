@@ -180,5 +180,30 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "numeric operation exceeds supported range"):
             execute_ir(json.dumps(document))
 
+    def test_execute_ir_rejects_integer_result_over_4096_bits(self):
+        value = (1 << 4095) - 1
+        document = {
+            "format": "nexora-ir",
+            "version": 1,
+            "ast": {
+                "kind": "program",
+                "value": None,
+                "children": [{
+                    "kind": "print",
+                    "value": None,
+                    "children": [{
+                        "kind": "binary",
+                        "value": "*",
+                        "children": [
+                            {"kind": "number", "value": value, "children": []},
+                            {"kind": "number", "value": value, "children": []},
+                        ],
+                    }],
+                }],
+            },
+        }
+        with self.assertRaisesRegex(ValueError, "integer result exceeds 4096-bit limit"):
+            execute_ir(json.dumps(document))
+
 if __name__ == "__main__":
     unittest.main()
