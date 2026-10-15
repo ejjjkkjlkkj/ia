@@ -105,8 +105,8 @@ class NEXORAIRTests(unittest.TestCase):
 
     def test_decode_rejects_escaped_invalid_unicode_scalar(self):
         data = (
-            '{"format":"nexora-ir","version":1,"ast":'
-            '{"kind":"string","value":"\\\\ud800","children":[]}}'
+            r'{"format":"nexora-ir","version":1,"ast":'
+            r'{"kind":"string","value":"\ud800","children":[]}}'
         )
         with self.assertRaisesRegex(NEXORAIRError, "invalid Unicode"):
             decode_ir(data)
