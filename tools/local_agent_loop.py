@@ -14,7 +14,7 @@ ROOT = pathlib.Path(os.environ.get("AGENT_WORKSPACE", ".")).resolve()
 OLLAMA = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
 MODEL = os.environ.get("OLLAMA_MODEL", "qwen3-coder:30b")
 TASK_FILE = ROOT / "AGENT-TASK.md"
-LOG_FILE = ROOT / "agent-runs.jsonl"
+LOG_FILE = pathlib.Path(os.environ.get("AGENT_LOG_FILE", str(pathlib.Path.home() / ".ia-agent" / "runs.jsonl"))).expanduser().resolve()
 SLEEP_SECONDS = max(60, min(int(os.environ.get("AGENT_SLEEP_SECONDS", "300")), 3600))
 MAX_RUNS = max(1, min(int(os.environ.get("AGENT_MAX_RUNS", "12")), 100))
 MAX_PATCH_BYTES = 200_000
@@ -74,7 +74,7 @@ def validate_patch(patch: str) -> None:
             path = path.removeprefix("a/").removeprefix("b/")
             if pathlib.PurePosixPath(path).is_absolute() or ".." in pathlib.PurePosixPath(path).parts:
                 raise RuntimeError("unsafe patch path")
-            if path.startswith(".github/workflows/") or path in {"AGENT-TASK.md", "agent-runs.jsonl"}:
+            if path.startswith((".github/workflows/", ".git/")) or path in {"AGENT-TASK.md", "agent-runs.jsonl", ".env", "secrets.json", "credentials.json"}:
                 raise RuntimeError("protected path modification rejected")
 
 
