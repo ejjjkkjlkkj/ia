@@ -14,6 +14,8 @@ class Token:
     value: str
     offset: int
 
+MAX_TOKENS = 100_000
+
 _TOKEN_RE = re.compile(
     r"(?P<SPACE>\s+)|(?P<COMMENT>//[^\n]*|\#[^\n]*)|"
     r"(?P<STRING>\"(?:\\.|[^\"\\])*\")|"
@@ -45,6 +47,8 @@ def tokenize(source: str) -> list[Token]:
         kind = match.lastgroup or ""
         value = match.group()
         if kind not in ("SPACE", "COMMENT"):
+            if len(tokens) >= MAX_TOKENS:
+                raise NEXORASyntaxError("token limit exceeded")
             tokens.append(Token(kind, value, pos))
         pos = match.end()
     tokens.append(Token("EOF", "", len(source)))
