@@ -1,0 +1,84 @@
+name: Continuous AI Engineering Agent
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Hosted GitHub runner; runs hourly without depending on a personal PC.
+    - cron: "17 * * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: continuous-agent-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    name: Inspect, implement, test, and propose one verified improvement
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Resume agent branch when it exists
+        shell: bash
+        env:
+          AGENT_BRANCH: automation/codex-continuous-agent
+        run: |
+          set -euo pipefail
+          if git fetch --no-tags origin "$AGENT_BRANCH"; then
+            git checkout -B "$AGENT_BRANCH" FETCH_HEAD
+          else
+            git checkout -b "$AGENT_BRANCH"
+          fi
+
+      - name: Require configured model credential
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::BLOCKED: add the repository Actions secret OPENAI_API_KEY to enable the hosted coding agent."
+            exit 1
+          fi
+          echo "PASS: hosted coding-agent credential is configured (value not displayed)."
+
+      - name: Run Codex engineering cycle
+        id: codex
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          permission-profile: ":workspace"
+          safety-strategy: drop-sudo
+          output-file: agent-report.md
+          prompt: |
+            You are the autonomous engineering agent for this repository. Work only in this checkout and on branch automation/codex-continuous-agent.
+            Read AGENTS.md first and follow its release, security, and integrity gates.
+            Inspect the current implementation, tests, open TODOs, and git diff. Choose ONE highest-impact, small, independently verifiable task. Implement real code, add regression tests, and run the relevant available tests/static checks. Do not fabricate results, remove or weaken tests, claim hardware proof from simulation, publish releases, or merge pull requests.
+            If a prior change on this branch is still unverified or broken, fix that first. Avoid repeating a completed task. Keep changes focused and reviewable.
+            Write agent-report.md with: task selected, files changed, exact commands and outcomes, evidence labels PASS/FAIL/PARTIAL/BLOCKED/NOT_VALIDATED, limitations, and the next task. Never include secrets.
+            If no safe useful code change can be verified, make no code changes and explain why in the report.
+
+      - name: Create or update reviewable pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          branch: automation/codex-continuous-agent
+          base: main
+          delete-branch: false
+          title: "chore(agent): continuous verified engineering improvements"
+          commit-message: "chore(agent): apply verified engineering improvements"
+          body: |
+            Updated by the scheduled hosted coding agent.
+            Review the diff and agent-report.md. This PR is not auto-merged; all repository release gates remain mandatory.
+          add-paths: |
+            **
+            !.github/workflows/**
