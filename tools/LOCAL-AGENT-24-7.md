@@ -20,3 +20,7 @@ The loop stops after the configured run budget (maximum 100 iterations), then ca
 ## Evidence and limitations
 
 This is a prototype, not a verified 24/7 service. It is not installed or running merely because this file exists. A human must start it on the target PC and configure any Windows Task Scheduler/service policy. The current implementation is validated only when its logs show actual run IDs, test exit codes, and local commit hashes. No physical OS/UEFI claim follows from this tool.
+
+## Register automatic start at logon
+
+After checking out this branch in a dedicated clone, ensure the worktree is clean and the configured local model is installed. In PowerShell from the repository root, run `powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\install_agent_task.ps1`. This registers a per-user Scheduled Task that starts the supervisor at logon; start it immediately with `Start-ScheduledTask -TaskName 'LocalCodingAgent-ia'`. The supervisor restarts the bounded loop after it exits. This has not been installed or started on the target PC by this GitHub change. Review logs and local commits before pushing. Keep the machine awake and signed in; the task does not wake a sleeping PC or prove 24/7 uptime.
