@@ -18,6 +18,14 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORAIRError, "unsupported"):
             decode_ir(json.dumps(doc))
 
+    def test_rejects_non_integer_version_types(self):
+        for version in (1.0, "1", None, [], {}):
+            with self.subTest(version=version):
+                doc = json.loads(encode_ast(parse("print(1);")))
+                doc["version"] = version
+                with self.assertRaisesRegex(NEXORAIRError, "unsupported"):
+                    decode_ir(json.dumps(doc))
+
     def test_rejects_unknown_version(self):
         doc = json.loads(encode_ast(parse("print(1);")))
         doc["version"] = 99
