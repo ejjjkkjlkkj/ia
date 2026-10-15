@@ -20,13 +20,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: ia-model-baseline-\${{ github.ref }}
+  group: ia-model-baseline-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   test:
-    name: Baseline / \${{ matrix.os }} / Python \${{ matrix.python }}
-    runs-on: \${{ matrix.os }}
+    name: Baseline / ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
-          python-version: \${{ matrix.python }}
+          python-version: ${{ matrix.python }}
       - name: Compile source
         run: python -m compileall -q src tests
       - name: Run tests
