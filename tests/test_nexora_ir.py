@@ -103,6 +103,14 @@ class NEXORAIRTests(unittest.TestCase):
                 actual = execute_ir(encode_ast(parse(source)))
                 self.assertEqual(actual, expected)
 
+    def test_decode_rejects_escaped_invalid_unicode_scalar(self):
+        data = (
+            '{"format":"nexora-ir","version":1,"ast":'
+            '{"kind":"string","value":"\\\\ud800","children":[]}}'
+        )
+        with self.assertRaisesRegex(NEXORAIRError, "invalid Unicode"):
+            decode_ir(data)
+
     def test_decode_rejects_integer_literal_over_4096_bits(self):
         value = "9" * 1234
         data = (
