@@ -38,7 +38,7 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORAIRError, "unsupported"):
             decode_ir(json.dumps(doc))
 
-    def test_rejects_duplicate_json_keys(self):
+    def test_decode_rejects_duplicate_version_key(self):
         data = '{"format":"nexora-ir","version":1,"version":1,"ast":{"kind":"program","value":null,"children":[]}}'
         with self.assertRaisesRegex(NEXORAIRError, "duplicate JSON object key"):
             decode_ir(data)
@@ -97,6 +97,12 @@ class NEXORAIRTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(NEXORAIRError, "duplicate JSON"):
             decode_ir(duplicate)
+
+    def test_decode_rejects_input_over_byte_limit(self):
+        valid = '{"format":"nexora-ir","version":1,"ast":{"kind":"program","value":null,"children":[]}}'
+        data = valid + " " * 1_000_000
+        with self.assertRaisesRegex(NEXORAIRError, "byte limit"):
+            decode_ir(data)
 
     def test_decode_rejects_nonstandard_numeric_constants(self):
         data = (
