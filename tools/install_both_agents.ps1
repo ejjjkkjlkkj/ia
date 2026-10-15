@@ -54,7 +54,8 @@ $boundedSleep = [Math]::Max(60, [Math]::Min($SleepSeconds, 3600))
 foreach ($repo in $repos) {
     $service = Join-Path $repo.Path "tools/agent_service.ps1"
     $taskName = "LocalCodingAgent-" + $repo.Name
-    $arguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $service + '" -Model "' + $Model + '" -SleepSeconds ' + $boundedSleep + ' -AutoPush:$(-not $DisableAutoPush.IsPresent)'
+    $autoPushArgument = if ($DisableAutoPush.IsPresent) { '$false' } else { '$true' }
+    $arguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $service + '" -Model "' + $Model + '" -SleepSeconds ' + $boundedSleep + ' -AutoPush:' + $autoPushArgument
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $arguments
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
     $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
