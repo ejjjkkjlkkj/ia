@@ -11,6 +11,7 @@ IR_VERSION = 1
 MAX_IR_BYTES = 1_000_000
 MAX_NODES = 20_000
 MAX_DEPTH = 256
+MAX_INTEGER_BITS = 4096
 
 class NEXORAIRError(ValueError):
     """Raised when NEXORA IR is malformed or exceeds safety bounds."""
@@ -54,8 +55,11 @@ def _validate_node(obj: Any, depth: int, budget: list[int]) -> dict[str, Any]:
     expected_value, expected_children = allowed[kind]
     if expected_value == "str" and not isinstance(value, str):
         raise NEXORAIRError(f"{kind} value must be a string")
-    if expected_value == "number" and (not isinstance(value, int) or isinstance(value, bool)):
-        raise NEXORAIRError("number value must be an integer")
+    if expected_value == "number":
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise NEXORAIRError("number value must be an integer")
+        if value.bit_length() > MAX_INTEGER_BITS:
+            raise NEXORAIRError("integer value exceeds 4096-bit limit")
     if expected_value == "bool" and not isinstance(value, bool):
         raise NEXORAIRError("boolean value must be a boolean")
     if expected_value == "unary_op" and value != "-":
@@ -92,11 +96,9 @@ def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
         result[key] = value
     return result
 
-
 def _reject_json_constant(value: str) -> None:
     """Reject non-standard NaN/Infinity values."""
     raise NEXORAIRError("non-standard JSON numeric constant")
-
 
 def decode_ir(data: str) -> dict[str, Any]:
     """Validate a versioned IR document and return its AST object."""
@@ -118,9 +120,7 @@ def decode_ir(data: str) -> dict[str, Any]:
         raise
     except (json.JSONDecodeError, UnicodeError, RecursionError) as exc:
         raise NEXORAIRError("invalid IR JSON") from exc
-    # json.loads accepts nesting deeper than our IR contract on some Python
-    # versions. Bound the decoded object iteratively before schema validation so
-    # hostile arrays/objects cannot bypass MAX_DEPTH or trigger recursive walks.
+    # Bound decoded JSON iteratively before recursive schema validation.
     pending = [(envelope, 0)]
     while pending:
         value, depth = pending.pop()
@@ -136,8 +136,6 @@ def decode_ir(data: str) -> dict[str, Any]:
     if envelope["format"] != "nexora-ir" or envelope["version"] != IR_VERSION:
         raise NEXORAIRError("unsupported IR format or version")
     return _validate_node(envelope["ast"], 0, [MAX_NODES])
-
-
 
 def execute_ir(data: str) -> list[Any]:
     """Execute validated IR without Python eval/exec or external side effects."""
@@ -183,19 +181,22 @@ def execute_ir(data: str) -> list[Any]:
                 return result
             if not numeric(left) or not numeric(right):
                 raise NEXORARuntimeError(f"operator {value} requires numeric operands")
-            if value == "+": result = left + right
-            elif value == "-": result = left - right
-            elif value == "*": result = left * right
-            elif value == "/":
-                if right == 0:
-                    raise NEXORARuntimeError("division by zero")
-                result = left / right
-            else:
-                raise NEXORAIRError("unsupported validated operator")
+            try:
+                if value == "+": result = left + right
+                elif value == "-": result = left - right
+                elif value == "*": result = left * right
+                elif value == "/":
+                    if right == 0:
+                        raise NEXORARuntimeError("division by zero")
+                    result = left / right
+                else:
+                    raise NEXORAIRError("unsupported validated operator")
+            except OverflowError as exc:
+                raise NEXORARuntimeError("numeric operation exceeds supported range") from exc
         else:
             raise NEXORAIRError(f"node {kind} is not an expression")
 
-        if isinstance(result, int) and result.bit_length() > 4096:
+        if isinstance(result, int) and result.bit_length() > MAX_INTEGER_BITS:
             raise NEXORARuntimeError("integer result exceeds 4096-bit limit")
         if isinstance(result, float) and not math.isfinite(result):
             raise NEXORARuntimeError("numeric result is not finite")
