@@ -2,7 +2,8 @@ param(
     [Parameter(Mandatory = $true)][string]$IaRepoPath,
     [Parameter(Mandatory = $true)][string]$AccessibilityRepoPath,
     [string]$Model = "qwen3-coder:30b",
-    [int]$SleepSeconds = 300
+    [int]$SleepSeconds = 300,
+    [switch]$DisableAutoPush
 )
 $ErrorActionPreference = "Stop"
 
@@ -53,7 +54,7 @@ $boundedSleep = [Math]::Max(60, [Math]::Min($SleepSeconds, 3600))
 foreach ($repo in $repos) {
     $service = Join-Path $repo.Path "tools/agent_service.ps1"
     $taskName = "LocalCodingAgent-" + $repo.Name
-    $arguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $service + '" -Model "' + $Model + '" -SleepSeconds ' + $boundedSleep
+    $arguments = '-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $service + '" -Model "' + $Model + '" -SleepSeconds ' + $boundedSleep + ' -AutoPush:$(-not $DisableAutoPush.IsPresent)'
     $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $arguments
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
     $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
