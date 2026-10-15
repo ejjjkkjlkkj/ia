@@ -92,7 +92,7 @@ def collect_context(task: str) -> str:
             continue
         file_path = ROOT.joinpath(*path.parts)
         try:
-            if not file_path.is_file() or file_path.stat().st_size > 24_000:
+            if file_path.is_symlink() or not file_path.is_file() or file_path.stat().st_size > 24_000:
                 continue
             raw = file_path.read_bytes()
             if b"\0" in raw:
@@ -148,7 +148,9 @@ def validate_patch(patch: str) -> list[str]:
             continue
         path = raw_path.removeprefix("a/").removeprefix("b/")
         pure = pathlib.PurePosixPath(path)
-        if pure.is_absolute() or ".." in pure.parts or not pure.parts:
+        if (pure.is_absolute() or ".." in pure.parts or not pure.parts
+                or ":" in path or "\\\\" in path
+                or any(ord(char) < 32 for char in path)):
             raise RuntimeError("unsafe patch path")
         normalized = pure.as_posix()
         if normalized in PROTECTED_EXACT or normalized.startswith(PROTECTED_PREFIXES):
