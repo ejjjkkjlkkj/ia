@@ -107,6 +107,32 @@ def _reject_json_constant(value: str) -> None:
     raise NEXORAIRError("non-standard JSON numeric constant")
 
 
+def _check_json_nesting(data: str) -> None:
+    """Reject excessive JSON container nesting before recursive decoding."""
+    depth = 0
+    in_string = False
+    escaped = False
+    for char in data:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            if depth > MAX_DEPTH + 8:
+                raise NEXORAIRError("invalid IR JSON: nesting limit exceeded")
+        elif char in "]}":
+            depth -= 1
+            if depth < 0:
+                raise NEXORAIRError("invalid IR JSON: unexpected closing delimiter")
+
+
 def decode_ir(data: str) -> dict[str, Any]:
     """Validate a versioned IR document and return its AST object."""
     if not isinstance(data, str):
@@ -118,6 +144,7 @@ def decode_ir(data: str) -> dict[str, Any]:
     if encoded_size > MAX_IR_BYTES:
         raise NEXORAIRError("IR byte limit exceeded")
     try:
+        _check_json_nesting(data)
         envelope = json.loads(
             data,
             object_pairs_hook=_unique_json_object,
