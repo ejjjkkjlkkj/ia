@@ -212,7 +212,10 @@ def execute_ir(data: str) -> list[Any]:
             elif value == "/":
                 if right == 0:
                     raise NEXORARuntimeError("division by zero")
-                result = left / right
+                try:
+                    result = left / right
+                except OverflowError as exc:
+                    raise NEXORARuntimeError("numeric operation overflowed") from exc
             else:
                 raise NEXORAIRError("unsupported validated operator")
         else:
