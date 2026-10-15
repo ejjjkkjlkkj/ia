@@ -27,6 +27,17 @@ class AgentPatchValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "unsafe patch path"):
             local_agent_loop.validate_patch(patch)
 
+
+    def test_rejects_git_pathspec_magic(self):
+        patch = (
+            "diff --git a/src/example.py b/:(glob)**\\n"
+            "--- a/src/example.py\\n"
+            "+++ b/:(glob)**\\n"
+            "@@ -1 +1 @@\\n-old\\n+new\\n"
+        )
+        with self.assertRaisesRegex(RuntimeError, "unsafe patch path"):
+            local_agent_loop.validate_patch(patch)
+
     def test_rejects_workflow_changes(self):
         patch = (
             "diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml\n"
