@@ -5,6 +5,12 @@ from nexora_language import parse
 from nexora_ir import NEXORAIRError, decode_ir, encode_ast, execute_ir
 
 class NEXORAIRTests(unittest.TestCase):
+    def test_decode_rejects_non_text_input(self):
+        for data in (None, b'{"format":"nexora-ir","version":1,"ast":{}}', 123):
+            with self.subTest(data=data):
+                with self.assertRaisesRegex(NEXORAIRError, "input must be text"):
+                    decode_ir(data)
+
     def test_versioned_round_trip_is_deterministic(self):
         ast = parse('let café = "Bonjour 世界"; print(2 + 3 * 4);')
         first = encode_ast(ast)
