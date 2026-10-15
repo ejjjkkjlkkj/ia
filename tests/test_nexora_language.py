@@ -9,7 +9,7 @@ class NEXORALanguageTests(unittest.TestCase):
         self.assertEqual(run('let café = "Bonjour 世界"; print(café);'), ["Bonjour 世界"])
 
     def test_comments_and_boolean_literals(self):
-        self.assertEqual(run('# comment\nlet ok = true; // inline\nprint(ok);'), [True])
+        self.assertEqual(run('# comment\\nlet ok = true; // inline\\nprint(ok);'), [True])
 
     def test_undefined_variable_fails(self):
         with self.assertRaisesRegex(NEXORARuntimeError, "undefined variable"):
@@ -52,6 +52,16 @@ class NEXORALanguageTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORARuntimeError, "maximum evaluation depth exceeded"):
             run(source)
 
+    def test_deeply_nested_parentheses_fail_as_syntax_error(self):
+        source = "print(" + "(" * 2000 + "1" + ")" * 2000 + ");"
+        with self.assertRaisesRegex(NEXORASyntaxError, "maximum parser nesting depth exceeded"):
+            run(source)
+
+    def test_deeply_nested_unary_operators_fail_as_syntax_error(self):
+        source = "print(" + "-" * 2000 + "1);"
+        with self.assertRaisesRegex(NEXORASyntaxError, "maximum parser nesting depth exceeded"):
+            run(source)
+
     def test_unknown_character_fails(self):
         with self.assertRaises(NEXORASyntaxError):
             tokenize("print(1); @")
@@ -63,8 +73,7 @@ class NEXORALanguageTests(unittest.TestCase):
 
     def test_invalid_unicode_scalar_is_rejected(self):
         with self.assertRaisesRegex(NEXORASyntaxError, "invalid Unicode"):
-            tokenize("\ud800")
-
+            tokenize("\\ud800")
 
 if __name__ == "__main__":
     unittest.main()
