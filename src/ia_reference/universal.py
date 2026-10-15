@@ -21,7 +21,7 @@ def _sha256(data: bytes) -> str:
 
 def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
     """Train a smoothed byte-level model from mixed-language UTF-8 text."""
-    if not math.isfinite(alpha) or alpha <= 0:
+    if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
         raise ValueError("alpha must be a finite number greater than zero")
     data = text.encode("utf-8")
     if not data:
