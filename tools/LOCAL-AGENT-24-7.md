@@ -1,6 +1,6 @@
 # Local 24/7 coding loop (experimental)
 
-`tools/local_agent_loop.py` is a bounded local Ollama coding loop. It requires Python 3.11+, Git, a local Ollama server, and a dedicated clean feature-branch checkout. It never merges or publishes releases, changes firmware, or executes model-generated shell commands. It accepts bounded unified diffs, runs fixed test commands, creates commits only after tests pass, and by default pushes those commits to the current dedicated feature branch (`AGENT_AUTO_PUSH=0` disables pushing). Review pushed commits and CI before any merge.
+`tools/local_agent_loop.py` is a bounded local Ollama coding loop. It requires Python 3.11+, Git, a local Ollama server, and a dedicated clean feature-branch checkout. It never merges or publishes releases, changes firmware, or executes model-generated shell commands. It accepts bounded unified diffs, runs the base test suite plus native checks for changed Go, C/C++, Rust, Python, Swift, D, Nim, Zig, Ada, and JVM/.NET files where configured; it blocks commits when the required toolchain/build manifest is missing, creates commits only after tests pass, and by default pushes those commits to the current dedicated feature branch (`AGENT_AUTO_PUSH=0` disables pushing). Review pushed commits and CI before any merge.
 
 ## Start manually
 
