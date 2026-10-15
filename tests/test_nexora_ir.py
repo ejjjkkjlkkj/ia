@@ -60,5 +60,34 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "division by zero"):
             execute_ir(encode_ast(parse("print(4 / 0);")))
 
+
+    def test_decode_rejects_duplicate_json_keys(self):
+        duplicate = (
+            '{"format":"nexora-ir","format":"other","version":1,'
+            '"ast":{"kind":"program","value":null,"children":[]}}'
+        )
+        with self.assertRaisesRegex(NEXORAIRError, "duplicate JSON"):
+            decode_ir(duplicate)
+
+    def test_decode_rejects_nonstandard_numeric_constants(self):
+        data = (
+            '{"format":"nexora-ir","version":1,"ast":'
+            '{"kind":"number","value":NaN,"children":[]}}'
+        )
+        with self.assertRaisesRegex(NEXORAIRError, "non-standard JSON"):
+            decode_ir(data)
+
+    def test_decode_normalizes_excessive_json_nesting(self):
+        data = (
+            '{"format":"nexora-ir","version":1,"ast":'
+            + "[" * 2_000 + "null" + "]" * 2_000 + "}"
+        )
+        with self.assertRaisesRegex(NEXORAIRError, "invalid IR JSON"):
+            decode_ir(data)
+
+    def test_decode_rejects_invalid_unicode_scalar(self):
+        with self.assertRaisesRegex(NEXORAIRError, "invalid Unicode"):
+            decode_ir("\\ud800")
+
 if __name__ == "__main__":
     unittest.main()
