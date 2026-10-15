@@ -89,5 +89,22 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORAIRError, "invalid Unicode"):
             decode_ir(chr(0xD800))
 
+
+    def test_ir_conformance_corpus_matches_reference_interpreter(self):
+        programs = [
+            "print(1 + 2 * 3);",
+            "let x = 9; print(-x + 4);",
+            'let café = "bonjour " + "monde"; print(café);',
+            "let ok = true; print(ok);",
+            "print((5 / 2) + 1);",
+            "let a = 7; let b = 6; print(a * b - 2);",
+        ]
+        from nexora_language import run
+        for source in programs:
+            with self.subTest(source=source):
+                expected = run(source)
+                actual = execute_ir(encode_ast(parse(source)))
+                self.assertEqual(actual, expected)
+
 if __name__ == "__main__":
     unittest.main()
