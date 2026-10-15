@@ -27,11 +27,11 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Verify required project documents
+      - name: Verify required project and agent-contract documents
         shell: bash
         run: |
           set -euo pipefail
-          for f in README.md LANGUAGE-CATALOG.md MODEL-SPEC.md TRAINING-ROADMAP.md MODELS-INDEX.md; do
+          for f in AGENTS.md README.md LANGUAGE-CATALOG.md MODEL-SPEC.md TRAINING-ROADMAP.md MODELS-INDEX.md; do
             test -s "$f" || { echo "FAIL: missing or empty $f"; exit 1; }
             echo "PASS: $f"
           done
