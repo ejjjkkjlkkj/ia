@@ -149,7 +149,7 @@ def validate_patch(patch: str) -> list[str]:
         path = raw_path.removeprefix("a/").removeprefix("b/")
         pure = pathlib.PurePosixPath(path)
         if (pure.is_absolute() or ".." in pure.parts or not pure.parts
-                or ":" in path or "\\\\" in path
+                or ":" in path or chr(92) in path
                 or any(ord(char) < 32 for char in path)):
             raise RuntimeError("unsafe patch path")
         normalized = pure.as_posix()
