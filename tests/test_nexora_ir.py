@@ -50,6 +50,12 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "numeric operands"):
             execute_ir(encode_ast(parse("print(true + 1);")))
 
+    def test_decode_rejects_invalid_identifier_reference(self):
+        doc = json.loads(encode_ast(parse("print(valid_name);")))
+        doc["ast"]["children"][0]["children"][0]["value"] = "not valid"
+        with self.assertRaisesRegex(NEXORAIRError, "identifier"):
+            decode_ir(json.dumps(doc))
+
     def test_decode_rejects_invalid_binding_name(self):
         doc = json.loads(encode_ast(parse("let x = 1;")))
         doc["ast"]["children"][0]["value"] = "not valid"
