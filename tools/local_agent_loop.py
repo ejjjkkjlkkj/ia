@@ -25,6 +25,7 @@ LOG_FILE = pathlib.Path(os.environ.get(
 )).expanduser().resolve()
 SLEEP_SECONDS = max(60, min(int(os.environ.get("AGENT_SLEEP_SECONDS", "300")), 3600))
 MAX_RUNS = max(1, min(int(os.environ.get("AGENT_MAX_RUNS", "12")), 100))
+AUTO_PUSH = os.environ.get("AGENT_AUTO_PUSH", "1").strip().lower() not in {"0", "false", "no"}
 MAX_PATCH_BYTES = 200_000
 MAX_CONTEXT_CHARS = 80_000
 MAX_CONTEXT_FILES = 60
@@ -62,8 +63,9 @@ def record(data: dict) -> None:
 
 
 def clean_workspace() -> None:
-    if not (ROOT / ".git").exists():
-        raise RuntimeError("workspace is not a Git checkout")
+    top = git("rev-parse", "--show-toplevel", check=False)
+    if top.returncode or pathlib.Path(top.stdout.strip()).resolve() != ROOT:
+        raise RuntimeError("workspace is not the root of a Git checkout")
     branch = git("branch", "--show-current").stdout.strip()
     if not branch or branch in {"main", "master"}:
         raise RuntimeError("refusing to work on main/master; use a dedicated feature branch")
@@ -270,14 +272,29 @@ def once(role_name: str, role_goal: str) -> None:
             applied = rollback.returncode != 0
             raise RuntimeError("commit failed; rollback exit code " + str(rollback.returncode)
                                + "; " + commit.stdout[-2000:])
+        commit_sha = git("rev-parse", "HEAD").stdout.strip()
         entry.update({
             "status": "PATCH_TESTS_AND_LOCAL_COMMIT_PASS_REQUIRES_REVIEW",
-            "commit": git("rev-parse", "HEAD").stdout.strip(),
+            "commit": commit_sha,
             "changed_files": git("show", "--format=", "--name-only", "HEAD").stdout.splitlines(),
             "diff_sha256": hashlib.sha256(diff.stdout.encode()).hexdigest(),
             "commit_output": commit.stdout[-2000:],
+            "auto_push_enabled": AUTO_PUSH,
         })
         applied = False
+        if AUTO_PUSH:
+            remote = git("remote", "get-url", "origin", check=False)
+            if remote.returncode:
+                entry["status"] = "LOCAL_COMMIT_PASS_PUSH_BLOCKED_NO_ORIGIN"
+                entry["push_output"] = remote.stdout[-2000:]
+            else:
+                push = git("push", "--set-upstream", "origin", branch, check=False, timeout=300)
+                entry["push_exit_code"] = push.returncode
+                entry["push_output"] = push.stdout[-4000:]
+                if push.returncode:
+                    entry["status"] = "LOCAL_COMMIT_PASS_PUSH_FAILED"
+                else:
+                    entry["status"] = "TESTED_COMMIT_PUSHED_TO_FEATURE_BRANCH_REQUIRES_REVIEW"
     except Exception as exc:
         entry.update({"status": "BLOCKED_OR_FAILED", "error": str(exc), "patch_applied": applied})
     finally:
