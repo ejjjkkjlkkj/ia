@@ -42,6 +42,16 @@ class NEXORALanguageTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORASyntaxError, "4096-bit limit"):
             run("print(" + "9" * 1235 + ");")
 
+    def test_numeric_overflow_is_reported_as_language_error(self):
+        literal = "9" * 1200
+        with self.assertRaisesRegex(NEXORARuntimeError, "numeric operation exceeds supported range"):
+            run(f"print(({literal}) / 1);")
+
+    def test_deep_expression_fails_with_language_error(self):
+        source = "print(" + "+".join(["1"] * 1500) + ");"
+        with self.assertRaisesRegex(NEXORARuntimeError, "maximum evaluation depth exceeded"):
+            run(source)
+
     def test_unknown_character_fails(self):
         with self.assertRaises(NEXORASyntaxError):
             tokenize("print(1); @")
