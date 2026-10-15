@@ -83,15 +83,40 @@ def encode_ast(ast: Any) -> str:
         raise NEXORAIRError("IR byte limit exceeded")
     return data
 
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject duplicate keys so the IR has one unambiguous interpretation."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise NEXORAIRError("duplicate JSON object key")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> None:
+    """Reject non-standard NaN/Infinity values."""
+    raise NEXORAIRError("non-standard JSON numeric constant")
+
+
 def decode_ir(data: str) -> dict[str, Any]:
     """Validate a versioned IR document and return its AST object."""
     if not isinstance(data, str):
         raise NEXORAIRError("IR input must be text")
-    if len(data.encode("utf-8")) > MAX_IR_BYTES:
+    try:
+        encoded_size = len(data.encode("utf-8"))
+    except UnicodeEncodeError as exc:
+        raise NEXORAIRError("IR input contains invalid Unicode") from exc
+    if encoded_size > MAX_IR_BYTES:
         raise NEXORAIRError("IR byte limit exceeded")
     try:
-        envelope = json.loads(data)
-    except (json.JSONDecodeError, UnicodeError) as exc:
+        envelope = json.loads(
+            data,
+            object_pairs_hook=_unique_json_object,
+            parse_constant=_reject_json_constant,
+        )
+    except NEXORAIRError:
+        raise
+    except (json.JSONDecodeError, UnicodeError, RecursionError) as exc:
         raise NEXORAIRError("invalid IR JSON") from exc
     if not isinstance(envelope, dict) or set(envelope) != {"format", "version", "ast"}:
         raise NEXORAIRError("invalid IR envelope")
