@@ -12,6 +12,12 @@ class NEXORAIRTests(unittest.TestCase):
         self.assertEqual(decode_ir(first)["kind"], "program")
         self.assertEqual(json.loads(first)["version"], 1)
 
+    def test_rejects_boolean_version_even_though_bool_is_an_int_subclass(self):
+        doc = json.loads(encode_ast(parse("print(1);")))
+        doc["version"] = True
+        with self.assertRaisesRegex(NEXORAIRError, "unsupported"):
+            decode_ir(json.dumps(doc))
+
     def test_rejects_unknown_version(self):
         doc = json.loads(encode_ast(parse("print(1);")))
         doc["version"] = 99
