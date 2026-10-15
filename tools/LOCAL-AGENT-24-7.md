@@ -33,3 +33,13 @@ Each iteration rotates through five specialist roles: implementer, test engineer
 ## Important execution boundary
 
 This runner is not a security sandbox. Although it never runs commands supplied directly by the model, test/build commands execute repository code, including newly generated code. Use a disposable worktree and a low-privilege Windows account without credentials, personal files, or access to sensitive directories. The path checks and prompt are defense-in-depth, not a guarantee against malicious code. Stop the task if test execution or logs are unexpected.
+
+## Start both repository teams with one command
+
+Use the same script from either repository after both feature-branch checkouts exist on the PC. It validates clean feature branches, Git remotes, Python 3.11+, Ollama, and the requested model before registering and starting both per-user scheduled tasks.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\install_both_agents.ps1 -IaRepoPath 'C:\PATH\TO\ia' -AccessibilityRepoPath 'C:\PATH\TO\accessibility' -Model 'qwen3-coder:30b'
+```
+
+Replace the two example paths with the actual checkout directories. The model must already appear in `ollama list`; the script does not download it. Both agents commit and push test-passing changes to their existing feature branches by default, which triggers CI. Set `AGENT_AUTO_PUSH=0` in the service environment to disable pushing. Neither agent merges or publishes a release. After starting, verify both Task Scheduler states and each repository's supervisor/JSONL logs; script success alone is not proof of continuous operation.
