@@ -87,7 +87,7 @@ class NEXORAIRTests(unittest.TestCase):
 
     def test_decode_rejects_invalid_unicode_scalar(self):
         with self.assertRaisesRegex(NEXORAIRError, "invalid Unicode"):
-            decode_ir("\\ud800")
+            decode_ir(chr(0xD800))
 
 if __name__ == "__main__":
     unittest.main()
