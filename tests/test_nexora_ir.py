@@ -50,6 +50,29 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "numeric operands"):
             execute_ir(encode_ast(parse("print(true + 1);")))
 
+    def test_decode_rejects_surrogate_in_string_literal(self):
+        doc = json.loads(encode_ast(parse('print("ok");')))
+        doc["ast"]["children"][0]["children"][0]["value"] = "\ud800"
+        with self.assertRaisesRegex(NEXORAIRError, "Unicode scalar"):
+            decode_ir(json.dumps(doc))
+
+    def test_decode_rejects_integer_literal_over_4096_bits(self):
+        doc = json.loads(encode_ast(parse("print(1);")))
+        doc["ast"]["children"][0]["children"][0]["value"] = 1 << 4096
+        with self.assertRaisesRegex(NEXORAIRError, "4096-bit"):
+            decode_ir(json.dumps(doc))
+
+    def test_decode_wraps_json_integer_digit_limit_error(self):
+        raw = '{"format":"nexora-ir","version":1,"ast":{"kind":"number","value":' + ("9" * 5000) + ',"children":[]}}'
+        with self.assertRaisesRegex(NEXORAIRError, "invalid IR JSON"):
+            decode_ir(raw)
+
+    def test_decode_rejects_invalid_identifier_reference(self):
+        doc = json.loads(encode_ast(parse("print(valid_name);")))
+        doc["ast"]["children"][0]["children"][0]["value"] = "not valid"
+        with self.assertRaisesRegex(NEXORAIRError, "identifier"):
+            decode_ir(json.dumps(doc))
+
     def test_decode_rejects_invalid_binding_name(self):
         doc = json.loads(encode_ast(parse("let x = 1;")))
         doc["ast"]["children"][0]["value"] = "not valid"
