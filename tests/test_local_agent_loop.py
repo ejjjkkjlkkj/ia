@@ -44,9 +44,8 @@ class AgentPatchValidationTests(unittest.TestCase):
             "+++ b/tools/local_agent_loop.py\n"
             "@@ -1 +1 @@\n-old\n+new\n"
         )
-        # The runner is deliberately protected by the prompt/task contract,
-        # but path-level enforcement is a separate required invariant.
-        self.assertEqual(local_agent_loop.validate_patch(patch), ["tools/local_agent_loop.py"])
+        with self.assertRaisesRegex(RuntimeError, "protected path"):
+            local_agent_loop.validate_patch(patch)
 
 
 if __name__ == "__main__":
