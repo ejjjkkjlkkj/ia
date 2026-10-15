@@ -54,6 +54,7 @@ jobs:
           echo "- git diff --check exit code: ${diff_rc}" | tee -a audit-report/report.md
 
           echo >> audit-report/report.md
+          test_rc=0
           echo "## Available test runners" | tee -a audit-report/report.md
           if find . -maxdepth 4 -type f -name 'Cargo.toml' -not -path './.git/*' -print -quit | grep -q .; then
             if ! command -v cargo >/dev/null 2>&1; then
@@ -70,7 +71,7 @@ jobs:
 
           if [ -d tests ] || find . -maxdepth 3 -type f -name 'test_*.py' -not -path './.git/*' -print -quit | grep -q .; then
             echo "- Running unittest discovery" | tee -a audit-report/report.md
-            python -m unittest discover -v >>audit-report/report.md 2>&1 || echo "- unittest discovery: FAIL (see log)" | tee -a audit-report/report.md
+            python -m unittest discover -v >>audit-report/report.md 2>&1 || { echo "- unittest discovery: FAIL (see log)" | tee -a audit-report/report.md; test_rc=1; }
           else
             echo "- No obvious Python tests found: NOT APPLICABLE" | tee -a audit-report/report.md
           fi
