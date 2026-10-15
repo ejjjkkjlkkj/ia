@@ -157,8 +157,16 @@ def validate_patch(patch: str) -> list[str]:
                 or any(ord(char) < 32 for char in path)):
             raise RuntimeError("unsafe patch path")
         normalized = pure.as_posix()
-        if normalized in PROTECTED_EXACT or normalized.startswith(PROTECTED_PREFIXES):
+        normalized_key = normalized.casefold()
+        protected_exact = {item.casefold() for item in PROTECTED_EXACT}
+        protected_prefixes = tuple(item.casefold() for item in PROTECTED_PREFIXES)
+        if normalized_key in protected_exact or normalized_key.startswith(protected_prefixes):
             raise RuntimeError(f"protected path modification rejected: {normalized}")
+        candidate = ROOT
+        for part in pure.parts:
+            candidate = candidate / part
+            if candidate.is_symlink():
+                raise RuntimeError(f"symlink patch path rejected: {normalized}")
         paths.add(normalized)
     if not paths:
         raise RuntimeError("patch contains no file paths")
