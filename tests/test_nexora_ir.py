@@ -54,6 +54,12 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORAIRError, "requires"):
             decode_ir(json.dumps(doc))
 
+    def test_execute_ir_rejects_non_program_root(self):
+        document = json.loads(encode_ast(parse("print(1);")))
+        document["ast"] = {"kind": "number", "value": 1, "children": []}
+        with self.assertRaisesRegex(NEXORAIRError, "root must be a program"):
+            execute_ir(json.dumps(document))
+
     def test_execute_ir_matches_reference_program(self):
         source = 'let total = 2 + 3 * 4; print(total); print("bonjour " + "monde");'
         self.assertEqual(execute_ir(encode_ast(parse(source))), [14, "bonjour monde"])
