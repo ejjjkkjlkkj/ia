@@ -38,6 +38,17 @@ class AgentPatchValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "unsafe patch path"):
             local_agent_loop.validate_patch(patch)
 
+
+    def test_rejects_mixed_case_workflow_path(self):
+        patch = (
+            "diff --git a/.GITHUB/WORKFLOWS/ci.yml b/.GITHUB/WORKFLOWS/ci.yml\n"
+            "--- a/.GITHUB/WORKFLOWS/ci.yml\n"
+            "+++ b/.GITHUB/WORKFLOWS/ci.yml\n"
+            "@@ -1 +1 @@\n-old\n+new\n"
+        )
+        with self.assertRaisesRegex(RuntimeError, "protected path"):
+            local_agent_loop.validate_patch(patch)
+
     def test_rejects_workflow_changes(self):
         patch = (
             "diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml\n"
