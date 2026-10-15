@@ -9,7 +9,9 @@ import hashlib
 import json
 import os
 import pathlib
+import shutil
 import subprocess
+import tempfile
 import time
 import urllib.request
 import uuid
@@ -163,7 +165,182 @@ def validate_patch(patch: str) -> list[str]:
     return sorted(paths)
 
 
-def run_tests() -> tuple[int, str]:
+def _run_native_checks(changed_paths: list[str]) -> tuple[int, str]:
+    """Run the changed language's own checks or block an unvalidated source change."""
+    results: list[str] = []
+    paths = [pathlib.PurePosixPath(name) for name in changed_paths]
+    suffixes = {path.suffix.lower() for path in paths}
+    names = {path.name.lower() for path in paths}
+
+    def run(command: list[str], cwd: pathlib.Path, label: str, timeout: int = 900) -> tuple[int, str]:
+        try:
+            result = subprocess.run(
+                command, cwd=cwd, text=True, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, timeout=timeout,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            return 2, f"BLOCKED: {label} could not run: {exc}"
+        results.append(f"$ {' '.join(command)}\n{result.stdout[-6000:]}")
+        return result.returncode, result.stdout
+
+    def require(tool: str, label: str) -> tuple[int, str] | None:
+        if shutil.which(tool) is None:
+            return 2, f"BLOCKED: {label} changed but required tool '{tool}' is unavailable"
+        return None
+
+    def project_root(relative: pathlib.PurePosixPath, marker: str) -> pathlib.Path | None:
+        candidate = ROOT.joinpath(*relative.parts).resolve()
+        for parent in (candidate.parent, *candidate.parents):
+            if parent == ROOT.parent:
+                break
+            if (parent / marker).is_file():
+                return parent
+        return None
+
+    if ".go" in suffixes or "go.mod" in names:
+        blocked = require("go", "Go source")
+        if blocked:
+            return blocked
+        for command in (["go", "test", "./..."], ["go", "vet", "./..."]):
+            code, output = run(command, ROOT, "Go validation", timeout=1200)
+            if code:
+                return code, "\n".join(results)[-16_000:]
+
+    if suffixes.intersection({".c", ".h", ".cc", ".cpp", ".cxx", ".hpp"}) or "cmakelists.txt" in names:
+        blocked = require("cmake", "C/C++ source")
+        if blocked:
+            return blocked
+        projects = {project_root(path, "CMakeLists.txt") for path in paths
+                    if path.suffix.lower() in {".c", ".h", ".cc", ".cpp", ".cxx", ".hpp"}
+                    or path.name.lower() == "cmakelists.txt"}
+        projects.discard(None)
+        if not projects:
+            return 2, "BLOCKED: C/C++ source changed but no ancestor CMakeLists.txt was found"
+        if shutil.which("ctest") is None:
+            return 2, "BLOCKED: C/C++ source changed but ctest is unavailable"
+        for project in sorted(projects):
+            with tempfile.TemporaryDirectory(prefix="local-agent-cmake-") as build_dir:
+                for command in (["cmake", "-S", str(project), "-B", build_dir],
+                                ["cmake", "--build", build_dir, "--config", "Release"],
+                                ["ctest", "--test-dir", build_dir, "-C", "Release", "--output-on-failure"]):
+                    code, output = run(command, ROOT, "C/C++ validation", timeout=1800)
+                    if code:
+                        return code, "\n".join(results)[-16_000:]
+
+    if ".swift" in suffixes or "package.swift" in names:
+        blocked = require("swift", "Swift source")
+        if blocked:
+            return blocked
+        projects = {project_root(path, "Package.swift") for path in paths
+                    if path.suffix.lower() == ".swift" or path.name == "Package.swift"}
+        projects.discard(None)
+        if not projects:
+            return 2, "BLOCKED: Swift source changed but no Package.swift was found"
+        for project in sorted(projects):
+            code, _ = run(["swift", "test"], project, "Swift validation", timeout=1800)
+            if code:
+                return code, "\n".join(results)[-16_000:]
+
+    if ".d" in suffixes or names.intersection({"dub.json", "dub.sdl"}):
+        blocked = require("dub", "D source")
+        if blocked:
+            return blocked
+        projects = {project_root(path, "dub.json") or project_root(path, "dub.sdl")
+                    for path in paths if path.suffix.lower() == ".d" or path.name in {"dub.json", "dub.sdl"}}
+        projects.discard(None)
+        if not projects:
+            return 2, "BLOCKED: D source changed but no dub.json/dub.sdl was found"
+        for project in sorted(projects):
+            code, _ = run(["dub", "test", "--skip-registry=all"], project, "D validation", timeout=1800)
+            if code:
+                return code, "\n".join(results)[-16_000:]
+
+    if ".nim" in suffixes:
+        blocked = require("nim", "Nim source")
+        if blocked:
+            return blocked
+        for path in paths:
+            if path.suffix.lower() == ".nim":
+                code, _ = run(["nim", "check", "--hints:off", str(ROOT.joinpath(*path.parts))],
+                              ROOT, "Nim validation", timeout=900)
+                if code:
+                    return code, "\n".join(results)[-16_000:]
+
+    if ".zig" in suffixes:
+        blocked = require("zig", "Zig source")
+        if blocked:
+            return blocked
+        for path in paths:
+            if path.suffix.lower() == ".zig":
+                code, _ = run(["zig", "test", str(ROOT.joinpath(*path.parts))],
+                              ROOT, "Zig validation", timeout=1200)
+                if code:
+                    return code, "\n".join(results)[-16_000:]
+
+    if suffixes.intersection({".adb", ".ads"}):
+        blocked = require("gprbuild", "Ada source")
+        if blocked:
+            return blocked
+        projects = {project_root(path, path.name) for path in paths
+                    if path.suffix.lower() in {".adb", ".ads"}}
+        projects.discard(None)
+        if not projects:
+            return 2, "BLOCKED: Ada source changed but no enclosing project file was found"
+        for project in sorted(projects):
+            gpr_files = sorted(project.glob("*.gpr"))
+            if not gpr_files:
+                return 2, f"BLOCKED: Ada source changed but no .gpr project exists in {project}"
+            code, _ = run(["gprbuild", "-P", str(gpr_files[0])], project, "Ada validation", timeout=1800)
+            if code:
+                return code, "\n".join(results)[-16_000:]
+
+    if suffixes.intersection({".cs", ".fs", ".vb"}) or names.intersection({"global.json"}):
+        blocked = require("dotnet", ".NET source")
+        if blocked:
+            return blocked
+        projects = {project_root(path, "*.csproj") for path in paths
+                    if path.suffix.lower() in {".cs", ".fs", ".vb"}}
+        projects.discard(None)
+        if not projects:
+            return 2, "BLOCKED: .NET source changed but no project root was found"
+        for project in sorted(projects):
+            project_files = sorted(project.glob("*.sln")) or sorted(project.glob("*.csproj"))
+            if not project_files:
+                return 2, f"BLOCKED: no .sln or .csproj found in {project}"
+            code, _ = run(["dotnet", "test", str(project_files[0]), "--no-restore"],
+                          project, ".NET validation", timeout=1800)
+            if code:
+                return code, "\n".join(results)[-16_000:]
+
+    if suffixes.intersection({".java", ".kt", ".kts"}):
+        blocked = require("java", "JVM source")
+        if blocked:
+            return blocked
+        projects = {project_root(path, "pom.xml") or project_root(path, "build.gradle")
+                    or project_root(path, "build.gradle.kts") for path in paths
+                    if path.suffix.lower() in {".java", ".kt", ".kts"}}
+        projects.discard(None)
+        if not projects:
+            return 2, "BLOCKED: JVM source changed but no Maven/Gradle build file was found"
+        for project in sorted(projects):
+            if (project / "pom.xml").is_file():
+                command = ["mvn", "-B", "-o", "test"]
+            elif (project / "gradlew").is_file():
+                command = ["./gradlew", "--offline", "test"]
+            elif (project / "build.gradle").is_file() or (project / "build.gradle.kts").is_file():
+                if shutil.which("gradle") is None:
+                    return 2, "BLOCKED: Gradle project found but neither wrapper nor gradle command is available"
+                command = ["gradle", "--offline", "test"]
+            else:
+                return 2, f"BLOCKED: unsupported JVM build layout in {project}"
+            code, _ = run(command, project, "JVM validation", timeout=1800)
+            if code:
+                return code, "\n".join(results)[-16_000:]
+
+    return 0, "\n".join(results)[-16_000:]
+
+
+def run_tests(changed_paths: list[str]) -> tuple[int, str]:
     results: list[str] = []
     manifests = sorted(
         p for p in ROOT.rglob("Cargo.toml")
@@ -210,6 +387,11 @@ def run_tests() -> tuple[int, str]:
 
     if not manifests and not test_files:
         return 2, "BLOCKED: no Rust manifest or Python test file found"
+    native_code, native_output = _run_native_checks(changed_paths)
+    if native_code:
+        return native_code, "\n".join(filter(None, [native_output, "\n".join(results)]))[-16_000:]
+    if native_output:
+        results.append(native_output)
     return 0, "\n".join(results)[-16_000:]
 
 
@@ -245,7 +427,7 @@ def once(role_name: str, role_goal: str) -> None:
             raise RuntimeError("git apply failed: " + apply.stdout[-3000:])
         applied = True
 
-        code, output = run_tests()
+        code, output = run_tests(patch_paths)
         entry.update({"test_exit_code": code, "test_output": output})
         if code:
             rollback = git("apply", "-R", "--", input_text=patch, check=False, timeout=60)
