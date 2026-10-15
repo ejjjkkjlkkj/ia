@@ -129,7 +129,7 @@ def decode_ir(data: str) -> dict[str, Any]:
         )
     except NEXORAIRError:
         raise
-    except (json.JSONDecodeError, UnicodeError, RecursionError) as exc:
+    except (json.JSONDecodeError, UnicodeError, RecursionError, ValueError) as exc:
         raise NEXORAIRError("invalid IR JSON") from exc
     # Bound decoded JSON iteratively before recursive schema validation.
     pending = [(envelope, 0)]
