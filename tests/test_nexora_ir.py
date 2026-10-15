@@ -79,6 +79,13 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORAIRError, "identifier"):
             execute_ir(json.dumps(doc))
 
+
+    def test_execute_ir_normalizes_large_integer_division_overflow(self):
+        doc = json.loads(encode_ast(parse("print(1 / 1);")))
+        doc["ast"]["children"][0]["children"][0]["children"][0]["value"] = 1 << 4095
+        with self.assertRaisesRegex(ValueError, "numeric operation overflowed"):
+            execute_ir(json.dumps(doc))
+
     def test_execute_ir_rejects_division_by_zero(self):
         with self.assertRaisesRegex(ValueError, "division by zero"):
             execute_ir(encode_ast(parse("print(4 / 0);")))
