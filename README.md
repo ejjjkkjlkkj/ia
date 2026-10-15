@@ -15,7 +15,7 @@ Les langages partagent une **spécification mathématique, un tokenizer versionn
 
 ## Contrat avec ACCESSIBILITY
 
-Le contrat commun versionné est maintenu dans [ACCESSIBILITY — AI integration contract](https://github.com/ejjjkkjlkkj/accessibility/blob/main/docs/AI-ACCESSIBILITY-INTEGRATION-CONTRACT-V1.md). Il fixe la séparation des preuves, le mode sans IA, la confidentialité et les critères d'interopérabilité. La présence du contrat ne signifie pas que le modèle est entraîné ni que l'intégration est exécutée.
+Le contrat commun versionné est maintenu dans [ACCESSIBILITY — AI integration contract](https://github.com/ejjjkkjlkkj/accessibility/blob/feature/dark-redteam-from-scratch-20261015/docs/AI-ACCESSIBILITY-INTEGRATION-CONTRACT-V1.md). Il fixe la séparation des preuves, le mode sans IA, la confidentialité et les critères d'interopérabilité. La présence du contrat ne signifie pas que le modèle est entraîné ni que l'intégration est exécutée.
 
 ## Langage universel NEXORA
 
