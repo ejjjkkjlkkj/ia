@@ -24,3 +24,12 @@ This is a prototype, not a verified 24/7 service. It is not installed or running
 ## Register automatic start at logon
 
 After checking out this branch in a dedicated clone, ensure the worktree is clean and the configured local model is installed. In PowerShell from the repository root, run `powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\install_agent_task.ps1`. This registers a per-user Scheduled Task that starts the supervisor at logon; start it immediately with `Start-ScheduledTask -TaskName 'LocalCodingAgent-ia'`. The supervisor restarts the bounded loop after it exits. This has not been installed or started on the target PC by this GitHub change. Review logs and local commits before pushing. Keep the machine awake and signed in; the task does not wake a sleeping PC or prove 24/7 uptime.
+
+
+## Sequential specialist team
+
+Each iteration rotates through five specialist roles: implementer, test engineer, accessibility reviewer, repository-local security red team, and independent reviewer. They share one model and one clean worktree **sequentially**, not as five conflicting writers. A successful iteration must pass the detected test suite before creating a local commit. Logs identify the role, test exit code, changed paths, and commit. The team does not push or merge.
+
+## Important execution boundary
+
+This runner is not a security sandbox. Although it never runs commands supplied directly by the model, test/build commands execute repository code, including newly generated code. Use a disposable worktree and a low-privilege Windows account without credentials, personal files, or access to sensitive directories. The path checks and prompt are defense-in-depth, not a guarantee against malicious code. Stop the task if test execution or logs are unexpected.
