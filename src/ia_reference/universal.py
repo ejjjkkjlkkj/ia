@@ -5,7 +5,7 @@ language without language-specific tokenization. This is a deliberately small
 statistical baseline, not a neural model or a claim of semantic universality.
 """
 from __future__ import annotations
-import argparse, hashlib, json, math
+import argparse, hashlib, json, math, re
 from pathlib import Path
 from typing import Any
 
@@ -41,10 +41,75 @@ def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
             "alpha": alpha, "vocab_size": VOCAB_SIZE, "counts": counts,
             "training_bytes": len(data), "training_corpus_sha256": _sha256(data)}
 
+def _validate_payload(model: Any) -> None:
+    """Validate every field and transition before a checkpoint is saved or used."""
+    required = {
+        "schema_version", "model_type", "tokenization", "alpha", "vocab_size",
+        "counts", "training_bytes", "training_corpus_sha256",
+    }
+    if not isinstance(model, dict) or set(model) != required:
+        raise ValueError("checkpoint fields do not match the model schema")
+    if type(model["schema_version"]) is not int or model["schema_version"] != SCHEMA_VERSION:
+        raise ValueError("unsupported checkpoint schema version")
+    if model["model_type"] != MODEL_TYPE or model["vocab_size"] != VOCAB_SIZE:
+        raise ValueError("unsupported universal model format")
+    if model["tokenization"] != "raw UTF-8 bytes; reserved BOS=256 EOS=257":
+        raise ValueError("unsupported tokenization contract")
+    alpha = model["alpha"]
+    if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
+        raise ValueError("alpha must be a finite positive number")
+    training_bytes = model["training_bytes"]
+    if type(training_bytes) is not int or training_bytes <= 0:
+        raise ValueError("invalid training byte count")
+    corpus_hash = model["training_corpus_sha256"]
+    if not isinstance(corpus_hash, str) or re.fullmatch(r"[0-9a-f]{64}", corpus_hash) is None:
+        raise ValueError("invalid training corpus SHA-256")
+    counts = model["counts"]
+    if not isinstance(counts, dict) or str(BOS) not in counts:
+        raise ValueError("invalid transition counts")
+    total = 0
+    eos_count = 0
+    for previous, row in counts.items():
+        if not isinstance(previous, str) or not previous.isdecimal() or str(int(previous)) != previous:
+            raise ValueError("invalid previous-byte key")
+        previous_id = int(previous)
+        if previous_id < 0 or previous_id > BOS:
+            raise ValueError("previous-byte key is out of range")
+        if not isinstance(row, dict) or not row:
+            raise ValueError("transition rows must be non-empty objects")
+        for token, count in row.items():
+            if not isinstance(token, str) or not token.isdecimal() or str(int(token)) != token:
+                raise ValueError("invalid next-byte key")
+            token_id = int(token)
+            if token_id < 0 or token_id > EOS:
+                raise ValueError("next-byte key is out of range")
+            if type(count) is not int or count <= 0:
+                raise ValueError("transition counts must be positive integers")
+            total += count
+            if token_id == EOS:
+                eos_count += count
+    if total != training_bytes + 1 or eos_count != 1 or sum(counts[str(BOS)].values()) != 1:
+        raise ValueError("transition counts do not match training byte totals")
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate checkpoint JSON key")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError("non-standard checkpoint JSON numeric constant")
+
+
 def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
-    """Write a hash-protected JSON checkpoint and return its SHA-256."""
+    """Validate and write a hash-protected JSON checkpoint."""
     payload = dict(model)
     payload.pop("checkpoint_sha256", None)
+    _validate_payload(payload)
     digest = _sha256(_canonical_json(payload))
     checkpoint = dict(payload, checkpoint_sha256=digest)
     destination = Path(path)
@@ -52,18 +117,23 @@ def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
     destination.write_text(json.dumps(checkpoint, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     return digest
 
+
 def load_checkpoint(path: str | Path) -> dict[str, Any]:
-    """Load only supported, integrity-checked checkpoints."""
-    checkpoint = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(checkpoint, dict) or checkpoint.get("schema_version") != SCHEMA_VERSION:
+    """Load only supported, structurally valid, integrity-checked checkpoints."""
+    try:
+        checkpoint = json.loads(
+            Path(path).read_text(encoding="utf-8"),
+            object_pairs_hook=_unique_json_object,
+            parse_constant=_reject_json_constant,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
+        raise ValueError("cannot read checkpoint JSON") from exc
+    if not isinstance(checkpoint, dict):
         raise ValueError("unsupported or malformed checkpoint schema")
     supplied_hash = checkpoint.pop("checkpoint_sha256", None)
     if not isinstance(supplied_hash, str) or supplied_hash != _sha256(_canonical_json(checkpoint)):
         raise ValueError("checkpoint SHA-256 mismatch")
-    if checkpoint.get("model_type") != MODEL_TYPE or checkpoint.get("vocab_size") != VOCAB_SIZE:
-        raise ValueError("unsupported universal model format")
-    if not isinstance(checkpoint.get("counts"), dict):
-        raise ValueError("checkpoint is missing transition counts")
+    _validate_payload(checkpoint)
     checkpoint["checkpoint_sha256"] = supplied_hash
     return checkpoint
 
