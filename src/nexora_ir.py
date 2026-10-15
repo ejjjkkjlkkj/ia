@@ -54,8 +54,12 @@ def _validate_node(obj: Any, depth: int, budget: list[int]) -> dict[str, Any]:
     expected_value, expected_children = allowed[kind]
     if expected_value == "str" and not isinstance(value, str):
         raise NEXORAIRError(f"{kind} value must be a string")
+    if expected_value == "str" and any(0xD800 <= ord(char) <= 0xDFFF for char in value):
+        raise NEXORAIRError(f"{kind} value contains invalid Unicode scalar")
     if expected_value == "number" and (not isinstance(value, int) or isinstance(value, bool)):
         raise NEXORAIRError("number value must be an integer")
+    if expected_value == "number" and value.bit_length() > 4096:
+        raise NEXORAIRError("integer literal exceeds 4096-bit limit")
     if expected_value == "bool" and not isinstance(value, bool):
         raise NEXORAIRError("boolean value must be a boolean")
     if expected_value == "unary_op" and value != "-":
@@ -121,7 +125,7 @@ def decode_ir(data: str) -> dict[str, Any]:
         )
     except NEXORAIRError:
         raise
-    except (json.JSONDecodeError, UnicodeError, RecursionError) as exc:
+    except (ValueError, UnicodeError, RecursionError) as exc:
         raise NEXORAIRError("invalid IR JSON") from exc
     if not isinstance(envelope, dict) or set(envelope) != {"format", "version", "ast"}:
         raise NEXORAIRError("invalid IR envelope")
