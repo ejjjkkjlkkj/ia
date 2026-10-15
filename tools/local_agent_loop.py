@@ -124,7 +124,7 @@ def ask_model(context: str) -> str:
     return body.get("message", {}).get("content", "").strip()
 
 
-def validate_patch(patch: str) -> None:
+def validate_patch(patch: str) -> list[str]:
     if not patch or patch == "NO_PATCH":
         raise RuntimeError("model returned no patch")
     if len(patch.encode("utf-8")) > MAX_PATCH_BYTES or not patch.startswith("diff --git "):
@@ -146,6 +146,7 @@ def validate_patch(patch: str) -> None:
         paths.add(normalized)
     if not paths:
         raise RuntimeError("patch contains no file paths")
+    return sorted(paths)
 
 
 def run_tests() -> tuple[int, str]:
@@ -220,7 +221,7 @@ def once() -> None:
         if patch == "NO_PATCH":
             entry["status"] = "NO_PATCH"
             return
-        validate_patch(patch)
+        patch_paths = validate_patch(patch)
         check = git("apply", "--check", "--", input_text=patch, check=False, timeout=60)
         if check.returncode:
             raise RuntimeError("git apply --check failed: " + check.stdout[-3000:])
@@ -236,13 +237,19 @@ def once() -> None:
             applied = rollback.returncode != 0
             raise RuntimeError("tests failed; rollback exit code " + str(rollback.returncode))
 
-        diff = git("diff", "--binary")
+        staged = git("add", "-A", "--", *patch_paths, check=False)
+        if staged.returncode:
+            rollback = git("apply", "-R", "--", input_text=patch, check=False, timeout=60)
+            applied = rollback.returncode != 0
+            raise RuntimeError("git add failed; rollback exit code " + str(rollback.returncode)
+                               + "; " + staged.stdout[-2000:])
+        diff = git("diff", "--cached", "--binary")
         if not diff.stdout.strip():
-            raise RuntimeError("patch produced no tracked diff")
+            raise RuntimeError("patch produced no staged diff")
         commit = git(
             "-c", "user.name=Local Coding Agent",
             "-c", "user.email=local-agent@localhost",
-            "commit", "-am", "agent: apply tested local improvement",
+            "commit", "-m", "agent: apply tested local improvement",
             check=False, timeout=120,
         )
         if commit.returncode:
