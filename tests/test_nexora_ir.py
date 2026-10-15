@@ -34,7 +34,6 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORAIRError, "requires"):
             decode_ir(json.dumps(doc))
 
-
     def test_execute_ir_matches_reference_program(self):
         source = 'let total = 2 + 3 * 4; print(total); print("bonjour " + "monde");'
         self.assertEqual(execute_ir(encode_ast(parse(source))), [14, "bonjour monde"])
@@ -59,7 +58,6 @@ class NEXORAIRTests(unittest.TestCase):
     def test_execute_ir_rejects_division_by_zero(self):
         with self.assertRaisesRegex(ValueError, "division by zero"):
             execute_ir(encode_ast(parse("print(4 / 0);")))
-
 
     def test_decode_rejects_duplicate_json_keys(self):
         duplicate = (
@@ -89,7 +87,6 @@ class NEXORAIRTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORAIRError, "invalid Unicode"):
             decode_ir(chr(0xD800))
 
-
     def test_ir_conformance_corpus_matches_reference_interpreter(self):
         programs = [
             "print(1 + 2 * 3);",
@@ -105,6 +102,28 @@ class NEXORAIRTests(unittest.TestCase):
                 expected = run(source)
                 actual = execute_ir(encode_ast(parse(source)))
                 self.assertEqual(actual, expected)
+
+    def test_decode_rejects_integer_literal_over_4096_bits(self):
+        value = "9" * 1234
+        data = (
+            '{"format":"nexora-ir","version":1,"ast":'
+            '{"kind":"number","value":' + value + ',"children":[]}}'
+        )
+        with self.assertRaisesRegex(NEXORAIRError, "4096-bit limit"):
+            decode_ir(data)
+
+    def test_execute_ir_normalizes_large_integer_float_conversion(self):
+        value = "9" * 1233
+        data = (
+            '{"format":"nexora-ir","version":1,"ast":'
+            '{"kind":"program","value":null,"children":['
+            '{"kind":"print","value":null,"children":['
+            '{"kind":"binary","value":"/","children":['
+            '{"kind":"number","value":' + value + ',"children":[]},'
+            '{"kind":"number","value":1,"children":[]} ]}]}]}'
+        )
+        with self.assertRaisesRegex(ValueError, "numeric operation exceeds supported range"):
+            execute_ir(data)
 
 if __name__ == "__main__":
     unittest.main()
