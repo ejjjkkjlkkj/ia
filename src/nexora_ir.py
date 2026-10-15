@@ -53,8 +53,19 @@ def _validate_node(obj: Any, depth: int, budget: list[int]) -> dict[str, Any]:
     if kind not in allowed:
         raise NEXORAIRError(f"unknown IR node kind: {kind}")
     expected_value, expected_children = allowed[kind]
+    if isinstance(value, str):
+        try:
+            value_size = len(value.encode("utf-8"))
+        except UnicodeEncodeError as exc:
+            raise NEXORAIRError("IR string contains invalid Unicode") from exc
+        if value_size > MAX_IR_BYTES:
+            raise NEXORAIRError("IR string value exceeds byte limit")
     if expected_value == "str" and not isinstance(value, str):
         raise NEXORAIRError(f"{kind} value must be a string")
+    if kind == "identifier" and (
+        not value.isidentifier() or value in {"let", "print", "true", "false"}
+    ):
+        raise NEXORAIRError("invalid identifier")
     if expected_value == "number":
         if not isinstance(value, int) or isinstance(value, bool):
             raise NEXORAIRError("number value must be an integer")
