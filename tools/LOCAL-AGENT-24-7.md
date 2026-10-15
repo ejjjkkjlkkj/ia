@@ -1,6 +1,6 @@
 # Local 24/7 coding loop (experimental)
 
-`tools/local_agent_loop.py` is a bounded local Ollama coding loop. It requires Python 3.11+, Git, a local Ollama server, and a dedicated clean feature-branch checkout. It never pushes, merges, publishes releases, changes firmware, or executes model-generated shell commands. It accepts only bounded unified diffs, runs fixed test commands, and creates local commits only after tests pass. Review all commits before pushing.
+`tools/local_agent_loop.py` is a bounded local Ollama coding loop. It requires Python 3.11+, Git, a local Ollama server, and a dedicated clean feature-branch checkout. It never merges or publishes releases, changes firmware, or executes model-generated shell commands. It accepts bounded unified diffs, runs fixed test commands, creates commits only after tests pass, and by default pushes those commits to the current dedicated feature branch (`AGENT_AUTO_PUSH=0` disables pushing). Review pushed commits and CI before any merge.
 
 ## Start manually
 
@@ -23,12 +23,12 @@ This is a prototype, not a verified 24/7 service. It is not installed or running
 
 ## Register automatic start at logon
 
-After checking out this branch in a dedicated clone, ensure the worktree is clean and the configured local model is installed. In PowerShell from the repository root, run `powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\install_agent_task.ps1`. This registers a per-user Scheduled Task that starts the supervisor at logon; start it immediately with `Start-ScheduledTask -TaskName 'LocalCodingAgent-ia'`. The supervisor restarts the bounded loop after it exits. This has not been installed or started on the target PC by this GitHub change. Review logs and local commits before pushing. Keep the machine awake and signed in; the task does not wake a sleeping PC or prove 24/7 uptime.
+After checking out this branch in a dedicated clone, ensure the worktree is clean and the configured local model is installed. In PowerShell from the repository root, run `powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\install_agent_task.ps1`. This registers a per-user Scheduled Task that starts the supervisor at logon; start it immediately with `Start-ScheduledTask -TaskName 'LocalCodingAgent-ia'`. The supervisor restarts the bounded loop after it exits. This has not been installed or started on the target PC by this GitHub change. Review logs, pushed commits, and CI runs. No merge or release is automatic. Keep the machine awake and signed in; the task does not wake a sleeping PC or prove 24/7 uptime.
 
 
 ## Sequential specialist team
 
-Each iteration rotates through five specialist roles: implementer, test engineer, accessibility reviewer, repository-local security red team, and independent reviewer. They share one model and one clean worktree **sequentially**, not as five conflicting writers. A successful iteration must pass the detected test suite before creating a local commit. Logs identify the role, test exit code, changed paths, and commit. The team does not push or merge.
+Each iteration rotates through five specialist roles: implementer, test engineer, accessibility reviewer, repository-local security red team, and independent reviewer. They share one model and one clean worktree **sequentially**, not as five conflicting writers. A successful iteration must pass the detected test suite before creating a local commit. Logs identify the role, test exit code, changed paths, and commit. After tests pass, the runner pushes commits to the dedicated feature branch by default; it never merges or releases. Set `AGENT_AUTO_PUSH=0` to keep commits local.
 
 ## Important execution boundary
 
