@@ -48,6 +48,17 @@ class AgentPatchValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "protected path"):
             local_agent_loop.validate_patch(patch)
 
+
+    def test_rejects_team_bootstrap_changes(self):
+        patch = (
+            "diff --git a/tools/install_both_agents.ps1 b/tools/install_both_agents.ps1\n"
+            "--- a/tools/install_both_agents.ps1\n"
+            "+++ b/tools/install_both_agents.ps1\n"
+            "@@ -1 +1 @@\n-old\n+new\n"
+        )
+        with self.assertRaisesRegex(RuntimeError, "protected path"):
+            local_agent_loop.validate_patch(patch)
+
     def test_rejects_runner_changes(self):
         patch = (
             "diff --git a/tools/local_agent_loop.py b/tools/local_agent_loop.py\n"
