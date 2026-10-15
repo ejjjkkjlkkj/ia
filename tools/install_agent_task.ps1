@@ -12,7 +12,7 @@ $Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $TaskArgum
 $Trigger = New-ScheduledTaskTrigger -AtLogOn -User $UserId
 $Settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1)
 $Principal = New-ScheduledTaskPrincipal -UserId $UserId -LogonType Interactive -RunLevel Limited
-$Task = New-ScheduledTask -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal -Description "Local Ollama coding agent; feature branch only; no automatic push, merge, or release."
+$Task = New-ScheduledTask -Action $Action -Trigger $Trigger -Settings $Settings -Principal $Principal -Description "Local Ollama coding agent; feature branch only; auto-push only after passing tests; no automatic merge or release."
 Register-ScheduledTask -TaskName $TaskName -InputObject $Task -Force | Out-Null
 Write-Output "REGISTERED: $TaskName"
 Write-Output "Starts at the next logon; start now with Start-ScheduledTask -TaskName '$TaskName'."
