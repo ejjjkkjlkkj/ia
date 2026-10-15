@@ -183,14 +183,17 @@ def run(source: str) -> list[Any]:
             numeric = lambda value: isinstance(value, (int, float)) and not isinstance(value, bool)
             if not numeric(left) or not numeric(right):
                 raise NEXORARuntimeError(f"operator {node.value} requires numeric operands")
-            if node.value == "+": result = left + right
-            elif node.value == "-": result = left - right
-            elif node.value == "*": result = left * right
-            elif node.value == "/":
-                if right == 0: raise NEXORARuntimeError("division by zero")
-                result = left / right
-            else:
-                raise NEXORARuntimeError(f"unsupported operator: {node.value}")
+            try:
+                if node.value == "+": result = left + right
+                elif node.value == "-": result = left - right
+                elif node.value == "*": result = left * right
+                elif node.value == "/":
+                    if right == 0: raise NEXORARuntimeError("division by zero")
+                    result = left / right
+                else:
+                    raise NEXORARuntimeError(f"unsupported operator: {node.value}")
+            except OverflowError as exc:
+                raise NEXORARuntimeError("numeric operation exceeds supported range") from exc
             if isinstance(result, int) and result.bit_length() > 4096:
                 raise NEXORARuntimeError("integer result exceeds 4096-bit limit")
             if isinstance(result, float) and not math.isfinite(result):
@@ -198,15 +201,18 @@ def run(source: str) -> list[Any]:
             return result
         raise NEXORARuntimeError(f"unsupported node: {node.kind}")
 
-    for statement in tree.children:
-        if statement.kind == "let":
-            if statement.value in environment:
-                raise NEXORARuntimeError(f"variable already defined: {statement.value}")
-            environment[statement.value] = evaluate(statement.children[0])
-        elif statement.kind == "print":
-            output.append(evaluate(statement.children[0]))
-        elif statement.kind == "expr":
-            evaluate(statement.children[0])
-        else:
-            raise NEXORARuntimeError(f"unsupported statement: {statement.kind}")
+    try:
+        for statement in tree.children:
+            if statement.kind == "let":
+                if statement.value in environment:
+                    raise NEXORARuntimeError(f"variable already defined: {statement.value}")
+                environment[statement.value] = evaluate(statement.children[0])
+            elif statement.kind == "print":
+                output.append(evaluate(statement.children[0]))
+            elif statement.kind == "expr":
+                evaluate(statement.children[0])
+            else:
+                raise NEXORARuntimeError(f"unsupported statement: {statement.kind}")
+    except RecursionError as exc:
+        raise NEXORARuntimeError("maximum evaluation depth exceeded") from exc
     return output
