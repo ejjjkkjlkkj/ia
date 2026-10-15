@@ -43,7 +43,7 @@ EXCLUDED_PARTS = {
 PROTECTED_EXACT = {
     "AGENT-TASK.md", "AGENTS.md", ".env", ".env.local", ".env.production",
     "secrets.json", "credentials.json", "agent-runs.jsonl",
-    "tools/local_agent_loop.py", "tools/agent_service.ps1", "tools/install_agent_task.ps1",
+    "tools/local_agent_loop.py", "tools/agent_service.ps1", "tools/install_agent_task.ps1", "tools/install_both_agents.ps1",
 }
 PROTECTED_PREFIXES = (".github/workflows/", ".git/",)
 
