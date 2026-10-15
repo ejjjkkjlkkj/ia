@@ -446,12 +446,16 @@ def once(role_name: str, role_goal: str) -> None:
         staged = git("add", "-A", "--", *patch_paths, check=False)
         if staged.returncode:
             rollback = git("apply", "-R", "--", input_text=patch, check=False, timeout=60)
+            git("reset", "--", *patch_paths, check=False)
             applied = rollback.returncode != 0
             raise RuntimeError("git add failed; rollback exit code " + str(rollback.returncode)
                                + "; " + staged.stdout[-2000:])
         diff = git("diff", "--cached", "--binary")
         if not diff.stdout.strip():
-            raise RuntimeError("patch produced no staged diff")
+            git("reset", "--", *patch_paths, check=False)
+            rollback = git("apply", "-R", "--", input_text=patch, check=False, timeout=60)
+            applied = rollback.returncode != 0
+            raise RuntimeError("patch produced no staged diff; rollback exit code " + str(rollback.returncode))
         commit = git(
             "-c", "user.name=Local Coding Agent",
             "-c", "user.email=local-agent@localhost",
@@ -460,6 +464,7 @@ def once(role_name: str, role_goal: str) -> None:
         )
         if commit.returncode:
             rollback = git("apply", "-R", "--", input_text=patch, check=False, timeout=60)
+            git("reset", "--", *patch_paths, check=False)
             applied = rollback.returncode != 0
             raise RuntimeError("commit failed; rollback exit code " + str(rollback.returncode)
                                + "; " + commit.stdout[-2000:])
