@@ -4,7 +4,9 @@ on:
   push:
     paths:
       - "src/nexora_language.py"
+      - "src/nexora_ir.py"
       - "tests/test_nexora_language.py"
+      - "tests/test_nexora_ir.py"
       - ".github/workflows/nexora-tests.yml"
   pull_request:
     paths:
@@ -40,6 +42,6 @@ jobs:
         env:
           PYTHONPATH: src
           PYTHONDONTWRITEBYTECODE: "1"
-        run: python -m unittest discover -s tests -p "test_nexora_language.py" -v
+        run: python -m unittest discover -s tests -p "test_nexora_*.py" -v
       - name: Compile reference interpreter
-        run: python -m py_compile src/nexora_language.py
+        run: python -m py_compile src/nexora_language.py src/nexora_ir.py
