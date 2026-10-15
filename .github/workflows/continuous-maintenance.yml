@@ -1,0 +1,80 @@
+name: Continuous repository maintenance
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: continuous-maintenance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Repository hygiene and manifest validation
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p .maintenance-report
+          report=.maintenance-report/report.txt
+          {
+            echo "Repository: ${GITHUB_REPOSITORY}"
+            echo "Commit: ${GITHUB_SHA}"
+            echo "Event: ${GITHUB_EVENT_NAME}"
+            echo "UTC: $(date -u +%FT%TZ)"
+            echo
+          } > "$report"
+          failed=0
+          if [ -f pyproject.toml ] || find . -maxdepth 3 -name '*.py' -print -quit | grep -q .; then
+            echo "Python syntax check" | tee -a "$report"
+            while IFS= read -r -d '' file; do
+              if ! python -m py_compile "$file" >>"$report" 2>&1; then failed=1; fi
+            done < <(find . -path './.git' -prune -o -path './.venv' -prune -o -name '*.py' -print0)
+          fi
+          while IFS= read -r -d '' file; do
+            echo "JSON: $file" | tee -a "$report"
+            if ! python -m json.tool "$file" >/dev/null 2>>"$report"; then failed=1; fi
+          done < <(find . -path './.git' -prune -o -path './.venv' -prune -o -name '*.json' -print0)
+          if [ -f Cargo.toml ]; then
+            echo "Rust tests" | tee -a "$report"
+            if ! cargo test --workspace --all-targets >>"$report" 2>&1; then
+              echo "Workspace test failed or workspace layout is unsupported; inspect log." >>"$report"
+              failed=1
+            fi
+          fi
+          if [ -f go.mod ]; then
+            echo "Go tests" | tee -a "$report"
+            if ! go test ./... >>"$report" 2>&1; then failed=1; fi
+          fi
+          if [ -f package.json ]; then
+            echo "Node project detected; package scripts are not run automatically without a lockfile." | tee -a "$report"
+          fi
+          echo "RESULT=$([ "$failed" -eq 0 ] && echo PASS || echo FAIL)" | tee -a "$report"
+          exit "$failed"
+
+      - name: Preserve audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: continuous-maintenance-${{ github.run_id }}
+          path: .maintenance-report/
+          if-no-files-found: warn
+          retention-days: 30
