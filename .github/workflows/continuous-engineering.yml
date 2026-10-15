@@ -35,8 +35,7 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
-          files = list(Path(".").rglob("*.json"))
-          files = [p for p in files if not any(x in p.parts for x in (".git", ".venv", "node_modules"))]
+          files = [p for p in Path(".").rglob("*.json") if not any(x in p.parts for x in (".git", ".venv", "node_modules"))]
           errors = []
           for p in files:
               try:
@@ -52,8 +51,7 @@ jobs:
       - name: Python syntax validation
         shell: bash
         run: |
-          if find . -name '*.py' -not -path './.git/*' -not -path '*/.venv/*' | grep -q .; then
-            python - <<'PY'
+          python - <<'PY'
           import ast
           from pathlib import Path
           files = [p for p in Path(".").rglob("*.py") if ".git" not in p.parts and ".venv" not in p.parts]
@@ -68,10 +66,11 @@ jobs:
               print("\n".join(errors))
               raise SystemExit(1)
           PY
-          fi
 
       - name: Run Python tests when present
         shell: bash
+        env:
+          PYTHONPATH: src
         run: |
           if find . -type f \( -name 'test_*.py' -o -name '*_test.py' \) -not -path './.git/*' | grep -q .; then
             python -m pip install --disable-pip-version-check pytest
@@ -80,11 +79,16 @@ jobs:
             echo "PARTIAL: no Python test files detected; syntax/manifest checks only."
           fi
 
-      - name: Run Rust tests when a workspace is present
+      - name: Run Rust tests when manifests are present
         shell: bash
         run: |
-          if find . -name Cargo.toml -not -path './.git/*' | grep -q .; then
-            cargo test --workspace --all-targets
+          mapfile -t manifests < <(find . -name Cargo.toml -not -path './.git/*' -not -path '*/target/*')
+          if (( ${#manifests[@]} )); then
+            rustup toolchain install stable --profile minimal
+            for manifest in "${manifests[@]}"; do
+              echo "Testing Rust manifest: $manifest"
+              cargo +stable test --manifest-path "$manifest" --all-targets
+            done
           else
             echo "SKIP: no Cargo.toml detected."
           fi
@@ -92,11 +96,14 @@ jobs:
       - name: Publish validation summary
         if: always()
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           {
             echo "## Continuous engineering validation"
-            echo "- Trigger: `${{ github.event_name }}`"
-            echo "- Commit: `${{ github.sha }}`"
+            echo "- Trigger: $EVENT_NAME"
+            echo "- Commit: $COMMIT_SHA"
             echo "- This workflow validates existing code; it does not claim autonomous code generation."
             echo "- Physical hardware, UEFI boot, and real audio output are not validated by hosted CI."
           } >> "$GITHUB_STEP_SUMMARY"
