@@ -1,0 +1,237 @@
+{
+  "schema_version": 1,
+  "purpose": "Discover and evaluate public model candidates; this is not an assertion that every listed model is open source or legally reusable.",
+  "policy": {
+    "weights_are_not_automatically_downloaded": true,
+    "license_must_be_verified_per_exact_repository_and_revision": true,
+    "no_automatic_repackaging_or_redistribution": true,
+    "no_external_provider_or_Ollama_runtime_dependency_for_our_model": true,
+    "candidate_models_are_baselines_or_research_inputs_not_a_substitute_for_our_own_trained_model": true
+  },
+  "families": [
+    {
+      "family": "Qwen",
+      "official_hub": "Qwen",
+      "tasks": [
+        "text-generation",
+        "code",
+        "vision",
+        "audio",
+        "embedding",
+        "reranking"
+      ],
+      "notes": "Check exact model card and license; choose current open-weight checkpoints per task."
+    },
+    {
+      "family": "DeepSeek",
+      "official_hub": "deepseek-ai",
+      "tasks": [
+        "text-generation",
+        "reasoning",
+        "code",
+        "vision",
+        "OCR"
+      ],
+      "notes": "Check exact checkpoint and license; some releases may be very large."
+    },
+    {
+      "family": "Meta Llama",
+      "official_hub": "meta-llama",
+      "tasks": [
+        "text-generation",
+        "code",
+        "vision"
+      ],
+      "notes": "Llama community license is not automatically OSI open source; verify regional and usage terms."
+    },
+    {
+      "family": "Mistral",
+      "official_hub": "mistralai",
+      "tasks": [
+        "text-generation",
+        "code",
+        "vision",
+        "audio",
+        "embedding"
+      ],
+      "notes": "Verify each model's license separately."
+    },
+    {
+      "family": "Google Gemma",
+      "official_hub": "google",
+      "tasks": [
+        "text-generation",
+        "code",
+        "vision",
+        "audio"
+      ],
+      "notes": "Gemma terms are model-specific; do not assume Apache/MIT."
+    },
+    {
+      "family": "OpenAI gpt-oss",
+      "official_hub": "openai",
+      "tasks": [
+        "text-generation",
+        "reasoning",
+        "tool-use"
+      ],
+      "notes": "Open-weight, Apache 2.0 per official model page; confirm exact repo metadata."
+    },
+    {
+      "family": "Microsoft Phi",
+      "official_hub": "microsoft",
+      "tasks": [
+        "text-generation",
+        "code",
+        "vision",
+        "audio"
+      ],
+      "notes": "Verify exact model card/license."
+    },
+    {
+      "family": "Cohere Aya",
+      "official_hub": "CohereForAI",
+      "tasks": [
+        "multilingual",
+        "text-generation",
+        "embedding"
+      ],
+      "notes": "Check exact model and use terms."
+    },
+    {
+      "family": "AllenAI OLMo",
+      "official_hub": "allenai",
+      "tasks": [
+        "text-generation",
+        "research",
+        "embedding"
+      ],
+      "notes": "Prioritize transparent data/training releases; verify each artifact."
+    },
+    {
+      "family": "Databricks DBRX",
+      "official_hub": "databricks",
+      "tasks": [
+        "text-generation",
+        "code"
+      ],
+      "notes": "Check current supported checkpoints and license."
+    },
+    {
+      "family": "Z.ai GLM",
+      "official_hub": "zai-org",
+      "tasks": [
+        "text-generation",
+        "reasoning",
+        "code",
+        "vision"
+      ],
+      "notes": "Verify current exact checkpoint and any special commercial terms."
+    },
+    {
+      "family": "Moonshot Kimi",
+      "official_hub": "moonshotai",
+      "tasks": [
+        "text-generation",
+        "reasoning",
+        "code",
+        "vision"
+      ],
+      "notes": "Verify exact model availability and license; do not infer from the family name."
+    },
+    {
+      "family": "Image generation/editing",
+      "official_hub": "black-forest-labs",
+      "tasks": [
+        "text-to-image",
+        "image-to-image"
+      ],
+      "notes": "Also discover other publishers by task; verify weight and output licenses."
+    },
+    {
+      "family": "Stability image",
+      "official_hub": "stabilityai",
+      "tasks": [
+        "text-to-image",
+        "image-to-image",
+        "image-editing"
+      ],
+      "notes": "Check model-specific Community License and use restrictions."
+    },
+    {
+      "family": "Vision-language / OCR",
+      "official_hub": "OpenGVLab",
+      "tasks": [
+        "image-text-to-text",
+        "image-to-text",
+        "document-question-answering",
+        "OCR"
+      ],
+      "notes": "Also search task tags across all public publishers."
+    },
+    {
+      "family": "Speech recognition",
+      "official_hub": "openai",
+      "tasks": [
+        "automatic-speech-recognition"
+      ],
+      "notes": "Whisper family; verify exact code, weights, and dataset licenses."
+    },
+    {
+      "family": "Speech synthesis",
+      "official_hub": "hexgrad",
+      "tasks": [
+        "text-to-speech"
+      ],
+      "notes": "Kokoro family; verify exact checkpoint and voice/data licenses."
+    },
+    {
+      "family": "Video generation",
+      "official_hub": "Wan-AI",
+      "tasks": [
+        "text-to-video",
+        "image-to-video"
+      ],
+      "notes": "Search other publishers; verify model, data, and output terms."
+    },
+    {
+      "family": "Embeddings and rerankers",
+      "official_hub": "BAAI",
+      "tasks": [
+        "feature-extraction",
+        "text-ranking"
+      ],
+      "notes": "Include multilingual retrieval and code retrieval candidates."
+    },
+    {
+      "family": "Audio and multimodal",
+      "official_hub": "Qwen",
+      "tasks": [
+        "audio-text-to-text",
+        "text-to-audio",
+        "image-text-to-text"
+      ],
+      "notes": "Discover by task tags, not just publisher."
+    }
+  ],
+  "discovery_tasks": [
+    "text-generation",
+    "image-text-to-text",
+    "image-to-text",
+    "text-to-image",
+    "image-to-image",
+    "text-to-video",
+    "image-to-video",
+    "automatic-speech-recognition",
+    "text-to-speech",
+    "text-to-audio",
+    "audio-text-to-text",
+    "feature-extraction",
+    "text-ranking",
+    "document-question-answering",
+    "visual-question-answering",
+    "depth-estimation",
+    "image-segmentation",
+    "object-detection"
+  ]
+}
