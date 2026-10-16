@@ -82,13 +82,13 @@ def load_suite(path: Path) -> tuple[dict[str, Any], bytes]:
 
 
 def parse_output(stdout: str) -> Any:
-    value = json.loads(stdout)
+    value = json.loads(stdout, object_pairs_hook=_unique_object, parse_constant=_reject_json_constant)
     if not isinstance(value, dict) or "output" not in value:
         raise ValueError("adapter stdout must be a JSON object containing output")
     output = value["output"]
     if isinstance(output, str):
         try:
-            return json.loads(output)
+            return json.loads(output, object_pairs_hook=_unique_object, parse_constant=_reject_json_constant)
         except json.JSONDecodeError:
             return output
     return output
@@ -127,7 +127,7 @@ def run_one(command: list[str], task: dict[str, Any], timeout: float) -> dict[st
             "reason": "exact_match" if _json_equal(output, task["expected_output"]) else "exact_mismatch",
             "latency_seconds": round(elapsed, 6),
             "output_sha256": hashlib.sha256(
-                json.dumps(output, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                json.dumps(output, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("ascii")
             ).hexdigest(),
         }
     except subprocess.TimeoutExpired:
