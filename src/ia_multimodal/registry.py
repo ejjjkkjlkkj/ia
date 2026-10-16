@@ -121,4 +121,30 @@ class CapabilityRegistry:
                 status=TaskStatus.FAIL,
                 message="Handler result request_id does not match request",
             )
+        if not isinstance(result.status, TaskStatus):
+            return TaskResult(
+                request_id=request.request_id,
+                status=TaskStatus.FAIL,
+                message="Handler result contains an invalid status",
+            )
+        if not isinstance(result.metrics, Mapping):
+            return TaskResult(
+                request_id=request.request_id,
+                status=TaskStatus.FAIL,
+                message="Handler result metrics must be a mapping",
+            )
+        if not isinstance(result.message, str):
+            return TaskResult(
+                request_id=request.request_id,
+                status=TaskStatus.FAIL,
+                message="Handler result message must be text",
+            )
+        if not isinstance(result.evidence, (tuple, list)) or not all(
+            isinstance(item, str) and item.strip() for item in result.evidence
+        ):
+            return TaskResult(
+                request_id=request.request_id,
+                status=TaskStatus.FAIL,
+                message="Handler result evidence must be a sequence of non-empty strings",
+            )
         return result
