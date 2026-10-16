@@ -20,7 +20,7 @@ class TinyNeuralModelTests(unittest.TestCase):
             hashlib.sha256(text.encode("utf-8")).hexdigest(),
         )
         tampered = dict(model)
-        tampered["training_corpus_sha256"] = "0" * 64
+        tampered["training_corpus_sha256"] = "not-a-hash"
         with self.assertRaisesRegex(ValueError, "training corpus SHA-256"):
             evaluate_text(tampered, "held out")
 
