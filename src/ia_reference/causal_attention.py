@@ -11,31 +11,33 @@ from typing import Sequence
 
 Vector = Sequence[float]
 Matrix = Sequence[Vector]
-MAX_SEQUENCE_LENGTH = 1024
-MAX_FEATURES = 4096
-MAX_ATTENTION_WORK = 2_000_000
+MAX_MATRIX_ROWS = 4_096
+MAX_MATRIX_COLUMNS = 4_096
+MAX_MATRIX_ELEMENTS = 1_000_000
+MAX_ATTENTION_WORK = 10_000_000
 
 
 def _matrix(name: str, values: Matrix) -> list[list[float]]:
     if not isinstance(values, (list, tuple)) or not values:
         raise ValueError(f"{name} must be a non-empty matrix")
-    if len(values) > MAX_SEQUENCE_LENGTH:
-        raise ValueError(f"{name} exceeds the {MAX_SEQUENCE_LENGTH}-position sequence limit")
+    if len(values) > MAX_MATRIX_ROWS:
+        raise ValueError(f"{name} exceeds the matrix row limit")
     result: list[list[float]] = []
     width: int | None = None
+    elements = 0
     for row in values:
         if not isinstance(row, (list, tuple)) or not row:
             raise ValueError(f"{name} rows must be non-empty vectors")
-        if len(row) > MAX_FEATURES:
-            raise ValueError(f"{name} exceeds the {MAX_FEATURES}-feature dimension limit")
+        if len(row) > MAX_MATRIX_COLUMNS:
+            raise ValueError(f"{name} exceeds the matrix column limit")
+        elements += len(row)
+        if elements > MAX_MATRIX_ELEMENTS:
+            raise ValueError(f"{name} exceeds the matrix element limit")
         converted: list[float] = []
         for item in row:
             if isinstance(item, bool) or not isinstance(item, (int, float)):
                 raise ValueError(f"{name} values must be finite numbers")
-            try:
-                value = float(item)
-            except (OverflowError, TypeError, ValueError) as exc:
-                raise ValueError(f"{name} values must be finite numbers") from exc
+            value = float(item)
             if not math.isfinite(value):
                 raise ValueError(f"{name} values must be finite numbers")
             if abs(value) > 1_000_000:
@@ -67,11 +69,9 @@ def causal_scaled_dot_product_attention(
     if len(k[0]) != key_dim:
         raise ValueError("query and key dimensions must match")
     value_dim = len(v[0])
-    estimated_work = length * length * (key_dim + value_dim)
+    estimated_work = (length * (length + 1) // 2) * (key_dim + value_dim)
     if estimated_work > MAX_ATTENTION_WORK:
-        raise ValueError(
-            f"attention workload exceeds the {MAX_ATTENTION_WORK}-operation safety budget"
-        )
+        raise ValueError(f"attention work exceeds {MAX_ATTENTION_WORK}-operation budget")
     scale = math.sqrt(key_dim)
     outputs: list[list[float]] = []
     for i, q_row in enumerate(q):
