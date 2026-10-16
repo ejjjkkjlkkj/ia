@@ -63,11 +63,11 @@ class AutonomousAgentTests(unittest.TestCase):
     def test_cycle_skips_virtualenv_and_dependency_cache_directories(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            (root / "project.py").write_text("value = 1\\n", encoding="utf-8")
+            (root / "project.py").write_text("value = 1\n", encoding="utf-8")
             for excluded in ("venv", "node_modules", ".tox", ".pytest_cache"):
                 nested = root / excluded
                 nested.mkdir()
-                (nested / "ignored.py").write_text("this is not valid python =\\n", encoding="utf-8")
+                (nested / "ignored.py").write_text("this is not valid python =\n", encoding="utf-8")
                 (nested / "ignored.json").write_text("{invalid", encoding="utf-8")
             with patch.object(autonomous_agent, "ROOT", root), patch.object(
                 autonomous_agent, "_run",
