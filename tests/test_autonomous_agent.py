@@ -21,6 +21,15 @@ class AutonomousAgentTests(unittest.TestCase):
         self.assertEqual(generative["status"], "BLOCKED")
         self.assertFalse(generative["cloud_fallback"])
 
+    def test_cycle_includes_independent_benchmark_oracle(self):
+        with patch.object(autonomous_agent, "_run", return_value={
+            "status": "PASS", "returncode": 0, "output_tail": ""
+        }) as run:
+            report = autonomous_agent.run_cycle()
+        oracle = next(t for t in report["tasks"] if t["id"] == "independent-benchmark-oracle")
+        self.assertIn(oracle["status"], {"PASS", "FAIL", "BLOCKED"})
+        self.assertGreaterEqual(run.call_count, 2)
+
     def test_cycle_reports_json_syntax_status(self):
         with patch.object(autonomous_agent, "_run", return_value={
             "status": "PASS", "returncode": 0, "output_tail": ""
