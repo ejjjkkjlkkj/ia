@@ -84,6 +84,13 @@ class TinyNeuralModelTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "operation budget"):
             train_text("x" * 10_000, epochs=20, embedding_dim=64)
 
+    def test_rejects_out_of_range_seed_and_large_evaluation(self):
+        with self.assertRaisesRegex(ValueError, "signed 64-bit"):
+            train_text("valid", seed=1 << 80)
+        model = train_text("valid", epochs=1)
+        with self.assertRaisesRegex(ValueError, "evaluation data exceeds"):
+            evaluate_text(model, "x" * 100_001)
+
     def test_rejects_empty_or_oversized_data(self):
         with self.assertRaisesRegex(ValueError, "must not be empty"):
             train_text("")
