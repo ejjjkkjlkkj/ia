@@ -26,13 +26,6 @@ def evaluate(checkpoint_path: Path, heldout_path: Path) -> dict[str, Any]:
     heldout_bytes = heldout_path.read_bytes()
     if not heldout_bytes:
         raise ValueError("held-out corpus must not be empty")
-    if hashlib.sha256(heldout_bytes).hexdigest() == hashlib.sha256(
-        checkpoint_bytes
-    ).hexdigest():
-        # This comparison is retained only as a defensive sanity check; checkpoint
-        # and corpus are different artifact types, so compare the recorded corpus
-        # digest below for the meaningful exact-reuse check.
-        pass
 
     model = load_checkpoint(checkpoint_path)
     heldout_sha256 = hashlib.sha256(heldout_bytes).hexdigest()
@@ -76,16 +69,16 @@ def main() -> int:
     args = parser.parse_args()
     try:
         report = evaluate(args.checkpoint, args.heldout_corpus)
+        rendered = json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\\n"
+        if args.report:
+            args.report.parent.mkdir(parents=True, exist_ok=True)
+            temporary = args.report.with_name(args.report.name + ".tmp")
+            temporary.write_text(rendered, encoding="utf-8")
+            temporary.replace(args.report)
     except (OSError, UnicodeError, ValueError) as exc:
         print(json.dumps({"status": "FAIL", "error": str(exc)}, ensure_ascii=False))
         return 2
 
-    rendered = json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
-    if args.report:
-        args.report.parent.mkdir(parents=True, exist_ok=True)
-        temporary = args.report.with_name(args.report.name + ".tmp")
-        temporary.write_text(rendered, encoding="utf-8")
-        temporary.replace(args.report)
     print(rendered, end="")
     return 0
 
