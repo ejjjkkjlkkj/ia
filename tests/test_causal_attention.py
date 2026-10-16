@@ -30,6 +30,17 @@ class CausalAttentionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "dimensions"):
             causal_scaled_dot_product_attention([[1.0, 2.0]], [[1.0]], [[1.0]])
 
+    def test_rejects_oversized_tensor_dimensions(self):
+        with self.assertRaisesRegex(ValueError, "column limit"):
+            causal_scaled_dot_product_attention([[0.0] * 4097], [[0.0] * 4097], [[0.0]])
+
+    def test_rejects_excessive_attention_work(self):
+        query = [[1.0, 0.0] for _ in range(2500)]
+        key = [[1.0, 0.0] for _ in range(2500)]
+        value = [[1.0, 0.0] for _ in range(2500)]
+        with self.assertRaisesRegex(ValueError, "operation budget"):
+            causal_scaled_dot_product_attention(query, key, value)
+
     def test_rejects_nonfinite_and_ragged_inputs(self):
         with self.assertRaisesRegex(ValueError, "finite"):
             causal_scaled_dot_product_attention([[float("nan")]], [[1.0]], [[1.0]])
