@@ -1,0 +1,42 @@
+name: Discover public open-model candidates
+
+on:
+  workflow_dispatch:
+    inputs:
+      per_task:
+        description: "Maximum public candidates per task (1-200)"
+        required: false
+        default: "100"
+  schedule:
+    - cron: "23 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: open-model-discovery
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Discover public model metadata
+        env:
+          PER_TASK: ${{ inputs.per_task || '100' }}
+        run: |
+          python tools/discover_open_models.py --per-task "${PER_TASK}" --output reports/open-model-discovery.json
+      - name: Upload discovery report
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-model-discovery-${{ github.run_id }}
+          path: reports/open-model-discovery.json
+          if-no-files-found: error
+          retention-days: 30
