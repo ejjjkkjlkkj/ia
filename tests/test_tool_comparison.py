@@ -112,6 +112,32 @@ class ToolComparisonTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "output"):
             parse_output('{"answer": 42}')
 
+    def test_adapter_duplicate_keys_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "duplicate JSON key"):
+            parse_output('{"output": 1, "output": 2}')
+
+    def test_identical_system_labels_are_rejected_before_execution(self):
+        import contextlib
+        import io
+        from unittest.mock import patch
+        from tools.run_tool_comparison import main
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.json"
+            path.write_text(json.dumps({
+                "schema_version": 1,
+                "tasks": [{"id": "one", "prompt": "x", "expected_output": 1}],
+            }), encoding="utf-8")
+            argv = [
+                "run_tool_comparison.py", "--suite", str(path),
+                "--our-command", "echo", "--baseline-command", "echo",
+                "--our-label", "same", "--baseline-label", "same",
+            ]
+            with patch.object(sys, "argv", argv), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    main()
+            self.assertEqual(raised.exception.code, 2)
+
     def test_summary_and_percentile(self):
         results = [
             {"status": "PASS", "latency_seconds": 1.0},
