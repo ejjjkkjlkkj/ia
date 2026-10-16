@@ -1,4 +1,6 @@
+import json
 import unittest
+from pathlib import Path
 
 from ia_multimodal import CapabilityRegistry, TaskRequest, TaskResult, TaskStatus
 
@@ -13,6 +15,27 @@ class CapabilityRegistryTests(unittest.TestCase):
         )
         self.assertEqual(result.status, TaskStatus.NOT_IMPLEMENTED)
         self.assertIn("No handler registered", result.message)
+
+    def test_all_catalogue_modalities_fail_closed_without_handlers(self):
+        matrix_path = Path(__file__).resolve().parents[1] / "data" / "capability-matrix.json"
+        matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+        self.assertEqual(len(matrix["modalities"]), 14)
+        for modality in matrix["modalities"]:
+            with self.subTest(modality=modality["id"]):
+                result = self.registry.dispatch(
+                    TaskRequest(f"missing-{modality['id']}", modality["id"], "unregistered-task")
+                )
+                self.assertEqual(result.status, TaskStatus.NOT_IMPLEMENTED)
+                self.assertIsNone(result.output)
+
+    def test_handler_result_with_invalid_status_is_rejected(self):
+        self.registry.register(
+            "text", "bad-status",
+            lambda request: TaskResult(request.request_id, "PASS")
+        )
+        result = self.registry.dispatch(TaskRequest("bad-status-1", "text", "bad-status"))
+        self.assertEqual(result.status, TaskStatus.FAIL)
+        self.assertIn("invalid status", result.message)
 
     def test_registered_text_handler_dispatches(self):
         def handler(request):
