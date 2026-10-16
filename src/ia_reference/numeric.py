@@ -12,15 +12,17 @@ from typing import Sequence
 Vector = Sequence[float]
 Matrix = Sequence[Vector]
 MAX_ABS_INPUT = 1_000_000.0
+MAX_VECTOR_LENGTH = 100_000
+MAX_MATRIX_ROWS = 4_096
+MAX_MATRIX_COLUMNS = 4_096
+MAX_MATRIX_ELEMENTS = 1_000_000
+MAX_NUMERIC_WORK = 10_000_000
 
 
 def _number(value: object, name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} values must be finite numbers")
-    try:
-        result = float(value)
-    except (OverflowError, TypeError, ValueError) as exc:
-        raise ValueError(f"{name} values must be finite numbers") from exc
+    result = float(value)
     if not math.isfinite(result):
         raise ValueError(f"{name} values must be finite numbers")
     if abs(result) > MAX_ABS_INPUT:
@@ -31,15 +33,27 @@ def _number(value: object, name: str) -> float:
 def _vector(values: Vector, name: str) -> list[float]:
     if not isinstance(values, (list, tuple)) or not values:
         raise ValueError(f"{name} must be a non-empty vector")
+    if len(values) > MAX_VECTOR_LENGTH:
+        raise ValueError(f"{name} exceeds the vector length limit")
     return [_number(item, name) for item in values]
 
 
 def _matrix(values: Matrix, name: str) -> list[list[float]]:
     if not isinstance(values, (list, tuple)) or not values:
         raise ValueError(f"{name} must be a non-empty matrix")
+    if len(values) > MAX_MATRIX_ROWS:
+        raise ValueError(f"{name} exceeds the matrix row limit")
     rows: list[list[float]] = []
     width: int | None = None
+    elements = 0
     for row in values:
+        if not isinstance(row, (list, tuple)) or not row:
+            raise ValueError(f"{name} rows must be non-empty vectors")
+        if len(row) > MAX_MATRIX_COLUMNS:
+            raise ValueError(f"{name} exceeds the matrix column limit")
+        elements += len(row)
+        if elements > MAX_MATRIX_ELEMENTS:
+            raise ValueError(f"{name} exceeds the matrix element limit")
         converted = _vector(row, name)
         if width is None:
             width = len(converted)
@@ -61,6 +75,8 @@ def matvec(matrix: Matrix, vector: Vector) -> list[float]:
     x = _vector(vector, "vector")
     if len(a[0]) != len(x):
         raise ValueError("matrix columns must match vector length")
+    if len(a) * len(x) > MAX_NUMERIC_WORK:
+        raise ValueError(f"matvec exceeds {MAX_NUMERIC_WORK}-operation budget")
     return [
         _finite_result(sum(weight * item for weight, item in zip(row, x)), "matvec")
         for row in a
@@ -73,6 +89,9 @@ def matmul(left: Matrix, right: Matrix) -> list[list[float]]:
     b = _matrix(right, "right matrix")
     if len(a[0]) != len(b):
         raise ValueError("left matrix columns must match right matrix rows")
+    work = len(a) * len(b) * len(b[0])
+    if work > MAX_NUMERIC_WORK:
+        raise ValueError(f"matmul exceeds {MAX_NUMERIC_WORK}-operation budget")
     columns = list(zip(*b))
     return [
         [
