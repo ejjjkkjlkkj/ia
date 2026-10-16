@@ -103,7 +103,7 @@ class BigramBaselineTests(unittest.TestCase):
             path = Path(directory) / "invalid-unicode.json"
             path.write_text(
                 r'{"schema_version":2,"model_type":"smoothed-bigram-baseline-v2",'
-                r'"alpha":0.5,"vocabulary":["<EOS>","<UNK>","\\ud800"],'
+                r'"alpha":0.5,"vocabulary":["<EOS>","<UNK>","\ud800"],'
                 r'"counts":{"<BOS>":{"<UNK>":1},"<UNK>":{"<EOS>":1}},'
                 r'"training_tokens":1,"training_corpus_sha256":"' + "0" * 64 +
                 r'","checkpoint_sha256":"' + "0" * 64 + r'"}',
