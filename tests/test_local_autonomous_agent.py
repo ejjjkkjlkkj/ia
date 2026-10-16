@@ -1,6 +1,7 @@
 import importlib.util
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "tools" / "local_autonomous_agent.py"
@@ -22,6 +23,22 @@ def diff_for(path, old="old", new="new"):
 class PatchValidationTests(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
+
+    def test_verify_requires_apply(self):
+        with self.assertRaises(SystemExit) as ctx:
+            agent.main(["--task-file", "missing.txt", "--verify"])
+        self.assertEqual(ctx.exception.code, 2)
+
+    def test_validation_stops_after_first_failed_check(self):
+        class Result:
+            returncode = 1
+            stdout = "synthetic failure"
+        with patch.object(agent.subprocess, "run", return_value=Result()) as run:
+            results = agent.run_validation_checks(self.root)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["exit_code"], 1)
+        self.assertEqual(run.call_count, 1)
+        self.assertNotIn("shell", run.call_args.kwargs)
 
     def test_accepts_local_ollama_urls(self):
         for url in (
