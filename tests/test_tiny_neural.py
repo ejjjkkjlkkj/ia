@@ -46,6 +46,21 @@ class TinyNeuralModelTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
                 load_checkpoint(path)
 
+    def test_checkpoint_rejects_duplicate_json_keys(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "duplicate.json"
+            path.write_text('{"schema_version":1,"schema_version":1}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "duplicate checkpoint JSON key"):
+                load_checkpoint(path)
+
+    def test_checkpoint_rejects_oversized_input(self):
+        from ia_reference.tiny_neural import MAX_CHECKPOINT_BYTES
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "oversized.json"
+            path.write_text(" " * (MAX_CHECKPOINT_BYTES + 1), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "byte limit"):
+                load_checkpoint(path)
+
     def test_rejects_invalid_training_options(self):
         for kwargs in ({"epochs": 0}, {"epochs": True}, {"learning_rate": float("nan")}, {"embedding_dim": 0}, {"seed": True}):
             with self.subTest(kwargs=kwargs):
