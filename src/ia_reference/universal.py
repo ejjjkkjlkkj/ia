@@ -89,10 +89,9 @@ def _validate_checkpoint_payload(checkpoint: Any) -> dict[str, Any]:
             observed_total += count
     if observed_total != training_bytes + 1:
         raise ValueError("checkpoint transition counts do not match training_bytes")
-    if counts.get(str(BOS), {}).get(str(EOS), 0):
-        raise ValueError("checkpoint contains an invalid BOS-to-EOS transition")
-    if any(str(EOS) in row for key, row in counts.items() if int(key) != BOS and not 0 <= int(key) <= 255):
-        raise ValueError("checkpoint contains an invalid EOS transition")
+    eos_transitions = sum(row.get(str(EOS), 0) for row in counts.values())
+    if counts.get(str(BOS), {}).get(str(EOS), 0) or eos_transitions != 1:
+        raise ValueError("checkpoint must contain exactly one valid EOS transition")
     return checkpoint
 
 def _canonical_json(value: Any) -> bytes:
