@@ -46,6 +46,30 @@ def _reject_json_constant(value: str) -> None:
     raise ValueError(f"non-standard JSON constant: {value}")
 
 
+def _check_json_nesting(text: str, max_depth: int = 64) -> None:
+    """Reject excessively nested JSON consistently across Python versions."""
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == "\\\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > max_depth:
+                raise ValueError("checkpoint JSON nesting exceeds parser limit")
+        elif character in "]}":
+            depth -= 1
+
+
 def _finite_number(value: Any, label: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{label} must be a finite number")
@@ -231,9 +255,10 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
         if len(raw) > MAX_CHECKPOINT_BYTES:
             raise ValueError("checkpoint byte limit exceeded")
         text = raw.decode("utf-8")
+        _check_json_nesting(text)
         document = json.loads(text, object_pairs_hook=_unique_json_object, parse_constant=_reject_json_constant)
     except ValueError as exc:
-        if str(exc) == "checkpoint byte limit exceeded" or str(exc).startswith("duplicate checkpoint") or str(exc).startswith("non-standard JSON"):
+        if str(exc) == "checkpoint byte limit exceeded" or str(exc).startswith("duplicate checkpoint") or str(exc).startswith("non-standard JSON") or str(exc).startswith("checkpoint JSON nesting"):
             raise
         raise ValueError("unable to read checkpoint JSON") from exc
     except RecursionError as exc:
