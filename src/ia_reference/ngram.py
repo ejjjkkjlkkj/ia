@@ -343,6 +343,17 @@ def generate(model: dict[str, Any], prompt: str = "", max_tokens: int = 20) -> s
     return " ".join(output)
 
 
+def _read_utf8_bounded(path: Path, maximum_bytes: int, label: str) -> str:
+    with path.open("rb") as stream:
+        raw = stream.read(maximum_bytes + 1)
+    if len(raw) > maximum_bytes:
+        raise ValueError(f"{label} exceeds {maximum_bytes}-byte limit")
+    try:
+        return raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"{label} must be valid UTF-8") from exc
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Local from-scratch bigram LM baseline")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -363,7 +374,7 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
     if args.command == "train":
-        text = args.corpus.read_text(encoding="utf-8")
+        text = _read_utf8_bounded(args.corpus, MAX_TRAINING_BYTES, "training data")
         model = train_text(text, alpha=args.alpha)
         digest = save_checkpoint(model, args.checkpoint)
         print(json.dumps({
@@ -376,7 +387,7 @@ def main(argv: list[str] | None = None) -> int:
         }, ensure_ascii=False, indent=2))
     elif args.command == "evaluate":
         model = load_checkpoint(args.checkpoint)
-        report = evaluate_text(model, args.corpus.read_text(encoding="utf-8"))
+        report = evaluate_text(model, _read_utf8_bounded(args.corpus, MAX_EVALUATION_BYTES, "evaluation data"))
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
         model = load_checkpoint(args.checkpoint)
