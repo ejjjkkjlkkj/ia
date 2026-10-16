@@ -31,6 +31,8 @@ class TinyNeuralModelTests(unittest.TestCase):
         self.assertGreater(report["mean_cross_entropy"], 0)
         self.assertGreater(report["perplexity"], 1)
         self.assertIsInstance(generate(model, "screen", max_bytes=8), str)
+        with self.assertRaisesRegex(ValueError, "invalid Unicode"):
+            evaluate_text(model, "\\ud800")
 
     def test_checkpoint_round_trip_and_tampering_detection(self):
         model = train_text("local model", epochs=1)
