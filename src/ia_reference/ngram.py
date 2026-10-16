@@ -93,11 +93,21 @@ def _check_json_nesting(text: str) -> None:
 
 def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
     """Fit a smoothed bigram model from text without network access or dependencies."""
-    if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
-        raise ValueError("alpha must be a finite number greater than zero")
+    if not isinstance(text, str):
+        raise ValueError("training text must be text")
+    if not _valid_alpha(alpha):
+        raise ValueError("alpha must be finite and in (0, 100]")
+    try:
+        encoded = text.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ValueError("training text contains invalid Unicode") from exc
+    if len(encoded) > MAX_TRAINING_BYTES:
+        raise ValueError(f"training data exceeds {MAX_TRAINING_BYTES}-byte limit")
     tokens = tokenize(text)
     if not tokens:
         raise ValueError("training text must contain at least one token")
+    if len(tokens) > MAX_TRAINING_TOKENS:
+        raise ValueError(f"training token count exceeds {MAX_TRAINING_TOKENS}")
 
     counts: dict[str, Counter[str]] = defaultdict(Counter)
     previous = BOS
@@ -118,7 +128,7 @@ def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
         "vocabulary": vocabulary,
         "counts": normalized_counts,
         "training_tokens": len(tokens),
-        "training_corpus_sha256": _sha256(text.encode("utf-8")),
+        "training_corpus_sha256": _sha256(encoded),
     }
 
 
@@ -135,22 +145,23 @@ def _validate_model_payload(model: Any) -> None:
     if model["model_type"] != "smoothed-bigram-baseline-v2":
         raise ValueError("unsupported model type")
     alpha = model["alpha"]
-    if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
-        raise ValueError("alpha must be a finite positive number")
+    if not _valid_alpha(alpha):
+        raise ValueError("alpha must be finite and in (0, 100]")
     vocabulary = model["vocabulary"]
     if (not isinstance(vocabulary, list) or not vocabulary
             or any(not isinstance(token, str) or not token for token in vocabulary)
             or vocabulary != sorted(set(vocabulary))
+            or len(vocabulary) > MAX_VOCABULARY_SIZE
             or EOS not in vocabulary or UNK not in vocabulary or BOS in vocabulary):
         raise ValueError("invalid vocabulary")
     training_tokens = model["training_tokens"]
-    if type(training_tokens) is not int or training_tokens <= 0:
+    if type(training_tokens) is not int or not 1 <= training_tokens <= MAX_TRAINING_TOKENS:
         raise ValueError("invalid training token count")
     corpus_hash = model["training_corpus_sha256"]
     if not isinstance(corpus_hash, str) or re.fullmatch(r"[0-9a-f]{64}", corpus_hash) is None:
         raise ValueError("invalid training corpus SHA-256")
     counts = model["counts"]
-    if not isinstance(counts, dict) or BOS not in counts:
+    if not isinstance(counts, dict) or BOS not in counts or len(counts) > MAX_VOCABULARY_SIZE:
         raise ValueError("invalid transition counts")
     allowed_previous = set(vocabulary) - {EOS}
     allowed_previous.add(BOS)
