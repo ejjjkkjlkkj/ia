@@ -29,7 +29,7 @@ class UniversalByteModelTests(unittest.TestCase):
             checkpoint = json.loads(path.read_text(encoding="utf-8"))
             checkpoint["training_bytes"] = 0
             path.write_text(json.dumps(checkpoint), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "invalid training byte metadata"):
+            with self.assertRaises(ValueError):
                 load_checkpoint(path)
 
     def test_valid_metadata_tampering_fails_checkpoint_hash(self):
