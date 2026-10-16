@@ -120,3 +120,16 @@ NEXORA IR v1 contract: [NEXORA-IR-V1.md](NEXORA-IR-V1.md). The IR is a bounded J
 ## Séparation obligatoire des pistes
 
 - [Implémentations indépendantes par langage et rôle distinct de NEXORA](docs/INDEPENDENT-LANGUAGE-IMPLEMENTATIONS-AND-NEXORA.md)
+
+## Prototype local utilisable sous Windows
+
+Un lanceur PowerShell sans dépendance Python tierce est fourni dans [windows/Start-IA.ps1](windows/Start-IA.ps1), avec les instructions dans [windows/README.md](windows/README.md). Sur Windows 10/11 avec Python 3.11 ou plus récent :
+
+```powershell
+.\windows\Start-IA.ps1 -Mode Demo
+.\windows\Start-IA.ps1 -Mode Verify
+```
+
+Le mode Demo entraîne un petit modèle neuronal d'octets sur un texte synthétique, recharge le checkpoint, vérifie un corpus de validation distinct, produit un rapport et génère un court échantillon. Le mode Verify compile le code et lance les tests unitaires. Le workflow [Windows standalone package and release](.github/workflows/windows-release.yml) valide le paquet sous Windows, publie une archive ZIP et sa somme SHA-256; un tag versionné `v*` déclenche une release GitHub.
+
+**Périmètre réel :** ce paquet est un prototype local expérimental, pas un LLM de production ou un Transformer. Les objectifs de modèle universel complet, de génération multimodale, de lecteur d'écran natif et de compilateur NEXORA de production restent PARTIAL / NOT_VALIDATED.
