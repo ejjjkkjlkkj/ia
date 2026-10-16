@@ -69,7 +69,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         report = evaluate(args.checkpoint, args.heldout_corpus)
-        rendered = json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\\n"
+        rendered = json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
         if args.report:
             args.report.parent.mkdir(parents=True, exist_ok=True)
             temporary = args.report.with_name(args.report.name + ".tmp")
