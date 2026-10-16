@@ -69,6 +69,20 @@ class CITriageTests(unittest.TestCase):
 
     @patch("tools.ci_triage.shutil.which", return_value="gh")
     @patch("tools.ci_triage.subprocess.run")
+    def test_uppercase_sha_is_normalized_for_query_and_matching(self, run_mock, _which):
+        sha = "A" * 40
+        run_mock.return_value = Mock(
+            returncode=0,
+            stdout=json.dumps([{"headSha": sha.lower(), "name": "matching run"}]),
+            stderr="",
+        )
+        runs = ci_triage.fetch_runs("owner/repo", sha)
+        self.assertEqual([run["name"] for run in runs], ["matching run"])
+        command = run_mock.call_args.args[0]
+        self.assertEqual(command[command.index("--commit") + 1], sha.lower())
+
+    @patch("tools.ci_triage.shutil.which", return_value="gh")
+    @patch("tools.ci_triage.subprocess.run")
     def test_limit_saturated_response_is_blocked_as_potentially_truncated(self, run_mock, _which):
         run_mock.return_value = Mock(
             returncode=0,
