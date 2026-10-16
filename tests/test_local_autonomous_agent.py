@@ -75,6 +75,14 @@ class PatchValidationTests(unittest.TestCase):
         with self.assertRaises(agent.AgentError):
             agent.validate_patch(diff_for(".github/workflows/ci.yml"), self.root)
 
+    def test_rejects_symbolic_link_patch(self):
+        patch = diff_for("src/link.py").replace(
+            "diff --git a/src/link.py b/src/link.py",
+            "diff --git a/src/link.py b/src/link.py\\nnew file mode 120000",
+        )
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(patch, self.root)
+
     def test_rejects_binary_artifact(self):
         with self.assertRaises(agent.AgentError):
             agent.validate_patch(diff_for("models/weights.safetensors"), self.root)
