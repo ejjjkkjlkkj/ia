@@ -53,6 +53,19 @@ class TinyNeuralModelTests(unittest.TestCase):
             self.assertIsInstance(generated, str)
             validate.assert_called_once()
 
+    def test_evaluation_caches_each_previous_byte_distribution(self):
+        from unittest.mock import patch
+        import ia_reference.tiny_neural as implementation
+
+        model = train_text("abcabc", epochs=1)
+        with patch.object(
+            implementation, "_next_token_probabilities_validated",
+            wraps=implementation._next_token_probabilities_validated,
+        ) as predict:
+            evaluate_text(model, "abcabc" * 20)
+            # BOS plus byte states a, b, and c: repeated contexts reuse cached logits.
+            self.assertEqual(predict.call_count, 4)
+
     def test_evaluation_and_generation(self):
         model = train_text("screen reader speaks text\n", epochs=2)
         report = evaluate_text(model, "screen reader")
