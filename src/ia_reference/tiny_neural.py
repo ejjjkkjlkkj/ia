@@ -30,7 +30,13 @@ def _digest(value: Any) -> str:
 
 
 def _finite_number(value: Any, label: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{label} must be a finite number")
+    try:
+        finite = math.isfinite(value)
+    except (OverflowError, TypeError):
+        finite = False
+    if not finite:
         raise ValueError(f"{label} must be a finite number")
     return float(value)
 
@@ -61,9 +67,11 @@ def _validate_model(model: Any, require_hash: bool = False) -> dict[str, Any]:
             if not isinstance(row, list) or len(row) != dim:
                 raise ValueError("invalid parameter dimensions")
             for item in row:
-                _finite_number(item, "parameter")
+                if abs(_finite_number(item, "parameter")) > 1000:
+                    raise ValueError("parameter magnitude exceeds safety bound")
     for item in bias:
-        _finite_number(item, "bias")
+        if abs(_finite_number(item, "bias")) > 1000:
+            raise ValueError("bias magnitude exceeds safety bound")
     if "checkpoint_sha256" in model:
         unsigned = {key: value for key, value in model.items() if key != "checkpoint_sha256"}
         if not isinstance(model["checkpoint_sha256"], str) or model["checkpoint_sha256"] != _digest(unsigned):
@@ -111,12 +119,14 @@ def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed:
             probs[target] -= 1.0
             old_target_weights = weights[target][:]
             for j, grad in enumerate(probs):
-                bias[j] -= lr * grad
+                bias[j] = max(-100.0, min(100.0, bias[j] - lr * grad))
                 row = weights[j]
                 for k in range(embedding_dim):
-                    row[k] -= lr * grad * x[k]
+                    row[k] = max(-100.0, min(100.0, row[k] - lr * grad * x[k]))
             for k in range(embedding_dim):
-                embedding[previous][k] -= lr * sum(probs[j] * old_target_weights[k] for j in range(VOCAB_SIZE))
+                grad = sum(probs[j] * old_target_weights[k] for j in range(VOCAB_SIZE))
+                grad = max(-1.0, min(1.0, grad))
+                embedding[previous][k] = max(-5.0, min(5.0, embedding[previous][k] - lr * grad))
 
     model = {
         "schema_version": SCHEMA_VERSION, "model_type": MODEL_TYPE, "vocab_size": VOCAB_SIZE,
