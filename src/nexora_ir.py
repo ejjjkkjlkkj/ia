@@ -118,6 +118,18 @@ def decode_ir(data: str) -> dict[str, Any]:
         raise
     except (json.JSONDecodeError, UnicodeError, RecursionError) as exc:
         raise NEXORAIRError("invalid IR JSON") from exc
+    # Bound parsed JSON before schema validation so deeply nested non-node
+    # values cannot bypass the nesting limit by failing a later type check.
+    pending = [(envelope, 0)]
+    while pending:
+        value, depth = pending.pop()
+        if depth > MAX_DEPTH:
+            raise NEXORAIRError("invalid IR JSON: nesting limit exceeded")
+        if isinstance(value, dict):
+            pending.extend((child, depth + 1) for child in value.values())
+        elif isinstance(value, list):
+            pending.extend((child, depth + 1) for child in value)
+
     if not isinstance(envelope, dict) or set(envelope) != {"format", "version", "ast"}:
         raise NEXORAIRError("invalid IR envelope")
     if envelope["format"] != "nexora-ir" or envelope["version"] != IR_VERSION:
