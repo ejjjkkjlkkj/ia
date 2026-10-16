@@ -67,7 +67,7 @@ def _validate_checkpoint_payload(checkpoint: Any) -> dict[str, Any]:
     if checkpoint["tokenization"] != "raw UTF-8 bytes; reserved BOS=256 EOS=257":
         raise ValueError("unsupported tokenization format")
     alpha = checkpoint["alpha"]
-    if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
+    if not _valid_alpha(alpha):
         raise ValueError("checkpoint alpha must be finite and greater than zero")
     training_bytes = checkpoint["training_bytes"]
     if type(training_bytes) is not int or training_bytes < 1:
@@ -103,11 +103,20 @@ def _canonical_json(value: Any) -> bytes:
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
+def _valid_alpha(value: Any) -> bool:
+    """Validate smoothing values without leaking OverflowError for huge integers."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value) and value > 0
+    except (OverflowError, TypeError, ValueError):
+        return False
+
 def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
     """Train a smoothed byte-level model from bounded mixed-language UTF-8 text."""
     if not isinstance(text, str):
         raise ValueError("training text must be text")
-    if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
+    if not _valid_alpha(alpha):
         raise ValueError("alpha must be a finite number greater than zero")
     try:
         data = text.encode("utf-8")
