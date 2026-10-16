@@ -28,6 +28,8 @@ def _matrix(name: str, values: Matrix) -> list[list[float]]:
             value = float(item)
             if not math.isfinite(value):
                 raise ValueError(f"{name} values must be finite numbers")
+            if abs(value) > 1_000_000:
+                raise ValueError(f"{name} values exceed the supported magnitude bound")
             converted.append(value)
         if width is None:
             width = len(converted)
