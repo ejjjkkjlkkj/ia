@@ -27,6 +27,24 @@ class CITriageTests(unittest.TestCase):
         self.assertEqual(counts["failure"], 1)
         self.assertEqual(counts["pending"], 1)
 
+    def test_cancelled_or_skipped_runs_are_unvalidated_not_test_failures(self):
+        for conclusion in ("cancelled", "skipped", "neutral", "stale"):
+            with self.subTest(conclusion=conclusion):
+                overall, counts = ci_triage.summarize([
+                    {"status": "completed", "conclusion": conclusion}
+                ])
+                self.assertEqual(overall, "PENDING")
+                self.assertEqual(counts["failure"], 0)
+                self.assertEqual(counts["pending"], 1)
+
+    def test_known_execution_failures_are_fail(self):
+        for conclusion in ("failure", "timed_out", "action_required", "startup_failure"):
+            with self.subTest(conclusion=conclusion):
+                self.assertEqual(
+                    ci_triage.summarize([{"status": "completed", "conclusion": conclusion}])[0],
+                    "FAIL",
+                )
+
     @patch("tools.ci_triage.shutil.which", return_value="gh.exe")
     @patch("tools.ci_triage.subprocess.run")
     def test_fetch_runs_filters_exact_commit_sha(self, run_mock, _which):
@@ -58,11 +76,6 @@ class CITriageTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "invalid JSON"):
             ci_triage.fetch_runs("owner/repo", "a" * 40)
 
-    def test_cancelled_run_is_terminal_failure_not_pending(self):
-        overall, counts = ci_triage.summarize([{"status": "completed", "conclusion": "cancelled"}])
-        self.assertEqual(overall, "FAIL")
-        self.assertEqual(counts["failure"], 1)
-
     def test_malformed_sha_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "full 40-character"):
             ci_triage.fetch_runs("owner/repo", "not-a-sha")
@@ -72,6 +85,12 @@ class CITriageTests(unittest.TestCase):
             ci_triage.fetch_runs("badrepo", "a" * 40)
         with self.assertRaisesRegex(ValueError, "limit"):
             ci_triage.fetch_runs("owner/repo", "a" * 40, limit=101)
+        with self.assertRaisesRegex(ValueError, "limit"):
+            ci_triage.fetch_runs("owner/repo", "a" * 40, limit=True)
+
+    def test_repo_must_contain_exactly_one_separator(self):
+        with self.assertRaisesRegex(ValueError, "owner/name"):
+            ci_triage.fetch_runs("owner/name/extra", "a" * 40)
 
 
 if __name__ == "__main__":
