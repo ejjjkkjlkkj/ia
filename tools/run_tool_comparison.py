@@ -48,7 +48,16 @@ def _json_equal(left: Any, right: Any) -> bool:
     return type(left) is type(right) and left == right
 
 
+MAX_SUITE_BYTES = 4 * 1024 * 1024
+MAX_TASKS = 1000
+MAX_PROMPT_CHARS = 100_000
+
+
 def load_suite(path: Path) -> tuple[dict[str, Any], bytes]:
+    # Check metadata before reading so malformed or accidental huge suites cannot
+    # consume unbounded memory in CI or on a developer workstation.
+    if path.stat().st_size > MAX_SUITE_BYTES:
+        raise ValueError(f"Benchmark suite exceeds {MAX_SUITE_BYTES} bytes")
     raw = path.read_bytes()
     suite = json.loads(
         raw.decode("utf-8"),
@@ -61,6 +70,8 @@ def load_suite(path: Path) -> tuple[dict[str, Any], bytes]:
         raise ValueError("Unsupported suite schema; expected schema_version=1 and tasks[]")
     if not suite["tasks"]:
         raise ValueError("Benchmark suite must contain at least one task")
+    if len(suite["tasks"]) > MAX_TASKS:
+        raise ValueError(f"Benchmark suite exceeds {MAX_TASKS} tasks")
     seen: set[str] = set()
     for i, task in enumerate(suite["tasks"]):
         if not isinstance(task, dict):
@@ -71,6 +82,8 @@ def load_suite(path: Path) -> tuple[dict[str, Any], bytes]:
         seen.add(task_id)
         if not isinstance(task.get("prompt"), str) or "expected_output" not in task:
             raise ValueError(f"task {task_id!r} requires prompt and expected_output")
+        if len(task["prompt"]) > MAX_PROMPT_CHARS:
+            raise ValueError(f"task {task_id!r} prompt exceeds {MAX_PROMPT_CHARS} characters")
         try:
             task["prompt"].encode("utf-8", errors="strict")
             task_id.encode("utf-8", errors="strict")
