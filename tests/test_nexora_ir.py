@@ -5,6 +5,12 @@ from nexora_language import parse
 from nexora_ir import NEXORAIRError, decode_ir, encode_ast, execute_ir
 
 class NEXORAIRTests(unittest.TestCase):
+    def test_decode_rejects_non_text_input(self):
+        for data in (None, b'{"format":"nexora-ir","version":1,"ast":{}}', 123):
+            with self.subTest(data=data):
+                with self.assertRaisesRegex(NEXORAIRError, "input must be text"):
+                    decode_ir(data)
+
     def test_versioned_round_trip_is_deterministic(self):
         ast = parse('let café = "Bonjour 世界"; print(2 + 3 * 4);')
         first = encode_ast(ast)
@@ -12,11 +18,30 @@ class NEXORAIRTests(unittest.TestCase):
         self.assertEqual(decode_ir(first)["kind"], "program")
         self.assertEqual(json.loads(first)["version"], 1)
 
+    def test_rejects_boolean_version_even_though_bool_is_an_int_subclass(self):
+        doc = json.loads(encode_ast(parse("print(1);")))
+        doc["version"] = True
+        with self.assertRaisesRegex(NEXORAIRError, "unsupported"):
+            decode_ir(json.dumps(doc))
+
+    def test_rejects_non_integer_version_types(self):
+        for version in (1.0, "1", None, [], {}):
+            with self.subTest(version=version):
+                doc = json.loads(encode_ast(parse("print(1);")))
+                doc["version"] = version
+                with self.assertRaisesRegex(NEXORAIRError, "unsupported"):
+                    decode_ir(json.dumps(doc))
+
     def test_rejects_unknown_version(self):
         doc = json.loads(encode_ast(parse("print(1);")))
         doc["version"] = 99
         with self.assertRaisesRegex(NEXORAIRError, "unsupported"):
             decode_ir(json.dumps(doc))
+
+    def test_decode_rejects_duplicate_version_key(self):
+        data = '{"format":"nexora-ir","version":1,"version":1,"ast":{"kind":"program","value":null,"children":[]}}'
+        with self.assertRaisesRegex(NEXORAIRError, "duplicate JSON object key"):
+            decode_ir(data)
 
     def test_rejects_extra_fields(self):
         with self.assertRaises(NEXORAIRError):
@@ -33,6 +58,12 @@ class NEXORAIRTests(unittest.TestCase):
         doc["ast"]["children"][0]["children"] = []
         with self.assertRaisesRegex(NEXORAIRError, "requires"):
             decode_ir(json.dumps(doc))
+
+    def test_execute_ir_rejects_non_program_root(self):
+        document = json.loads(encode_ast(parse("print(1);")))
+        document["ast"] = {"kind": "number", "value": 1, "children": []}
+        with self.assertRaisesRegex(NEXORAIRError, "root must be a program"):
+            execute_ir(json.dumps(document))
 
     def test_execute_ir_matches_reference_program(self):
         source = 'let total = 2 + 3 * 4; print(total); print("bonjour " + "monde");'
@@ -66,6 +97,12 @@ class NEXORAIRTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(NEXORAIRError, "duplicate JSON"):
             decode_ir(duplicate)
+
+    def test_decode_rejects_input_over_byte_limit(self):
+        valid = '{"format":"nexora-ir","version":1,"ast":{"kind":"program","value":null,"children":[]}}'
+        data = valid + " " * 1_000_000
+        with self.assertRaisesRegex(NEXORAIRError, "byte limit"):
+            decode_ir(data)
 
     def test_decode_rejects_nonstandard_numeric_constants(self):
         data = (
@@ -152,6 +189,31 @@ class NEXORAIRTests(unittest.TestCase):
             },
         }
         with self.assertRaisesRegex(ValueError, "numeric operation exceeds supported range"):
+            execute_ir(json.dumps(document))
+
+    def test_execute_ir_rejects_integer_result_over_4096_bits(self):
+        value = (1 << 4095) - 1
+        document = {
+            "format": "nexora-ir",
+            "version": 1,
+            "ast": {
+                "kind": "program",
+                "value": None,
+                "children": [{
+                    "kind": "print",
+                    "value": None,
+                    "children": [{
+                        "kind": "binary",
+                        "value": "*",
+                        "children": [
+                            {"kind": "number", "value": value, "children": []},
+                            {"kind": "number", "value": value, "children": []},
+                        ],
+                    }],
+                }],
+            },
+        }
+        with self.assertRaisesRegex(ValueError, "integer result exceeds 4096-bit limit"):
             execute_ir(json.dumps(document))
 
 if __name__ == "__main__":

@@ -1,12 +1,16 @@
 # Architecture du modèle universel — contrat commun
 
-**Statut : architecture et baseline statistique partiellement implémentées ; modèle neuronal universel NOT_IMPLEMENTED.**
+**Statut au 2026-10-16 : baselines statistiques et prototype neuronal minuscule implémentés ; CI GitHub Actions sur le HEAD e428051f40cad309c4993443f741ebcf7989e4a8 PASS (validation dépôt, maintenance, catalogue/modèles, tests fonctionnels de base et validation multi-OS). Modèle neuronal universel de type Transformer NOT_IMPLEMENTED ; aucun benchmark de qualité universelle publié.**
 
 ## Objectif produit
 
 Construire un modèle commun capable de traiter les langues naturelles et les langages de programmation dans un même espace de représentation, avec un checkpoint partagé. Le modèle ne doit pas être remplacé par un ensemble obligatoire de modèles indépendants par langage. Les dossiers `models/<id>/` sont des ports d'implémentation, kernels, benchmarks ou adaptateurs runtime du même contrat mathématique, pas une affirmation qu'il faut entraîner un modèle distinct par langage.
 
 « Universel » est un objectif à démontrer par des benchmarks, pas une propriété acquise parce que l'entrée accepte du texte.
+
+## Prototype neuronal minimal présent
+
+`src/ia_reference/tiny_neural.py` entraîne un prédicteur neuronal du prochain octet avec embeddings, couche linéaire, softmax/cross-entropy et SGD, en Python standard library. Il borne la taille des corpus, les époques et le coût de calcul estimé, rejette les checkpoints JSON trop volumineux ou excessivement imbriqués, détecte les clés dupliquées et vérifie un SHA-256 canonique; il fournit une évaluation perplexité et une génération gloutonne. Les tests dédiés sont dans `tests/test_tiny_neural.py`. Ce prototype valide un chemin d'entraînement/inférence réduit seulement; il ne contient ni attention causale, ni blocs Transformer, ni corpus de qualité, ni benchmark multilingue/code, et ne satisfait pas le critère de release du modèle universel.
 
 ## Architecture cible
 
@@ -17,6 +21,10 @@ Construire un modèle commun capable de traiter les langues naturelles et les la
 5. **Spécialisation sans fragmentation obligatoire** : capacités de code, accessibilité, UEFI et OS évaluées comme tâches du même modèle. Des adaptateurs ou experts ne sont retenus que si les benchmarks prouvent leur valeur; ils ne remplacent pas le modèle commun.
 6. **Interopérabilité** : même configuration, noms/formes des tenseurs, dtype, ordre des poids, tokenisation versionnée et vecteurs de référence pour toutes les implémentations.
 7. **Exécution portable** : cœur CPU de référence d'abord; SIMD/GPU et runtimes spécifiques ensuite. Les pistes freestanding/UEFI sont limitées par la mémoire, le compilateur, le runtime et les pilotes disponibles; ne pas prétendre qu'un modèle de grande taille fonctionne directement dans UEFI.
+
+## Brique d'attention causale de référence
+
+`src/ia_reference/causal_attention.py` fournit maintenant un noyau CPU en Python standard pour l'attention à produit scalaire mise à l'échelle avec masque causal et softmax stable. Les tests `tests/test_causal_attention.py` couvrent l'invariance des sorties passées aux valeurs futures, les dimensions, la déterminisme et les entrées invalides. Cette brique est un calcul d'inférence isolé : elle ne fournit pas encore les projections Q/K/V entraînables, le backward, les embeddings positionnels, la normalisation, le MLP, l'optimiseur ni un entraînement Transformer intégré. Elle ne suffit donc pas à déclarer le modèle universel implémenté.
 
 ## Baseline réellement disponible
 

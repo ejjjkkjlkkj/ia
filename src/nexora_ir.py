@@ -144,7 +144,10 @@ def decode_ir(data: str) -> dict[str, Any]:
 
     if not isinstance(envelope, dict) or set(envelope) != {"format", "version", "ast"}:
         raise NEXORAIRError("invalid IR envelope")
-    if envelope["format"] != "nexora-ir" or envelope["version"] != IR_VERSION:
+    if envelope["format"] != "nexora-ir":
+        raise NEXORAIRError("unsupported IR format or version")
+    # bool is a subclass of int in Python, so equality alone would accept true as version 1.
+    if type(envelope["version"]) is not int or envelope["version"] != IR_VERSION:
         raise NEXORAIRError("unsupported IR format or version")
     return _validate_node(envelope["ast"], 0, [MAX_NODES])
 

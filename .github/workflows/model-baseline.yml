@@ -5,11 +5,13 @@ on:
     branches: [main, master]
     paths:
       - "src/ia_reference/**"
+      - "src/nexora_*.py"
       - "tests/**"
       - ".github/workflows/model-baseline.yml"
   pull_request:
     paths:
       - "src/ia_reference/**"
+      - "src/nexora_*.py"
       - "tests/**"
       - ".github/workflows/model-baseline.yml"
   workflow_dispatch:
@@ -18,13 +20,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: ia-model-baseline-\${{ github.ref }}
+  group: ia-model-baseline-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   test:
-    name: Baseline / \${{ matrix.os }} / Python \${{ matrix.python }}
-    runs-on: \${{ matrix.os }}
+    name: Baseline / ${{ matrix.os }} / Python ${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     strategy:
       fail-fast: false
@@ -36,7 +38,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
-          python-version: \${{ matrix.python }}
+          python-version: ${{ matrix.python }}
       - name: Compile source
         run: python -m compileall -q src tests
       - name: Run tests
@@ -64,3 +66,8 @@ jobs:
               subprocess.run([sys.executable, "-m", "ia_reference.ngram", "train", str(train), str(checkpoint)], env=env, check=True)
               subprocess.run([sys.executable, "-m", "ia_reference.ngram", "evaluate", str(checkpoint), str(heldout)], env=env, check=True)
               subprocess.run([sys.executable, "-m", "ia_reference.ngram", "generate", str(checkpoint), "--prompt", "the screen reader", "--max-tokens", "5"], env=env, check=True)
+
+              neural_checkpoint = root / "tiny-neural.json"
+              subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "train", str(train), str(neural_checkpoint), "--epochs", "1"], env=env, check=True)
+              subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "evaluate", str(neural_checkpoint), str(heldout)], env=env, check=True)
+              subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "generate", str(neural_checkpoint), "--prompt", "the screen reader", "--max-bytes", "5"], env=env, check=True)

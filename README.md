@@ -80,6 +80,8 @@ Exécuter les tests et le code généré dans un environnement isolé avec limit
 
 L'objectif est **un modèle commun**, pas une collection obligatoire de modèles séparés. `models/<id>/` décrit les ports, kernels, runtimes, benchmarks et limites par langage. Une spécialisation ou un expert ne sera ajouté que si des mesures montrent un gain réel. La première implémentation exécutable byte-level est documentée dans [UNIVERSAL-MODEL-ARCHITECTURE.md](UNIVERSAL-MODEL-ARCHITECTURE.md); elle accepte l'UTF-8 de langues et de code, mais reste une baseline statistique et ne prouve pas encore une compréhension universelle.
 
+Un prototype neuronal minuscule entraînable depuis zéro est disponible dans `src/ia_reference/tiny_neural.py` (stdlib Python uniquement). Il utilise des embeddings d'octets, une couche linéaire de prédiction du prochain octet, une perte cross-entropy et une descente de gradient SGD; il fournit entraînement déterministe, checkpoint JSON haché, évaluation et génération gloutonne. Commandes depuis la racine : `PYTHONPATH=src python -m ia_reference.tiny_neural train train.txt model.json --epochs 3`, puis `PYTHONPATH=src python -m ia_reference.tiny_neural evaluate model.json heldout.txt` et `PYTHONPATH=src python -m ia_reference.tiny_neural generate model.json --prompt "hello"`. Ce prototype est une preuve de pipeline neuronal minimal, **pas** un Transformer, pas un LLM de production et pas une preuve d'universalité; les données et les résultats de qualité doivent encore être évalués.
+
 Voir [MODELS-INDEX.md](MODELS-INDEX.md) pour la cartographie des pistes d'implémentation.
 
 
