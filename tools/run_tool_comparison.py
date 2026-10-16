@@ -51,6 +51,31 @@ def _json_equal(left: Any, right: Any) -> bool:
 MAX_SUITE_BYTES = 4 * 1024 * 1024
 MAX_TASKS = 1000
 MAX_PROMPT_CHARS = 100_000
+MAX_JSON_NESTING = 64
+
+
+def _check_json_nesting(text: str, max_depth: int = MAX_JSON_NESTING) -> None:
+    """Reject deeply nested input before handing it to the recursive JSON parser."""
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == "\\\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > max_depth:
+                raise ValueError("Benchmark suite JSON nesting exceeds parser limit")
+        elif character in "]}":
+            depth -= 1
 
 
 def load_suite(path: Path) -> tuple[dict[str, Any], bytes]:
@@ -59,14 +84,19 @@ def load_suite(path: Path) -> tuple[dict[str, Any], bytes]:
     if path.stat().st_size > MAX_SUITE_BYTES:
         raise ValueError(f"Benchmark suite exceeds {MAX_SUITE_BYTES} bytes")
     raw = path.read_bytes()
-    suite = json.loads(
-        raw.decode("utf-8"),
-        object_pairs_hook=_unique_object,
-        parse_constant=_reject_json_constant,
-    )
+    text = raw.decode("utf-8", errors="strict")
+    _check_json_nesting(text)
+    try:
+        suite = json.loads(
+            text,
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_json_constant,
+        )
+    except RecursionError as exc:
+        raise ValueError("Benchmark suite JSON nesting exceeds parser limit") from exc
     if not isinstance(suite, dict):
         raise ValueError("Benchmark suite root must be a JSON object")
-    if suite.get("schema_version") != 1 or not isinstance(suite.get("tasks"), list):
+    if type(suite.get("schema_version")) is not int or suite["schema_version"] != 1 or not isinstance(suite.get("tasks"), list):
         raise ValueError("Unsupported suite schema; expected schema_version=1 and tasks[]")
     if not suite["tasks"]:
         raise ValueError("Benchmark suite must contain at least one task")
