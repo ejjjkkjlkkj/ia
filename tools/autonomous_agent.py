@@ -14,6 +14,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -126,7 +127,7 @@ def run_cycle() -> dict[str, Any]:
         "schema_version": 1,
         "agent": "repository-owned-maintenance-agent",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-        "repository_root": str(ROOT),
+        "repository_name": ROOT.name,
         "overall_status": overall,
         "safety": {
             "network_access": False,
@@ -161,9 +162,26 @@ def main() -> int:
             runs.append(report)
             runs = runs[-1000:]
             report_path.parent.mkdir(parents=True, exist_ok=True)
-            report_path.write_text(json.dumps(
-                {"schema_version": 1, "runs": runs}, ensure_ascii=False, indent=2
-            ) + "\n", encoding="utf-8")
+            temporary_path: Path | None = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", encoding="utf-8", dir=report_path.parent,
+                    prefix=f".{report_path.name}.", suffix=".tmp", delete=False,
+                ) as stream:
+                    temporary_path = Path(stream.name)
+                    stream.write(json.dumps(
+                        {"schema_version": 1, "runs": runs}, ensure_ascii=False, indent=2
+                    ) + "\n")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary_path, report_path)
+                temporary_path = None
+            finally:
+                if temporary_path is not None:
+                    try:
+                        temporary_path.unlink()
+                    except FileNotFoundError:
+                        pass
             print(f"{report['generated_at_utc']} overall={report['overall_status']}", flush=True)
             if report["overall_status"] == "FAIL":
                 return 1
