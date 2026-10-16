@@ -206,7 +206,10 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
     _validate_model(model)
     if not isinstance(text, str):
         raise ValueError("evaluation text must be text")
-    data = text.encode("utf-8")
+    try:
+        data = text.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ValueError("evaluation text contains invalid Unicode") from exc
     if not data:
         raise ValueError("evaluation text must not be empty")
     if len(data) > MAX_EVALUATION_BYTES:
