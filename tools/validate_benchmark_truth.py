@@ -9,7 +9,6 @@ from __future__ import annotations
 import heapq
 import itertools
 import json
-import math
 from fractions import Fraction
 from pathlib import Path
 import sys
@@ -179,13 +178,12 @@ def main():
             print(f"PASS {task_id}")
     unknown = sorted(set(by_id) - set(ORACLES))
     if unknown:
-        print("NOT_VALIDATED tasks: " + ", ".join(unknown))
+        print("FAIL: tasks missing independent oracles: " + ", ".join(unknown))
+        failures.extend(f"{task_id}: no independent oracle registered" for task_id in unknown)
     if failures:
         print(f"FAIL: {len(failures)} oracle mismatch(es)")
         raise SystemExit(1)
     print(f"PASS: {len(ORACLES)} independent oracle checks; adapter/model performance NOT_VALIDATED")
-    if unknown:
-        print(f"PARTIAL: {len(unknown)} task(s) do not yet have independent oracles")
 
 
 if __name__ == "__main__":
