@@ -40,7 +40,7 @@ jobs:
 
       - name: Validate benchmark suite and harness
         run: |
-          python -m unittest tests.test_complex_benchmarks tests.test_tool_comparison -v
+          python -m unittest tests.test_complex_benchmarks tests.test_tool_comparison tests.test_validate_benchmark_truth -v
           python tools/validate_benchmark_truth.py
           python tools/run_complex_benchmarks.py --list
 
