@@ -160,13 +160,17 @@ def validate_patch(patch: str, root: Path) -> None:
         path = Path(relative)
         windows_path = PureWindowsPath(relative)
         parts = path.parts
+        windows_reserved = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
         if (
             path.is_absolute()
             or windows_path.is_absolute()
             or windows_path.drive
             or "\\" in relative
+            or ":" in relative
             or not parts
             or any(part in {"", ".", ".."} for part in parts)
+            or any(part.rstrip(" .").split(".", 1)[0].upper() in windows_reserved for part in parts)
+            or any(part.endswith((" ", ".")) for part in parts)
             or any(ord(char) < 32 for char in relative)
         ):
             raise AgentError(f"Unsafe path: {relative}")
@@ -174,7 +178,8 @@ def validate_patch(patch: str, root: Path) -> None:
             raise AgentError(f"Protected path: {relative}")
         if path.suffix.lower() in FORBIDDEN_SUFFIXES:
             raise AgentError(f"Binary/model artifact path forbidden: {relative}")
-        if relative.startswith(".github/") or relative in {".gitignore", "pyproject.toml", "Cargo.lock", "package-lock.json"}:
+        normalized = relative.casefold()
+        if normalized.startswith(".github/") or normalized in {".gitignore", "pyproject.toml", "cargo.lock", "package-lock.json"}:
             raise AgentError(f"Protected configuration path: {relative}")
         resolved = (root / path).resolve()
         if root.resolve() not in resolved.parents:
