@@ -22,9 +22,41 @@ from pathlib import Path
 from typing import Any
 
 
+def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"non-standard JSON numeric constant: {value}")
+
+
+def _json_equal(left: Any, right: Any) -> bool:
+    """Compare JSON values without Python's bool/int equality ambiguity."""
+    if isinstance(left, bool) or isinstance(right, bool):
+        return type(left) is type(right) and left == right
+    if isinstance(left, dict) and isinstance(right, dict):
+        return left.keys() == right.keys() and all(_json_equal(left[k], right[k]) for k in left)
+    if isinstance(left, list) and isinstance(right, list):
+        return len(left) == len(right) and all(_json_equal(a, b) for a, b in zip(left, right))
+    if isinstance(left, (int, float)) and isinstance(right, (int, float)):
+        return left == right
+    return type(left) is type(right) and left == right
+
+
 def load_suite(path: Path) -> tuple[dict[str, Any], bytes]:
     raw = path.read_bytes()
-    suite = json.loads(raw.decode("utf-8"))
+    suite = json.loads(
+        raw.decode("utf-8"),
+        object_pairs_hook=_unique_object,
+        parse_constant=_reject_json_constant,
+    )
+    if not isinstance(suite, dict):
+        raise ValueError("Benchmark suite root must be a JSON object")
     if suite.get("schema_version") != 1 or not isinstance(suite.get("tasks"), list):
         raise ValueError("Unsupported suite schema; expected schema_version=1 and tasks[]")
     if not suite["tasks"]:
@@ -39,6 +71,11 @@ def load_suite(path: Path) -> tuple[dict[str, Any], bytes]:
         seen.add(task_id)
         if not isinstance(task.get("prompt"), str) or "expected_output" not in task:
             raise ValueError(f"task {task_id!r} requires prompt and expected_output")
+        try:
+            task["prompt"].encode("utf-8", errors="strict")
+            task_id.encode("utf-8", errors="strict")
+        except UnicodeEncodeError as exc:
+            raise ValueError(f"task {task_id!r} contains invalid Unicode") from exc
         if not isinstance(task.get("category", "general"), str):
             raise ValueError(f"task {task_id!r} category must be text")
     return suite, raw
@@ -86,8 +123,8 @@ def run_one(command: list[str], task: dict[str, Any], timeout: float) -> dict[st
         except (ValueError, json.JSONDecodeError):
             return {"status": "FAIL", "reason": "invalid_json_output", "latency_seconds": round(elapsed, 6)}
         return {
-            "status": "PASS" if output == task["expected_output"] else "FAIL",
-            "reason": "exact_match" if output == task["expected_output"] else "exact_mismatch",
+            "status": "PASS" if _json_equal(output, task["expected_output"]) else "FAIL",
+            "reason": "exact_match" if _json_equal(output, task["expected_output"]) else "exact_mismatch",
             "latency_seconds": round(elapsed, 6),
             "output_sha256": hashlib.sha256(
                 json.dumps(output, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -163,6 +200,10 @@ def main() -> int:
         baseline_command = shlex.split(args.baseline_command) if args.baseline_command else None
         if not our_command or (args.baseline_command is not None and not baseline_command):
             parser.error("adapter command cannot be empty")
+        if baseline_command and args.our_label == args.baseline_label:
+            parser.error("--our-label and --baseline-label must be different")
+        if not args.our_label.strip() or (baseline_command and not args.baseline_label.strip()):
+            parser.error("system labels cannot be empty")
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 2
