@@ -67,7 +67,7 @@ jobs:
                   errors.append(f"{path}: {exc}")
           print(f"Checked {len(py_files)} Python files and {len(json_files)} JSON files.")
           if errors:
-              raise SystemExit("\\n".join(errors))
+              raise SystemExit("\n".join(errors))
           PY
 
       - name: Validate complex benchmark expected outputs
