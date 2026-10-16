@@ -34,13 +34,9 @@ jobs:
       - name: Validate Python syntax
         run: python -m compileall -q src tests tools
 
-      - name: Run repository tests
+      - name: Run full test suite through Windows launcher
         shell: pwsh
-        env:
-          PYTHONPATH: src
-        run: |
-          python -m pytest -q
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        run: .\\windows\\Start-IA.ps1 -Mode Verify
 
       - name: Verify Windows quickstart and package inputs
         shell: pwsh
