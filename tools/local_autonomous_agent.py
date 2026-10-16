@@ -273,7 +273,8 @@ def main(argv: list[str] | None = None) -> int:
         "schema_version": 1,
         "run_id": str(uuid.uuid4()),
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
-        "repository": str(root),
+        # Do not persist a local absolute path: it can expose usernames and directory layout.
+        "repository_name": root.name,
         "model": args.model,
         "mode": "verify" if args.verify else ("apply" if args.apply else "dry-run"),
         "status": "RUNNING",
@@ -305,7 +306,10 @@ def main(argv: list[str] | None = None) -> int:
             raise AgentError(f"Task must contain 1..{MAX_TASK_CHARS} characters.")
         clean_worktree(root)
         result = call_ollama(args.url, args.model, task, args.timeout)
-        report["summary"] = result["summary"][:2000]
+        # Model summaries may echo private task content; persist only non-reversible metadata.
+        summary_bytes = result["summary"].encode("utf-8", errors="strict")
+        report["summary_sha256"] = hashlib.sha256(summary_bytes).hexdigest()
+        report["summary_chars"] = len(result["summary"])
         print("RUN_ID:", report["run_id"])
         print("TASK_SHA256:", report.get("task_sha256", "NOT_AVAILABLE"))
         print("SUMMARY:", result["summary"])
