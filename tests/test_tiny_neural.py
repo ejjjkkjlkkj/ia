@@ -37,8 +37,9 @@ class TinyNeuralModelTests(unittest.TestCase):
             path = Path(directory) / "model.json"
             digest = save_checkpoint(model, path)
             restored = load_checkpoint(path)
-            self.assertEqual(restored, model)
+            self.assertEqual({key: value for key, value in restored.items() if key != "checkpoint_sha256"}, model)
             self.assertEqual(restored["checkpoint_sha256"], digest)
+            self.assertGreater(evaluate_text(restored, "local")["perplexity"], 0)
             document = json.loads(path.read_text(encoding="utf-8"))
             document["training_bytes"] = 0
             path.write_text(json.dumps(document), encoding="utf-8")
