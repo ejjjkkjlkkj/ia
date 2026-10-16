@@ -92,6 +92,9 @@ def matmul(left: Matrix, right: Matrix) -> list[list[float]]:
     b = _matrix(right, "right matrix")
     if len(a[0]) != len(b):
         raise ValueError("left matrix columns must match right matrix rows")
+    output_elements = len(a) * len(b[0])
+    if output_elements > MAX_MATRIX_ELEMENTS:
+        raise ValueError(f"matmul output exceeds {MAX_MATRIX_ELEMENTS}-element limit")
     work = len(a) * len(b) * len(b[0])
     if work > MAX_NUMERIC_WORK:
         raise ValueError(f"matmul exceeds {MAX_NUMERIC_WORK}-operation budget")
