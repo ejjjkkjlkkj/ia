@@ -175,7 +175,11 @@ def validate_patch(patch: str, root: Path) -> None:
             or any(ord(char) < 32 for char in relative)
         ):
             raise AgentError(f"Unsafe path: {relative}")
-        if any(part.lower() in FORBIDDEN_PATH_PARTS or part.lower().startswith(".env") for part in parts):
+        if any(
+            part.lower() in FORBIDDEN_PATH_PARTS
+            or part.lower().startswith((".env", "credential", "secret", "id_rsa"))
+            for part in parts
+        ):
             raise AgentError(f"Protected path: {relative}")
         if path.suffix.lower() in FORBIDDEN_SUFFIXES:
             raise AgentError(f"Binary/model/credential artifact path forbidden: {relative}")
