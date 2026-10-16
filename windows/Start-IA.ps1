@@ -22,28 +22,30 @@ $env:PYTHONPATH = Join-Path $Root "src"
 
 function Invoke-Python {
     param([Parameter(Mandatory = $true)][string[]]$Arguments)
-    & $script:Python @script:PythonPrefix @Arguments
+    $allArguments = @($script:PythonPrefix) + @($Arguments)
+    & $script:Python @allArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Python command failed with exit code $LASTEXITCODE"
     }
 }
 
 function Select-Python {
-    $candidates = @()
+    $candidates = New-Object System.Collections.Generic.List[object]
     $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
     if ($pythonCommand) {
-        $candidates += ,@($pythonCommand.Source, @())
+        $candidates.Add([pscustomobject]@{ Executable = $pythonCommand.Source; Prefix = @() })
     }
     $pyCommand = Get-Command py -ErrorAction SilentlyContinue
     if ($pyCommand) {
         foreach ($version in @("-3.13", "-3.12", "-3.11")) {
-            $candidates += ,@($pyCommand.Source, @($version))
+            $candidates.Add([pscustomobject]@{ Executable = $pyCommand.Source; Prefix = @($version) })
         }
     }
     foreach ($candidate in $candidates) {
-        $executable = [string]$candidate[0]
-        $prefix = [string[]]$candidate[1]
-        $versionText = & $executable @prefix -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
+        $executable = [string]$candidate.Executable
+        $prefix = [string[]]$candidate.Prefix
+        $versionArguments = @($prefix) + @("-c", "import sys; print('%d.%d' % sys.version_info[:2])")
+        $versionText = & $executable @versionArguments 2>$null
         if ($LASTEXITCODE -eq 0 -and $versionText) {
             $parts = ([string]$versionText).Trim().Split(".")
             if ([int]$parts[0] -gt 3 -or ([int]$parts[0] -eq 3 -and [int]$parts[1] -ge 11)) {
