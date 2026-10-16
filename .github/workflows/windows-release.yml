@@ -48,10 +48,19 @@ jobs:
       - name: Verify Windows launcher rejects missing corpus arguments
         shell: pwsh
         run: |
-          $result = .\windows\Start-IA.ps1 -Mode Train 2>&1
-          if ($LASTEXITCODE -ne 0 -or ($result -join "`n") -notmatch "requires -TrainingCorpus") {
-            throw "Expected clear validation for missing training corpus."
+          $caught = $false
+          try {
+            .\windows\Start-IA.ps1 -Mode Train
           }
+          catch {
+            if ($_.Exception.Message -match "requires -TrainingCorpus") {
+              $caught = $true
+            }
+            else {
+              throw
+            }
+          }
+          if (-not $caught) { throw "Expected clear validation for missing training corpus." }
       - name: Build source archive and checksum
         shell: pwsh
         run: |
