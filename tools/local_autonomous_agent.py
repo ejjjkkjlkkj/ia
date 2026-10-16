@@ -15,7 +15,7 @@ import sys
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any
 DEFAULT_URL = "http://127.0.0.1:11434/api/chat"
 MAX_TASK_CHARS = 12_000
@@ -145,9 +145,18 @@ def validate_patch(patch: str, root: Path) -> None:
     if not paths:
         raise AgentError("Patch contains no file changes.")
     for relative in paths:
-        parts = Path(relative).parts
         path = Path(relative)
-        if path.is_absolute() or not parts or ".." in parts:
+        windows_path = PureWindowsPath(relative)
+        parts = path.parts
+        if (
+            path.is_absolute()
+            or windows_path.is_absolute()
+            or windows_path.drive
+            or "\\" in relative
+            or not parts
+            or any(part in {"", ".", ".."} for part in parts)
+            or any(ord(char) < 32 for char in relative)
+        ):
             raise AgentError(f"Unsafe path: {relative}")
         if any(part.lower() in FORBIDDEN_PATH_PARTS for part in parts):
             raise AgentError(f"Protected path: {relative}")
