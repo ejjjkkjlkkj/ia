@@ -1,9 +1,6 @@
 name: Complex-first model benchmark
 
 on:
-  push:
-    branches: ["**"]
-  pull_request:
   workflow_dispatch:
     inputs:
       adapter_command:
