@@ -103,6 +103,12 @@ class UniversalByteModelTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "training_bytes"):
             generate(model, "prompt")
 
+    def test_rejects_non_object_model_inputs(self):
+        with self.assertRaisesRegex(ValueError, "model must be a checkpoint object"):
+            evaluate_text([], "held out")
+        with self.assertRaisesRegex(ValueError, "model must be a checkpoint object"):
+            generate(None, "prompt")
+
     def test_generation_output_budget_is_bounded(self):
         from ia_reference.universal import MAX_GENERATION_BYTES
         model = train_text("hello world")
