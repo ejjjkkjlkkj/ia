@@ -1,14 +1,28 @@
 name: Complex-first model benchmark
 
 on:
+  push:
+    branches: ["main", "master", "**"]
+    paths:
+      - "benchmarks/complex_tasks.json"
+      - "tools/run_complex_benchmarks.py"
+      - "tests/test_complex_benchmarks.py"
+      - ".github/workflows/complex-first-benchmark.yml"
+  pull_request:
+    paths:
+      - "benchmarks/complex_tasks.json"
+      - "tools/run_complex_benchmarks.py"
+      - "tests/test_complex_benchmarks.py"
+      - ".github/workflows/complex-first-benchmark.yml"
   workflow_dispatch:
     inputs:
       adapter_command:
-        description: "Local model adapter executable (runner will execute this command)"
-        required: true
+        description: "Optional local adapter command; leave empty for validation only"
+        required: false
         type: string
+        default: ""
       timeout_seconds:
-        description: "Per-task timeout"
+        description: "Per-task timeout in seconds"
         required: true
         default: "90"
         type: string
@@ -16,20 +30,79 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: complex-first-benchmark-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   validate-suite:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
       - name: Validate complex benchmark suite and harness
         run: |
           python -m unittest tests.test_complex_benchmarks -v
           python tools/run_complex_benchmarks.py --list
-      - name: Explain execution boundary
+
+      - name: Execute explicitly supplied adapter
+        if: github.event_name == 'workflow_dispatch' && inputs.adapter_command != ''
+        env:
+          ADAPTER_COMMAND: ${{ inputs.adapter_command }}
+          TIMEOUT_SECONDS: ${{ inputs.timeout_seconds }}
+        shell: bash
         run: |
-          echo "A benchmark run against a model must use an explicitly supplied adapter command."
-          echo "This workflow does not download model weights or call a hosted model."
-          echo "No superiority claim is inferred from suite validation."
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          import shlex
+          import subprocess
+          import sys
+
+          try:
+              timeout = float(os.environ["TIMEOUT_SECONDS"])
+          except (KeyError, ValueError) as exc:
+              raise SystemExit("FAIL: timeout must be a valid number") from exc
+          if not 0 < timeout <= 3600:
+              raise SystemExit("FAIL: timeout must be greater than 0 and at most 3600 seconds")
+          command = os.environ.get("ADAPTER_COMMAND", "").strip()
+          if not command:
+              raise SystemExit("FAIL: adapter command is empty")
+          args = [
+              sys.executable, "tools/run_complex_benchmarks.py",
+              "--command", command,
+              "--timeout", str(timeout),
+              "--output", "reports/complex-benchmark.json",
+          ]
+          result = subprocess.run(args, check=False)
+          raise SystemExit(result.returncode)
+          PY
+
+      - name: Explain validation-only run
+        if: github.event_name != 'workflow_dispatch' || inputs.adapter_command == ''
+        run: |
+          echo "PASS: benchmark suite and harness validated."
+          echo "NOT_RUN: model comparison requires an explicitly supplied local adapter."
+          echo "No model superiority claim is inferred from suite validation."
+
+      - name: Upload benchmark report
+        if: always() && hashFiles('reports/complex-benchmark.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: complex-first-benchmark-${{ github.run_id }}
+          path: reports/complex-benchmark.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: State benchmark limits
+        if: always()
+        run: |
+          echo "No model weights are downloaded and no hosted model is called automatically."
+          echo "Results apply only to the declared task suite and do not establish general superiority."
