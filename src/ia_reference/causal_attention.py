@@ -23,10 +23,10 @@ def _matrix(name: str, values: Matrix) -> list[list[float]]:
     result: list[list[float]] = []
     width: int | None = None
     for row in values:
-        if len(row) > MAX_FEATURES:
-            raise ValueError(f"{name} exceeds the {MAX_FEATURES}-feature dimension limit")
         if not isinstance(row, (list, tuple)) or not row:
             raise ValueError(f"{name} rows must be non-empty vectors")
+        if len(row) > MAX_FEATURES:
+            raise ValueError(f"{name} exceeds the {MAX_FEATURES}-feature dimension limit")
         converted: list[float] = []
         for item in row:
             if isinstance(item, bool) or not isinstance(item, (int, float)):
