@@ -33,7 +33,19 @@ Pour appliquer puis lancer les contrôles fixes (syntaxe Python, JSON et suite p
 python tools/local_autonomous_agent.py --repo . --task-file C:/chemin/vers/tache.txt --apply --verify
 ```
 
-Le script refuse un worktree sale, limite la taille de la tâche, de la réponse et du patch, vérifie les chemins, rejette les modifications de workflows GitHub et d'artefacts binaires, puis lance `git apply --check` avant application.
+Le script refuse un worktree sale, limite la taille de la tâche, de la réponse et du patch, valide les deux en-têtes de chaque fichier du diff, refuse les chemins Windows dangereux, les liens symboliques existants, les workflows, les configurations, les secrets et les fichiers hors de `src/`, `tests/`, `docs/`, `tools/` (seuls les documents texte sont permis à la racine), puis lance `git apply --check` avant application.
+
+## Audit autonome hors ligne
+
+`tools/autonomous_agent.py` exécute des contrôles déterministes sans modèle ni clé API : syntaxe Python, JSON, découverte des tests et oracle indépendant du benchmark complexe. Il ne modifie pas le code, n'exécute pas de commandes fournies par un modèle et ne fait aucun commit/push/merge. La maintenance GitHub Actions est planifiée chaque heure et conserve un rapport d'audit comme artefact. L'étape de génération de code reste explicitement `BLOCKED` tant qu'un modèle et un checkpoint appartenant au projet n'ont pas passé une validation reproductible.
+
+Lancer un cycle local :
+
+```bash
+python tools/autonomous_agent.py --cycles 1 --report .maintenance-report/autonomous-agent.json
+```
+
+Pour une boucle locale surveillée, utiliser `--watch --interval 300`; le rapport conserve au plus les 1 000 derniers cycles.
 
 ## Limites de sécurité et de capacité
 
