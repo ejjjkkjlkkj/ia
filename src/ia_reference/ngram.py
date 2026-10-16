@@ -304,6 +304,11 @@ def next_token_probability(model: dict[str, Any], previous: str, token: str) -> 
     return _next_token_probability(model, previous, token)
 
 
+def _vocabulary_index(model: dict[str, Any]) -> set[str]:
+    """Build the vocabulary membership index once per inference operation."""
+    return set(model["vocabulary"])
+
+
 def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
     """Evaluate token negative log-likelihood and perplexity on bounded text."""
     _validate_model(model)
@@ -320,7 +325,7 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
         raise ValueError("evaluation text must contain at least one token")
     previous = BOS
     total_nll = 0.0
-    vocabulary_set = set(model["vocabulary"])
+    vocabulary_set = _vocabulary_index(model)
     for token in tokens + [EOS]:
         probability = _next_token_probability(model, previous, token, vocabulary_set)
         total_nll -= math.log(max(probability, 1e-300))
