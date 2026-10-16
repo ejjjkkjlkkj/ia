@@ -13,6 +13,7 @@ Vector = Sequence[float]
 Matrix = Sequence[Vector]
 MAX_SEQUENCE_LENGTH = 1024
 MAX_FEATURES = 4096
+MAX_ATTENTION_WORK = 2_000_000
 
 
 def _matrix(name: str, values: Matrix) -> list[list[float]]:
@@ -65,6 +66,12 @@ def causal_scaled_dot_product_attention(
     key_dim = len(q[0])
     if len(k[0]) != key_dim:
         raise ValueError("query and key dimensions must match")
+    value_dim = len(v[0])
+    estimated_work = length * length * (key_dim + value_dim)
+    if estimated_work > MAX_ATTENTION_WORK:
+        raise ValueError(
+            f"attention workload exceeds the {MAX_ATTENTION_WORK}-operation safety budget"
+        )
     scale = math.sqrt(key_dim)
     outputs: list[list[float]] = []
     for i, q_row in enumerate(q):
