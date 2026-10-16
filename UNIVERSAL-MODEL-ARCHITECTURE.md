@@ -22,6 +22,10 @@ Construire un modèle commun capable de traiter les langues naturelles et les la
 6. **Interopérabilité** : même configuration, noms/formes des tenseurs, dtype, ordre des poids, tokenisation versionnée et vecteurs de référence pour toutes les implémentations.
 7. **Exécution portable** : cœur CPU de référence d'abord; SIMD/GPU et runtimes spécifiques ensuite. Les pistes freestanding/UEFI sont limitées par la mémoire, le compilateur, le runtime et les pilotes disponibles; ne pas prétendre qu'un modèle de grande taille fonctionne directement dans UEFI.
 
+## Brique d'attention causale de référence
+
+`src/ia_reference/causal_attention.py` fournit maintenant un noyau CPU en Python standard pour l'attention à produit scalaire mise à l'échelle avec masque causal et softmax stable. Les tests `tests/test_causal_attention.py` couvrent l'invariance des sorties passées aux valeurs futures, les dimensions, la déterminisme et les entrées invalides. Cette brique est un calcul d'inférence isolé : elle ne fournit pas encore les projections Q/K/V entraînables, le backward, les embeddings positionnels, la normalisation, le MLP, l'optimiseur ni un entraînement Transformer intégré. Elle ne suffit donc pas à déclarer le modèle universel implémenté.
+
 ## Baseline réellement disponible
 
 `src/ia_reference/universal.py` est un modèle statistique bigramme sur octets UTF-8, entraînable localement sans dépendance tierce. Il peut accepter des corpus mixtes, écrire/recharger un checkpoint avec SHA-256, générer et mesurer la perplexité sur un corpus séparé. Il **n'est pas un Transformer**, ne comprend pas les langages et ne valide pas encore un modèle universel de qualité.
