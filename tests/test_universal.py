@@ -18,6 +18,7 @@ class UniversalByteModelTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "universal.json"
             digest = save_checkpoint(model, path)
+            self.assertEqual(list(path.parent.glob(".universal.json.*.tmp")), [])
             restored = load_checkpoint(path)
             self.assertEqual(restored["checkpoint_sha256"], digest)
             self.assertEqual(generate(restored, "hello", 8), generate(model, "hello", 8))
