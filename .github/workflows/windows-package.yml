@@ -97,7 +97,9 @@ jobs:
             ${{ env.PACKAGE_PATH }}
             ${{ env.PACKAGE_SHA_FILE }}
           if-no-files-found: error
-          retention-days: 30\n\n      - name: Publish GitHub release for version tag
+          retention-days: 30
+
+      - name: Publish GitHub release for version tag
         if: startsWith(github.ref, 'refs/tags/v')
         shell: pwsh
         env:
