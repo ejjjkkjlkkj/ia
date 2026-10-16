@@ -13,7 +13,7 @@ class AutonomousAgentTests(unittest.TestCase):
             "status": "PASS", "returncode": 0, "output_tail": ""
         }):
             report = autonomous_agent.run_cycle()
-        self.assertIn(report["overall_status"], {"PASS", "BLOCKED"})
+        self.assertEqual(report["overall_status"], "BLOCKED", "a blocked generative task must prevent an overall PASS")
         self.assertFalse(report["safety"]["network_access"])
         self.assertFalse(report["safety"]["cloud_fallback"])
         self.assertFalse(report["safety"]["source_mutation"])
