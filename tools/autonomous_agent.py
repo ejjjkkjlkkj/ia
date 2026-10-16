@@ -23,6 +23,10 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MAX_CYCLES = 100
 MAX_INTERVAL = 3600
+EXCLUDED_SCAN_DIRS = frozenset({
+    ".git", ".venv", "venv", "node_modules", "__pycache__", "build", "dist",
+    ".tox", ".nox", ".pytest_cache", ".mypy_cache",
+})
 
 
 def _run(command: list[str], timeout: int = 300) -> dict[str, Any]:
@@ -55,7 +59,7 @@ def run_cycle() -> dict[str, Any]:
     tasks: list[dict[str, Any]] = []
     py_files = sorted(
         p for p in ROOT.rglob("*.py")
-        if not any(part in {".git", ".venv", "__pycache__", "build", "dist"} for part in p.parts)
+        if not any(part in EXCLUDED_SCAN_DIRS for part in p.parts)
     )
     syntax_errors = []
     for path in py_files:
