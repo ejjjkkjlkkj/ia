@@ -234,23 +234,26 @@ def load_suite(path):
     return suite
 
 
-def main():
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("benchmarks/complex_tasks.json")
-    suite = json.loads(path.read_text(encoding="utf-8"))
-    tasks = suite.get("tasks")
-    if not isinstance(tasks, list):
-        raise SystemExit("FAIL: tasks must be a list")
-    by_id = {task.get("id"): task for task in tasks}
-    if len(by_id) != len(tasks):
-        raise SystemExit("FAIL: duplicate task IDs")
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("suite", nargs="?", default="benchmarks/complex_tasks.json")
+    args = parser.parse_args(argv)
+    try:
+        suite = load_suite(args.suite)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"FAIL: invalid benchmark suite: {exc}")
+        return 1
+
+    by_id = {task["id"]: task for task in suite["tasks"]}
     failures = []
     for task_id, oracle in ORACLES.items():
         task = by_id.get(task_id)
         if task is None:
             failures.append(f"{task_id}: missing task")
+            print(f"FAIL {task_id}: missing task")
             continue
         actual = oracle()
-        expected = task.get("expected_output")
+        expected = task["expected_output"]
         if actual != expected:
             failures.append(f"{task_id}: expected={expected!r}; independently_computed={actual!r}")
             print(f"FAIL {task_id}: expected={expected!r}; independently_computed={actual!r}")
@@ -262,8 +265,9 @@ def main():
         failures.extend(f"{task_id}: no independent oracle registered" for task_id in unknown)
     if failures:
         print(f"FAIL: {len(failures)} oracle mismatch(es)")
-        raise SystemExit(1)
+        return 1
     print(f"PASS: {len(ORACLES)} independent oracle checks; adapter/model performance NOT_VALIDATED")
+    return 0
 
 
 if __name__ == "__main__":
