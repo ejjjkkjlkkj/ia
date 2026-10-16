@@ -117,6 +117,11 @@ class PatchValidationTests(unittest.TestCase):
             with self.subTest(path=path), self.assertRaises(agent.AgentError):
                 agent.validate_patch(diff_for(path), self.root)
 
+    def test_rejects_secret_like_filenames(self):
+        for path in (".env.production", "credentials.txt", "secret-notes.md", "id_rsa.txt"):
+            with self.subTest(path=path), self.assertRaises(agent.AgentError):
+                agent.validate_patch(diff_for(path), self.root)
+
     def test_rejects_windows_ads_and_reserved_names(self):
         for path in ("src/file.py:payload", "src/CON.txt", "src/trailing. "):
             with self.subTest(path=path), self.assertRaises(agent.AgentError):
