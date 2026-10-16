@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from ia_reference.tiny_neural import (
@@ -36,6 +37,7 @@ class TinyNeuralModelTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "model.json"
             digest = save_checkpoint(model, path)
+            self.assertEqual(list(path.parent.glob(".model.json.*.tmp")), [])
             restored = load_checkpoint(path)
             self.assertEqual({key: value for key, value in restored.items() if key != "checkpoint_sha256"}, model)
             self.assertEqual(restored["checkpoint_sha256"], digest)
@@ -45,6 +47,23 @@ class TinyNeuralModelTests(unittest.TestCase):
             path.write_text(json.dumps(document), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
                 load_checkpoint(path)
+
+    def test_evaluation_and_generation_validate_model_once(self):
+        import ia_reference.tiny_neural as neural
+        model = train_text("small corpus", epochs=1)
+        with patch.object(neural, "_validate_model", wraps=neural._validate_model) as validator:
+            evaluate_text(model, "held out")
+            self.assertEqual(validator.call_count, 1)
+        with patch.object(neural, "_validate_model", wraps=neural._validate_model) as validator:
+            generate(model, "prompt", max_bytes=4)
+            self.assertEqual(validator.call_count, 1)
+
+    def test_generation_rejects_oversized_prompt_and_invalid_type(self):
+        model = train_text("valid", epochs=1)
+        with self.assertRaisesRegex(ValueError, "prompt exceeds"):
+            generate(model, "x" * 100_001)
+        with self.assertRaisesRegex(ValueError, "prompt must be text"):
+            generate(model, None)
 
     def test_checkpoint_rejects_duplicate_json_keys(self):
         with tempfile.TemporaryDirectory() as directory:
