@@ -242,6 +242,16 @@ class PatchValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(agent.AgentError, "Deleting tests is forbidden"):
             agent.validate_patch(deletion, self.root)
 
+    def test_rejects_deleting_tests_with_case_variant_paths(self):
+        for path in ("Tests/test_example.py", "TESTS/test_example.py"):
+            deletion = diff_for(path).replace(
+                f"+++ b/{path}", "+++ /dev/null"
+            )
+            with self.subTest(path=path), self.assertRaisesRegex(
+                agent.AgentError, "Deleting tests is forbidden"
+            ):
+                agent.validate_patch(deletion, self.root)
+
     def test_rejects_both_null_device_headers(self):
         patch = diff_for("src/a.py").replace("--- a/src/a.py", "--- /dev/null").replace("+++ b/src/a.py", "+++ /dev/null")
         with self.assertRaises(agent.AgentError):
