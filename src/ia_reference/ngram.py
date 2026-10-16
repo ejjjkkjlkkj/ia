@@ -33,6 +33,12 @@ MAX_JSON_DEPTH = 64
 
 def tokenize(text: str) -> list[str]:
     """Return a deterministic Unicode-aware, lowercase word/punctuation stream."""
+    if not isinstance(text, str):
+        raise ValueError("tokenization input must be text")
+    try:
+        text.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ValueError("tokenization input contains invalid Unicode") from exc
     return TOKEN_PATTERN.findall(text.lower())
 
 
