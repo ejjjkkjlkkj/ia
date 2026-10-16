@@ -186,16 +186,20 @@ def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed:
     return model
 
 
-def next_token_probabilities(model: dict[str, Any], previous: int) -> list[float]:
-    _validate_model(model)
-    if type(previous) is not int or not 0 <= previous < VOCAB_SIZE:
-        raise ValueError("previous token is outside the vocabulary")
+def _next_token_probabilities_validated(model: dict[str, Any], previous: int) -> list[float]:
     x = model["embedding"][previous]
     logits = [model["bias"][j] + sum(model["weights"][j][k] * x[k] for k in range(model["embedding_dim"])) for j in range(VOCAB_SIZE)]
     peak = max(logits)
     exps = [math.exp(max(-80.0, value - peak)) for value in logits]
     total = sum(exps)
     return [value / total for value in exps]
+
+
+def next_token_probabilities(model: dict[str, Any], previous: int) -> list[float]:
+    _validate_model(model)
+    if type(previous) is not int or not 0 <= previous < VOCAB_SIZE:
+        raise ValueError("previous token is outside the vocabulary")
+    return _next_token_probabilities_validated(model, previous)
 
 
 def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
@@ -210,7 +214,7 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
     sequence = [BOS, *data, EOS]
     loss = 0.0
     for previous, target in zip(sequence, sequence[1:]):
-        probability = next_token_probabilities(model, previous)[target]
+        probability = _next_token_probabilities_validated(model, previous)[target]
         loss -= math.log(max(probability, 1e-300))
     count = len(sequence) - 1
     mean_loss = loss / count
