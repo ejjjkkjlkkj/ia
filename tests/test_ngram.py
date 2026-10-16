@@ -98,6 +98,13 @@ class BigramBaselineTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "nesting"):
                 load_checkpoint(path)
 
+    def test_tokenizer_rejects_non_text_and_invalid_unicode(self):
+        from ia_reference.ngram import tokenize
+        with self.assertRaisesRegex(ValueError, "input must be text"):
+            tokenize(None)
+        with self.assertRaisesRegex(ValueError, "invalid Unicode"):
+            tokenize(chr(0xD800))
+
     def test_invalid_training_inputs_are_rejected(self):
         with self.assertRaises(ValueError):
             train_text("  ")
