@@ -80,6 +80,10 @@ class TinyNeuralModelTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     train_text("valid", **kwargs)
 
+    def test_rejects_training_that_exceeds_compute_budget(self):
+        with self.assertRaisesRegex(ValueError, "operation budget"):
+            train_text("x" * 10_000, epochs=20, embedding_dim=64)
+
     def test_rejects_empty_or_oversized_data(self):
         with self.assertRaisesRegex(ValueError, "must not be empty"):
             train_text("")
