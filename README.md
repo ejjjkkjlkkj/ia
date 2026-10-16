@@ -37,6 +37,16 @@ La spécification de travail, les priorités, les tests et les références offi
 
 **Statut actuel : PARTIAL / NOT_VALIDATED.** L'ajout de cette feuille de route ne prouve pas qu'un lecteur d'écran complet, une voix réelle, le braille, les adaptateurs natifs ou l'UEFI fonctionnent. Chaque plateforme doit fournir ses propres résultats reproductibles et essais réels.
 
+## Création multimodale : images, vidéo, jeux et cinéma
+
+L'objectif inclut la compréhension et la création de médias : images, vidéo, audio, animation, assets 3D, prototypes de jeux et workflows de cinéma (scénario, storyboard, montage, sous-titres et postproduction). Chaque pipeline doit distinguer les composants réellement exécutés des objectifs futurs et respecter licences, droits à l'image, consentement vocal, sécurité et accessibilité universelle.
+
+- Feuille de route et critères de validation : [docs/MULTIMODAL-CREATIVE-CAPABILITIES-ROADMAP.md](docs/MULTIMODAL-CREATIVE-CAPABILITIES-ROADMAP.md)
+- Contrat machine-readable : [data/multimodal-creative-capabilities-contract-v1.json](data/multimodal-creative-capabilities-contract-v1.json)
+- Tests du contrat : [tests/test_multimodal_creative_capabilities_contract.py](tests/test_multimodal_creative_capabilities_contract.py)
+
+**Statut honnête : PARTIAL / NOT_VALIDATED.** Le contrat et la feuille de route sont ajoutés ; ils ne prouvent pas que les moteurs de génération image/vidéo, un jeu jouable ou une chaîne de production de film existent déjà. Les capacités doivent être inventoriées, exécutées et évaluées séparément avant d'être annoncées comme disponibles.
+
 ## Langage universel NEXORA
 
 Le dépôt contient aussi le prototype initial du langage **NEXORA**, distinct du langage existant U : [spécification NEXORA](NEXORA-LANGUAGE-SPEC.md), lexer/parseur/interpréteur de référence dans `src/nexora_language.py`, et tests dans `tests/test_nexora_language.py`. Le prototype gère un sous-ensemble syntaxique avec identifiants Unicode et arithmétique; il n'est pas encore un compilateur ni un langage prêt pour l'OS/UEFI. Les backends et la représentation intermédiaire seront ajoutés après stabilisation de la grammaire et des tests de conformité.
