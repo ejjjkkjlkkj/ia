@@ -43,11 +43,10 @@ class BigramBaselineTests(unittest.TestCase):
         self.assertTrue(all(isinstance(value, set) for value in evaluation_sets))
         self.assertEqual(len({id(value) for value in evaluation_sets}), 1)
 
-        with patch("ia_reference.ngram._next_token_probability", wraps=original) as mocked:
-            generate(model, "alpha", max_tokens=3)
-        generation_sets = [call.args[3] for call in mocked.call_args_list]
-        self.assertTrue(generation_sets)
-        self.assertEqual(len({id(value) for value in generation_sets}), 1)
+        with patch("ia_reference.ngram._vocabulary_index", wraps=ngram._vocabulary_index) as indexer:
+            generated = generate(model, "alpha", max_tokens=3)
+        self.assertIsInstance(generated, str)
+        self.assertEqual(indexer.call_count, 1)
 
     def test_checkpoint_round_trip_and_hash(self):
         model = train_text("la voix lit le texte la voix lit")
