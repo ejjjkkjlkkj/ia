@@ -64,7 +64,7 @@ class AutonomousAgentTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "project.py").write_text("value = 1\n", encoding="utf-8")
-            for excluded in ("venv", "node_modules", ".tox", ".pytest_cache"):
+            for excluded in ("venv", "Node_Modules", ".tox", ".pytest_cache"):
                 nested = root / excluded
                 nested.mkdir()
                 (nested / "ignored.py").write_text("this is not valid python =\n", encoding="utf-8")
