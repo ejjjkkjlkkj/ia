@@ -57,8 +57,19 @@ class PatchValidationTests(unittest.TestCase):
             agent.validate_patch("", self.root)
 
     def test_rejects_path_traversal(self):
+        for path in ("../outside.py", r"..\\outside.py", r"C:\\outside.py", "/outside.py"):
+            with self.subTest(path=path), self.assertRaises(agent.AgentError):
+                agent.validate_patch(diff_for(path), self.root)
+
+    def test_rejects_symlink_escape(self):
+        outside = Path(tempfile.mkdtemp())
+        link = self.root / "escape"
+        try:
+            link.symlink_to(outside, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("directory symlink unavailable on this platform")
         with self.assertRaises(agent.AgentError):
-            agent.validate_patch(diff_for("../outside.py"), self.root)
+            agent.validate_patch(diff_for("escape/payload.py"), self.root)
 
     def test_rejects_workflow_changes(self):
         with self.assertRaises(agent.AgentError):
