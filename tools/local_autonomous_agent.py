@@ -6,12 +6,15 @@ runs commands proposed by the model.
 """
 from __future__ import annotations
 import argparse
+import hashlib
 import json
 import ipaddress
 import os
 import re
 import subprocess
 import sys
+import uuid
+from datetime import datetime, timezone
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
@@ -200,11 +203,11 @@ def run_validation_checks(root: Path) -> list[dict[str, Any]]:
                 command, cwd=root, text=True, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, timeout=900, check=False,
             )
-            results.append({"check": name, "exit_code": proc.returncode, "output": proc.stdout[-12000:]})
+            results.append({"check": name, "command": command, "exit_code": proc.returncode, "output": proc.stdout[-12000:]})
             if proc.returncode:
                 break
         except (OSError, subprocess.TimeoutExpired) as exc:
-            results.append({"check": name, "exit_code": 124, "output": str(exc)})
+            results.append({"check": name, "command": command, "exit_code": 124, "output": str(exc)})
             break
     return results
 
@@ -231,23 +234,58 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--timeout", type=int, default=180, help="Ollama request timeout in seconds (1..900)")
     parser.add_argument("--apply", action="store_true", help="apply validated patch; otherwise dry-run")
     parser.add_argument("--verify", action="store_true", help="run fixed syntax, JSON, and pytest checks after --apply; revert patch if checks fail")
+    parser.add_argument("--report-file", type=Path, default=Path.home() / ".ia-agent" / "last-run.json", help="write a redacted run-evidence JSON outside the repository")
     args = parser.parse_args(argv)
     if args.verify and not args.apply:
         parser.error("--verify requires --apply")
     root = args.repo.resolve()
     task_path = args.task_file.resolve()
+    report: dict[str, Any] = {
+        "schema_version": 1,
+        "run_id": str(uuid.uuid4()),
+        "started_at_utc": datetime.now(timezone.utc).isoformat(),
+        "repository": str(root),
+        "model": args.model,
+        "mode": "verify" if args.verify else ("apply" if args.apply else "dry-run"),
+        "status": "RUNNING",
+        "changed_files": [],
+        "checks": [],
+    }
+
+    def save_report(status: str, error: str | None = None) -> None:
+        report["status"] = status
+        report["finished_at_utc"] = datetime.now(timezone.utc).isoformat()
+        if error:
+            report["error"] = error
+        try:
+            destination = args.report_file.expanduser().resolve()
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            temporary = destination.with_suffix(destination.suffix + ".tmp")
+            temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            os.replace(temporary, destination)
+            print(f"REPORT_FILE: {destination}")
+        except OSError as report_error:
+            print(f"REPORT_NOT_SAVED: {report_error}", file=sys.stderr)
+
     try:
         if not task_path.is_file():
             raise AgentError(f"Task file not found: {task_path}")
         task = task_path.read_text(encoding="utf-8")
+        report["task_sha256"] = hashlib.sha256(task.encode("utf-8")).hexdigest()
         if not task.strip() or len(task) > MAX_TASK_CHARS:
             raise AgentError(f"Task must contain 1..{MAX_TASK_CHARS} characters.")
         clean_worktree(root)
         result = call_ollama(args.url, args.model, task, args.timeout)
+        report["summary"] = result["summary"][:2000]
+        print("RUN_ID:", report["run_id"])
+        print("TASK_SHA256:", report.get("task_sha256", "NOT_AVAILABLE"))
         print("SUMMARY:", result["summary"])
         if not result["patch"].strip():
             print("STATUS: BLOCKED — model returned no patch")
+            save_report("BLOCKED", "Model returned no patch.")
             return 2
+        report["patch_sha256"] = hashlib.sha256(result["patch"].encode("utf-8")).hexdigest()
+        report["changed_files"] = re.findall(r"(?m)^diff --git a/(.+) b/", result["patch"])
         validate_patch(result["patch"], root)
         print("STATUS: PATCH_VALIDATED")
         print("PATCH_BEGIN")
@@ -255,10 +293,12 @@ def main(argv: list[str] | None = None) -> int:
         print("PATCH_END")
         if not args.apply:
             print("MODE: DRY_RUN — no repository files changed")
+            save_report("PATCH_VALIDATED")
             return 0
         apply_patch(root, result["patch"])
         if args.verify:
             checks = run_validation_checks(root)
+            report["checks"] = checks
             for check in checks:
                 print(f"CHECK {check['check']}: {'PASS' if check['exit_code'] == 0 else 'FAIL'} (exit {check['exit_code']})")
                 if check["output"]:
@@ -272,14 +312,18 @@ def main(argv: list[str] | None = None) -> int:
                 if rollback.returncode:
                     raise AgentError("Validation failed and automatic patch rollback failed: " + rollback.stderr.strip())
                 print("STATUS: FAIL — patch reverted after failed validation")
+                save_report("FAIL", "Validation failed; patch was reverted.")
                 return 1
             print("STATUS: PASS — patch applied and fixed validation checks passed; no commit/push/merge performed")
+            save_report("PASS")
             return 0
         print("STATUS: PATCH_APPLIED — no commit, push, merge, or model-supplied commands executed")
         print("NEXT: run the project's documented test suite and review git diff before committing")
+        save_report("PATCH_APPLIED_NOT_VERIFIED")
         return 0
     except (AgentError, OSError, UnicodeError, subprocess.TimeoutExpired) as exc:
         print(f"STATUS: BLOCKED — {exc}", file=sys.stderr)
+        save_report("BLOCKED", str(exc))
         return 2
 if __name__ == "__main__":
     raise SystemExit(main())
