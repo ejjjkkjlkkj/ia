@@ -32,7 +32,7 @@ function Invoke-Python {
 function Select-Python {
     $candidates = New-Object System.Collections.Generic.List[object]
     $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
-    if ($pythonCommand -and $pythonCommand.Source -notmatch "\\\\WindowsApps\\\\") {
+    if ($pythonCommand -and $pythonCommand.Source -notmatch "\\WindowsApps\\") {
         $candidates.Add([pscustomobject]@{ Executable = $pythonCommand.Source; Prefix = @() })
     }
     $pyCommand = Get-Command py -ErrorAction SilentlyContinue
