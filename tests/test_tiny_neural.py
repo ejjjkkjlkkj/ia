@@ -61,6 +61,19 @@ class TinyNeuralModelTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "byte limit"):
                 load_checkpoint(path)
 
+    def test_checkpoint_rejects_excessive_json_nesting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "nested.json"
+            path.write_text("[" * 3000 + "0" + "]" * 3000, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "nesting exceeds parser limit"):
+                load_checkpoint(path)
+
+    def test_rejects_out_of_range_checkpoint_training_metadata(self):
+        model = train_text("valid", epochs=1)
+        model["training_bytes"] = 10_001
+        with self.assertRaisesRegex(ValueError, "invalid training metadata"):
+            evaluate_text(model, "valid")
+
     def test_rejects_invalid_training_options(self):
         for kwargs in ({"epochs": 0}, {"epochs": True}, {"learning_rate": float("nan")}, {"embedding_dim": 0}, {"seed": True}):
             with self.subTest(kwargs=kwargs):
