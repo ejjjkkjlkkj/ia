@@ -203,11 +203,11 @@ def run_validation_checks(root: Path) -> list[dict[str, Any]]:
                 command, cwd=root, text=True, stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT, timeout=900, check=False,
             )
-            results.append({"check": name, "exit_code": proc.returncode, "output": proc.stdout[-12000:]})
+            results.append({"check": name, "command": command, "exit_code": proc.returncode, "output": proc.stdout[-12000:]})
             if proc.returncode:
                 break
         except (OSError, subprocess.TimeoutExpired) as exc:
-            results.append({"check": name, "exit_code": 124, "output": str(exc)})
+            results.append({"check": name, "command": command, "exit_code": 124, "output": str(exc)})
             break
     return results
 
@@ -261,7 +261,7 @@ def main(argv: list[str] | None = None) -> int:
             destination = args.report_file.expanduser().resolve()
             destination.parent.mkdir(parents=True, exist_ok=True)
             temporary = destination.with_suffix(destination.suffix + ".tmp")
-            temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+            temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             os.replace(temporary, destination)
             print(f"REPORT_FILE: {destination}")
         except OSError as report_error:
