@@ -201,36 +201,67 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
     _validate_model(checkpoint, require_hash=True)
     return checkpoint
 
-def next_byte_probability(model: dict[str, Any], previous: int, token: int) -> float:
+def _next_byte_probability(model: dict[str, Any], previous: int, token: int) -> float:
     alpha = float(model["alpha"])
     row = model["counts"].get(str(previous), {})
-    total = sum(int(value) for value in row.values())
-    return (int(row.get(str(token), 0)) + alpha) / (total + alpha * VOCAB_SIZE)
+    total = sum(row.values())
+    return (row.get(str(token), 0) + alpha) / (total + alpha * VOCAB_SIZE)
+
+
+def next_byte_probability(model: dict[str, Any], previous: int, token: int) -> float:
+    """Return one smoothed transition probability after validating inputs."""
+    _validate_model(model)
+    if type(previous) is not int or not 0 <= previous <= BOS:
+        raise ValueError("previous token must be a byte or BOS")
+    if type(token) is not int or not 0 <= token <= EOS:
+        raise ValueError("next token must be a byte or EOS")
+    return _next_byte_probability(model, previous, token)
+
 
 def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
-    data = text.encode("utf-8")
+    """Evaluate cross-entropy and perplexity on a bounded held-out UTF-8 string."""
+    _validate_model(model)
+    if not isinstance(text, str):
+        raise ValueError("evaluation text must be text")
+    try:
+        data = text.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ValueError("evaluation text contains invalid Unicode") from exc
     if not data:
         raise ValueError("evaluation text must contain at least one UTF-8 byte")
+    if len(data) > MAX_EVALUATION_BYTES:
+        raise ValueError(f"evaluation data exceeds {MAX_EVALUATION_BYTES}-byte limit")
     previous, nll = BOS, 0.0
-    for token in list(data) + [EOS]:
-        nll -= math.log(max(next_byte_probability(model, previous, token), 1e-300))
+    for token in data:
+        nll -= math.log(max(_next_byte_probability(model, previous, token), 1e-300))
         previous = token
+    nll -= math.log(max(_next_byte_probability(model, previous, EOS), 1e-300))
     count = len(data) + 1
     mean = nll / count
     return {"bytes_including_eos": count, "negative_log_likelihood": nll,
             "mean_negative_log_likelihood": mean, "perplexity": math.exp(min(mean, 700.0))}
 
+
 def generate(model: dict[str, Any], prompt: str = "", max_bytes: int = 64) -> str:
-    """Greedy byte generation; decoding replaces incomplete UTF-8 sequences."""
-    if max_bytes < 0:
-        raise ValueError("max_bytes must be non-negative")
-    output = bytearray(prompt.encode("utf-8"))
+    """Greedy byte generation with bounded prompt and output size."""
+    _validate_model(model)
+    if not isinstance(prompt, str):
+        raise ValueError("prompt must be text")
+    if type(max_bytes) is not int or not 0 <= max_bytes <= MAX_GENERATION_BYTES:
+        raise ValueError(f"max_bytes must be between 0 and {MAX_GENERATION_BYTES}")
+    try:
+        prompt_bytes = prompt.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ValueError("prompt contains invalid Unicode") from exc
+    if len(prompt_bytes) > MAX_PROMPT_BYTES:
+        raise ValueError(f"prompt exceeds {MAX_PROMPT_BYTES}-byte limit")
+    output = bytearray(prompt_bytes)
     previous = output[-1] if output else BOS
     for _ in range(max_bytes):
         row = model["counts"].get(str(previous), {})
         if not row:
             break
-        token = min((int(k) for k in row), key=lambda k: (-int(row[str(k)]), k))
+        token = min((int(key) for key in row), key=lambda key: (-row[str(key)], key))
         if token == EOS:
             break
         if not 0 <= token <= 255:
