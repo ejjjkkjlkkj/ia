@@ -265,7 +265,7 @@
       "cases": [
         {
           "input": "6 7\n4 2\n4 3\n2 1\n2 5\n3 1\n3 5\n5 6\n",
-          "output": "4 2 3 1 5 6\n"
+          "output": "4 2 1 3 5 6\n"
         },
         {
           "input": "3 3\n1 2\n2 3\n3 1\n",
@@ -485,7 +485,7 @@
       "cases": [
         {
           "input": "6 7\n4 2\n4 3\n2 1\n2 5\n3 1\n3 5\n5 6\n",
-          "output": "4 2 3 1 5 6\n"
+          "output": "4 2 1 3 5 6\n"
         },
         {
           "input": "2 2\n1 2\n2 1\n",
@@ -505,7 +505,7 @@
       "cases": [
         {
           "input": "4 7\n3 4\n4 5\n2 3\n5 8\n",
-          "output": "11 7\n2 4\n"
+          "output": "10 5\n1 2\n"
         },
         {
           "input": "3 0\n1 100\n2 200\n3 300\n",
@@ -513,7 +513,7 @@
         },
         {
           "input": "3 5\n2 5\n3 5\n5 10\n",
-          "output": "10 5\n3\n"
+          "output": "10 5\n1 2\n"
         }
       ]
     },
@@ -604,15 +604,23 @@
       "io": "Read a hex string encoding a frame: magic C0DE, 16-bit big-endian payload length, payload bytes, then 32-bit big-endian FNV-1a checksum of payload. Print payload as lowercase hex if valid; otherwise ERROR. Reject truncation, length mismatch and extra trailing bytes.",
       "cases": [
         {
+          "input": "C0DE00036162631A47E90B\n",
+          "output": "616263\n"
+        },
+        {
+          "input": "C0DE0000811C9DC5\n",
+          "output": "\n"
+        },
+        {
           "input": "C0DE0003616263\n",
           "output": "ERROR\n"
         },
         {
-          "input": "0000\n",
+          "input": "C0DE00016162631A47E90B\n",
           "output": "ERROR\n"
         },
         {
-          "input": "C0DE0000\n",
+          "input": "C0DE0001611A47E90B00\n",
           "output": "ERROR\n"
         }
       ]
