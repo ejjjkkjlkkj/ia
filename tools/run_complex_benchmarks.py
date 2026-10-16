@@ -49,7 +49,7 @@ def run_task(command: list[str], task: dict[str, Any], timeout: float) -> dict[s
         "task_id": task["id"],
         "category": task["category"],
         "prompt": task["prompt"],
-        "output_schema": "Return only the requested JSON value, wrapped as {\\"output\\": ...}.",
+        "output_schema": "Return only the requested JSON value wrapped in an object with key output.",
     }
     started = time.perf_counter()
     try:
