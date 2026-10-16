@@ -96,6 +96,18 @@ class PatchValidationTests(unittest.TestCase):
             with self.assertRaises(agent.AgentError):
                 agent.call_ollama("http://127.0.0.1:11434/api/chat", "local", "task", 5)
 
+    def test_rejects_excessively_nested_ollama_response(self):
+        payload = ("[" * 10000 + "0" + "]" * 10000).encode("utf-8")
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, limit): return payload[:limit]
+        class Opener:
+            def open(self, request, timeout): return Response()
+        with patch.object(agent.urllib.request, "build_opener", return_value=Opener()):
+            with self.assertRaisesRegex(agent.AgentError, "excessively nested JSON"):
+                agent.call_ollama("http://127.0.0.1:11434/api/chat", "local", "task", 5)
+
     def test_rejects_oversized_ollama_response(self):
         class Response:
             def __enter__(self): return self
