@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +14,16 @@ class ComplexBenchmarkHarnessTests(unittest.TestCase):
         self.assertGreaterEqual(len(suite["tasks"]), 10)
         self.assertEqual(len({task["id"] for task in suite["tasks"]}), len(suite["tasks"]))
         self.assertTrue(all(task["category"] and len(task["prompt"]) > 80 for task in suite["tasks"]))
+
+    def test_cli_lists_tasks_without_adapter_command(self):
+        result = subprocess.run(
+            [sys.executable, "tools/run_complex_benchmarks.py", "--list"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("TOTAL_TASKS=", result.stdout)
 
     def test_adapter_accepts_json_value_and_json_encoded_string(self):
         self.assertEqual(parse_adapter_output('{"output":{"answer":42}}'), {"answer": 42})
