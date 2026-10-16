@@ -90,7 +90,7 @@ def call_ollama(url: str, model: str, task: str, timeout: int) -> dict[str, Any]
         url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
     )
     try:
-        with urllib.request.build_opener(_NoRedirect()).open(request, timeout=timeout) as response:
+        with urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect()).open(request, timeout=timeout) as response:
             raw = response.read(MAX_RESPONSE_BYTES + 1)
     except (urllib.error.URLError, TimeoutError) as exc:
         raise AgentError(f"Ollama local endpoint unavailable or timed out: {exc}") from exc
