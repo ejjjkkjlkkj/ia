@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Fast, read-only GitHub Actions triage for the current repository.
+"""Fast, read-only GitHub Actions triage for one exact commit.
 
 Requires GitHub CLI (gh) authenticated for the target repository. It never
 starts, cancels, reruns, or modifies workflows. Exit codes: 0 all matching runs
-succeeded; 1 at least one failed; 2 pending/incomplete or unable to validate.
+succeeded; 1 at least one run failed; 2 validation is incomplete or blocked.
 """
 from __future__ import annotations
 
@@ -18,14 +18,16 @@ from typing import Any
 MAX_LIMIT = 100
 MAX_WATCH_SECONDS = 3600
 MAX_INTERVAL_SECONDS = 60
+FAILED_CONCLUSIONS = {"failure", "timed_out", "action_required", "startup_failure"}
+INCOMPLETE_CONCLUSIONS = {"cancelled", "skipped", "neutral", "stale"}
 
 
 def fetch_runs(repo: str, sha: str, limit: int = 100) -> list[dict[str, Any]]:
-    if not repo or "/" not in repo or any(part.strip() == "" for part in repo.split("/", 1)):
+    if not isinstance(repo, str) or repo.count("/") != 1 or any(part.strip() == "" for part in repo.split("/", 1)):
         raise ValueError("repo must use owner/name format")
-    if not sha.strip() or len(sha) not in {40, 64} or any(c not in "0123456789abcdefABCDEF" for c in sha):
+    if not isinstance(sha, str) or len(sha) not in {40, 64} or any(c not in "0123456789abcdefABCDEF" for c in sha):
         raise ValueError("sha must be a full 40-character SHA-1 or 64-character SHA-256 hex string")
-    if not 1 <= limit <= MAX_LIMIT:
+    if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_LIMIT:
         raise ValueError(f"limit must be between 1 and {MAX_LIMIT}")
     if shutil.which("gh") is None:
         raise RuntimeError("GitHub CLI 'gh' is not installed")
@@ -60,9 +62,11 @@ def summarize(runs: list[dict[str, Any]]) -> tuple[str, dict[str, int]]:
         conclusion = str(run.get("conclusion") or "").lower()
         if status == "completed" and conclusion == "success":
             counts["success"] += 1
-        elif status == "completed" and conclusion in {"failure", "timed_out", "action_required", "startup_failure", "cancelled", "skipped", "neutral", "stale"}:
+        elif status == "completed" and conclusion in FAILED_CONCLUSIONS:
             counts["failure"] += 1
         else:
+            # Cancelled/skipped/neutral/stale runs did not prove success and
+            # are not necessarily product/test failures. Keep them unvalidated.
             counts["pending"] += 1
     if counts["failure"]:
         overall = "FAIL"
