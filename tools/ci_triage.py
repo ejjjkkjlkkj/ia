@@ -59,11 +59,22 @@ def fetch_runs(repo: str, sha: str, limit: int = 100) -> list[dict[str, Any]]:
             f"GitHub returned the full requested limit ({limit}); results may be truncated. "
             "Use a smaller time/commit scope or inspect GitHub Actions directly."
         )
-    return [
-        run for run in payload
-        if isinstance(run, dict) and isinstance(run.get("headSha"), str)
-        and run["headSha"].lower() == sha
-    ]
+    # Fail closed on malformed rows: silently dropping one could hide an
+    # incomplete CI inventory and incorrectly suggest that validation is complete.
+    matching_runs: list[dict[str, Any]] = []
+    for index, run in enumerate(payload):
+        if not isinstance(run, dict):
+            raise RuntimeError(f"gh returned a non-object workflow row at index {index}")
+        head_sha = run.get("headSha")
+        if (
+            not isinstance(head_sha, str)
+            or len(head_sha) not in {40, 64}
+            or any(character not in "0123456789abcdefABCDEF" for character in head_sha)
+        ):
+            raise RuntimeError(f"gh returned an invalid headSha at workflow row {index}")
+        if head_sha.lower() == sha:
+            matching_runs.append(run)
+    return matching_runs
 
 
 def summarize(runs: list[dict[str, Any]]) -> tuple[str, dict[str, int]]:
