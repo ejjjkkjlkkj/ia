@@ -34,6 +34,7 @@ jobs:
         run: python -m unittest discover -s tests -v
 
       - name: Train, reload, and evaluate repository-owned baselines
+        id: train_evaluate
         shell: bash
         env:
           PYTHONPATH: src
@@ -56,10 +57,10 @@ jobs:
           echo "LIMITATION: the word bigram and byte bigram are statistical baselines; the tiny neural predictor is an experimental one-layer byte model. None is a production Transformer or an autonomous coding agent." | tee model-evidence/SCOPE-LIMITATION.txt
 
       - name: Upload reproducible model evidence
-        if: always()
+        if: always() && steps.train_evaluate.outcome != 'skipped'
         uses: actions/upload-artifact@v4
         with:
           name: own-model-hourly-evidence
           path: model-evidence/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
