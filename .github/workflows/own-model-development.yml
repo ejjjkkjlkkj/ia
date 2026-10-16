@@ -66,6 +66,8 @@ jobs:
 
       - name: Run repository tests
         shell: bash
+        env:
+          PYTHONPATH: src
         run: |
           set -euo pipefail
           if [ -d tests ] || find . -maxdepth 3 -name 'test_*.py' -not -path './.git/*' -print -quit | grep -q .; then python -m pytest -q; fi
