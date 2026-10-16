@@ -120,3 +120,8 @@ NEXORA IR v1 contract: [NEXORA-IR-V1.md](NEXORA-IR-V1.md). The IR is a bounded J
 ## Séparation obligatoire des pistes
 
 - [Implémentations indépendantes par langage et rôle distinct de NEXORA](docs/INDEPENDENT-LANGUAGE-IMPLEMENTATIONS-AND-NEXORA.md)
+
+
+## Utilisation sous Windows
+
+Guide de démarrage Windows : [docs/WINDOWS-QUICKSTART.md](docs/WINDOWS-QUICKSTART.md). Le workflow [Windows validation and portable package](.github/workflows/windows-package.yml) exécute les tests sur Windows et publie un artefact ZIP de sources après succès. Cet artefact n'est ni un exécutable autonome ni une release GitHub versionnée.
