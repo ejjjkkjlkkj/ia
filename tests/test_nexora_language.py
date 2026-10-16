@@ -42,6 +42,10 @@ class NEXORALanguageTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORASyntaxError, "4096-bit limit"):
             run("print(" + "9" * 1235 + ");")
 
+    def test_integer_literal_within_digit_count_but_over_bit_limit_is_rejected(self):
+        with self.assertRaisesRegex(NEXORASyntaxError, "4096-bit limit"):
+            run("print(" + "9" * 1234 + ");")
+
     def test_numeric_overflow_is_reported_as_language_error(self):
         literal = "9" * 1200
         with self.assertRaisesRegex(NEXORARuntimeError, "numeric operation exceeds supported range"):
@@ -50,6 +54,19 @@ class NEXORALanguageTests(unittest.TestCase):
     def test_deep_expression_fails_with_language_error(self):
         source = "print(" + "+".join(["1"] * 1500) + ");"
         with self.assertRaisesRegex(NEXORARuntimeError, "maximum evaluation depth exceeded"):
+            run(source)
+
+    def test_invalid_json_string_escape_fails(self):
+        with self.assertRaises(NEXORASyntaxError):
+            run('print("' + chr(92) + 'q");')
+
+    def test_unterminated_string_fails(self):
+        with self.assertRaises(NEXORASyntaxError):
+            tokenize('print("unterminated);')
+
+    def test_excessive_parenthesis_nesting_is_a_syntax_error(self):
+        source = "print(" + "(" * 2000 + "1" + ")" * 2000 + ");"
+        with self.assertRaisesRegex(NEXORASyntaxError, "nesting depth"):
             run(source)
 
     def test_unknown_character_fails(self):
