@@ -102,6 +102,17 @@ class PatchValidationTests(unittest.TestCase):
         with self.assertRaises(agent.AgentError):
             agent.validate_patch(patch, self.root)
 
+    def test_accepts_addition_and_deletion_headers(self):
+        addition = diff_for("src/new.py").replace("--- a/src/new.py", "--- /dev/null")
+        deletion = diff_for("src/old.py").replace("+++ b/src/old.py", "+++ /dev/null")
+        agent.validate_patch(addition, self.root)
+        agent.validate_patch(deletion, self.root)
+
+    def test_rejects_both_null_device_headers(self):
+        patch = diff_for("src/a.py").replace("--- a/src/a.py", "--- /dev/null").replace("+++ b/src/a.py", "+++ /dev/null")
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(patch, self.root)
+
     def test_rejects_missing_file_headers(self):
         patch = "diff --git a/src/a.py b/src/a.py\n@@ -1 +1 @@\n-old\n+new\n"
         with self.assertRaises(agent.AgentError):
