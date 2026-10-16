@@ -117,6 +117,11 @@ class PatchValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(agent.AgentError, "Duplicate file paths"):
             agent.validate_patch(patch, self.root)
 
+    def test_rejects_case_colliding_file_paths_in_patch(self):
+        patch = diff_for("src/Foo.py") + diff_for("src/foo.py", old="new", new="final")
+        with self.assertRaisesRegex(agent.AgentError, "case-colliding"):
+            agent.validate_patch(patch, self.root)
+
     def test_accepts_normal_source_patch(self):
         (self.root / "src").mkdir()
         (self.root / "src" / "example.py").write_text("old\n", encoding="utf-8")
