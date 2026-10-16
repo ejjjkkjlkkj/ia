@@ -18,7 +18,7 @@ jobs:
   windows-test-package:
     runs-on: windows-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -95,10 +95,21 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish GitHub release for version tag
-        if: startsWith(github.ref, 'refs/tags/v')
-        shell: pwsh
+  publish-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows-test-package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified Windows package
+        uses: actions/download-artifact@v6
+        with:
+          name: nexora-ia-windows-source
+          path: release-assets
+      - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          gh release create "$env:GITHUB_REF_NAME" "$env:PACKAGE_PATH" "$env:PACKAGE_SHA_FILE" --title "NEXORA IA Windows $env:GITHUB_REF_NAME" --notes-file docs/WINDOWS-RELEASE-NOTES.md
+          gh release create "$GITHUB_REF_NAME" release-assets/nexora-ia-windows-source.zip release-assets/SHA256SUMS.txt --title "NEXORA IA Windows $GITHUB_REF_NAME" --notes "Portable Windows source package. Requires Python 3.12+. The included neural baseline is experimental and is not a production LLM. Full universal-model, multimodal, screen-reader, and UEFI features remain partial or unvalidated."
