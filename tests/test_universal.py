@@ -92,6 +92,12 @@ class UniversalByteModelTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "alpha"):
             train_text("valid", alpha=huge_alpha)
 
+    def test_rejects_extremely_large_integer_alpha_in_mutated_model(self):
+        model = train_text("valid corpus")
+        model["alpha"] = 10 ** 10000
+        with self.assertRaisesRegex(ValueError, "alpha"):
+            evaluate_text(model, "held out")
+
     def test_rejects_bool_alpha_and_non_text_inputs(self):
         with self.assertRaisesRegex(ValueError, "alpha"):
             train_text("valid", alpha=True)
