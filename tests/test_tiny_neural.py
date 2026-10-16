@@ -84,7 +84,7 @@ class TinyNeuralModelTests(unittest.TestCase):
     def test_evaluation_rejects_invalid_unicode_with_value_error(self):
         model = train_text("valid corpus", epochs=1)
         with self.assertRaisesRegex(ValueError, "invalid Unicode"):
-            evaluate_text(model, "\\ud800")
+            evaluate_text(model, "\ud800")
 
     def test_evaluation_and_generation(self):
         model = train_text("screen reader speaks text\n", epochs=2)
