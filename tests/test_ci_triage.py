@@ -1,4 +1,5 @@
 import json
+import subprocess
 import unittest
 from unittest.mock import patch, Mock
 
@@ -48,21 +49,23 @@ class CITriageTests(unittest.TestCase):
     @patch("tools.ci_triage.shutil.which", return_value="gh.exe")
     @patch("tools.ci_triage.subprocess.run")
     def test_fetch_runs_filters_exact_commit_sha(self, run_mock, _which):
+        sha = "a" * 40
         run_mock.return_value = Mock(
             returncode=0,
             stdout=json.dumps([
-                {"headSha": "a" * 40, "name": "same commit"},
+                {"headSha": sha, "name": "same commit"},
                 {"headSha": "b" * 40, "name": "different commit"},
             ]),
             stderr="",
         )
-        runs = ci_triage.fetch_runs("owner/repo", "a" * 40)
+        runs = ci_triage.fetch_runs("owner/repo", sha)
         self.assertEqual([run["name"] for run in runs], ["same commit"])
         args, kwargs = run_mock.call_args
         self.assertEqual(args[0][0:3], ["gh", "run", "list"])
         self.assertIn("--commit", args[0])
         self.assertFalse(kwargs["shell"])
         self.assertEqual(kwargs["timeout"], 30)
+        self.assertIs(kwargs["stdin"], subprocess.DEVNULL)
 
     @patch("tools.ci_triage.shutil.which", return_value=None)
     def test_missing_cli_is_blocked(self, _which):
@@ -76,9 +79,35 @@ class CITriageTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "invalid JSON"):
             ci_triage.fetch_runs("owner/repo", "a" * 40)
 
+    @patch("tools.ci_triage.shutil.which", return_value="gh")
+    @patch("tools.ci_triage.subprocess.run")
+    def test_non_list_json_is_blocked(self, run_mock, _which):
+        run_mock.return_value = Mock(returncode=0, stdout=json.dumps({"runs": []}), stderr="")
+        with self.assertRaisesRegex(RuntimeError, "unexpected JSON shape"):
+            ci_triage.fetch_runs("owner/repo", "a" * 40)
+
+    @patch("tools.ci_triage.shutil.which", return_value="gh")
+    @patch("tools.ci_triage.subprocess.run")
+    def test_gh_failure_is_blocked_without_exposing_unbounded_stderr(self, run_mock, _which):
+        run_mock.return_value = Mock(returncode=1, stdout="", stderr="permission denied")
+        with self.assertRaisesRegex(RuntimeError, "permission denied"):
+            ci_triage.fetch_runs("owner/repo", "a" * 40)
+
+    @patch("tools.ci_triage.shutil.which", return_value="gh")
+    @patch("tools.ci_triage.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="gh", timeout=30))
+    def test_gh_timeout_is_blocked(self, _run_mock, _which):
+        with self.assertRaisesRegex(RuntimeError, "timed out after 30 seconds"):
+            ci_triage.fetch_runs("owner/repo", "a" * 40)
+
     def test_malformed_sha_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "full 40-character"):
             ci_triage.fetch_runs("owner/repo", "not-a-sha")
+
+    def test_accepts_full_sha256_format(self):
+        sha = "a" * 64
+        with patch("tools.ci_triage.shutil.which", return_value="gh"), patch("tools.ci_triage.subprocess.run") as run_mock:
+            run_mock.return_value = Mock(returncode=0, stdout=json.dumps([{"headSha": sha}]), stderr="")
+            self.assertEqual(len(ci_triage.fetch_runs("owner/repo", sha)), 1)
 
     def test_invalid_repo_and_limit_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "owner/name"):
