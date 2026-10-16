@@ -56,6 +56,19 @@ class NEXORALanguageTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORARuntimeError, "maximum evaluation depth exceeded"):
             run(source)
 
+    def test_invalid_json_string_escape_fails(self):
+        with self.assertRaises(NEXORASyntaxError):
+            run('print("' + chr(92) + 'q");')
+
+    def test_unterminated_string_fails(self):
+        with self.assertRaises(NEXORASyntaxError):
+            tokenize('print("unterminated);')
+
+    def test_excessive_parenthesis_nesting_is_a_syntax_error(self):
+        source = "print(" + "(" * 2000 + "1" + ")" * 2000 + ");"
+        with self.assertRaisesRegex(NEXORASyntaxError, "nesting depth"):
+            run(source)
+
     def test_unknown_character_fails(self):
         with self.assertRaises(NEXORASyntaxError):
             tokenize("print(1); @")
