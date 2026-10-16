@@ -15,6 +15,14 @@ class BigramBaselineTests(unittest.TestCase):
         self.assertGreater(report["perplexity"], 0)
         self.assertEqual(generate(model, "bonjour", max_tokens=1), "bonjour monde")
 
+    def test_generation_is_deterministic_and_does_not_compute_probabilities(self):
+        from ia_reference import ngram
+
+        model = train_text("alpha beta alpha gamma")
+        # beta and gamma have equal counts after alpha; lexical tie-breaking is stable.
+        with patch("ia_reference.ngram._next_token_probability", side_effect=AssertionError("generation must use observed counts")):
+            self.assertEqual(generate(model, "alpha", max_tokens=1), "alpha beta")
+
     def test_oov_tokens_map_to_unk_and_probabilities_normalize(self):
         model = train_text("alpha beta alpha gamma")
         self.assertIn(UNK, model["vocabulary"])
