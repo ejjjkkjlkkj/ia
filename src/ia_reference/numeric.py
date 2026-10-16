@@ -17,7 +17,10 @@ MAX_ABS_INPUT = 1_000_000.0
 def _number(value: object, name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} values must be finite numbers")
-    result = float(value)
+    try:
+        result = float(value)
+    except (OverflowError, TypeError, ValueError) as exc:
+        raise ValueError(f"{name} values must be finite numbers") from exc
     if not math.isfinite(result):
         raise ValueError(f"{name} values must be finite numbers")
     if abs(result) > MAX_ABS_INPUT:
