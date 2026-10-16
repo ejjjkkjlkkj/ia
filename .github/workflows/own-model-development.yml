@@ -1,0 +1,86 @@
+name: Repository-owned autonomous development loop
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: repository-owned-agent-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  develop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Select persistent proposal branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin agent/own-model-development >/dev/null 2>&1; then
+            git fetch origin agent/own-model-development
+            git checkout -B agent/own-model-development origin/agent/own-model-development
+          else
+            git checkout -b agent/own-model-development
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: Install validation tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+
+      - name: Use repository-owned model only
+        id: agent
+        shell: bash
+        run: |
+          set -euo pipefail
+          AGENT=''
+          for candidate in tools/nexora-agent tools/own-model-agent; do
+            if [ -x "$candidate" ]; then AGENT="$candidate"; break; fi
+          done
+          if [ -n "$AGENT" ]; then
+            "$AGENT" --task-file .github/agent-task.md
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            {
+              echo '## Autonomous coding agent: BLOCKED'
+              echo 'No validated repository-owned coding-agent executable/checkpoint exists yet.'
+              echo 'No third-party LLM fallback was used. Deterministic repository tests still run; source changes and proposal publication are skipped.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo 'BLOCKED: own-model coding CLI/checkpoint is not implemented and validated; no third-party fallback.'
+          fi
+
+      - name: Run repository tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d tests ] || find . -maxdepth 3 -name 'test_*.py' -not -path './.git/*' -print -quit | grep -q .; then python -m pytest -q; fi
+          while IFS= read -r manifest; do [ -z "$manifest" ] || cargo test --manifest-path "$manifest"; done < <(find . -maxdepth 5 -name Cargo.toml -not -path './.git/*' | sort)
+          git diff --check
+
+      - name: Publish proposal for review
+        if: success() && steps.agent.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain)" ]; then echo 'No changes to publish.'; exit 0; fi
+          git add -A
+          git commit -m 'chore(agent): own-model development cycle'
+          git push origin HEAD:agent/own-model-development
+          if ! gh pr view agent/own-model-development >/dev/null 2>&1; then gh pr create --base "${GITHUB_REPOSITORY_DEFAULT_BRANCH:-main}" --head agent/own-model-development --title 'Own-model development loop proposals' --body 'Repository automation; no third-party LLM fallback. Review before merging.'; fi
