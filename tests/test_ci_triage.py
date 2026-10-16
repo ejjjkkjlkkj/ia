@@ -38,7 +38,7 @@ class CITriageTests(unittest.TestCase):
             ]),
             stderr="",
         )
-        runs = ci_triage.fetch_runs("owner/repo", "a".repeat(40))
+        runs = ci_triage.fetch_runs("owner/repo", "a" * 40)
         self.assertEqual([run["name"] for run in runs], ["same commit"])
         args, kwargs = run_mock.call_args
         self.assertEqual(args[0][0:3], ["gh", "run", "list"])
@@ -56,7 +56,7 @@ class CITriageTests(unittest.TestCase):
     def test_invalid_json_is_blocked(self, run_mock, _which):
         run_mock.return_value = Mock(returncode=0, stdout="not-json", stderr="")
         with self.assertRaisesRegex(RuntimeError, "invalid JSON"):
-            ci_triage.fetch_runs("owner/repo", "branch", "target")
+            ci_triage.fetch_runs("owner/repo", "a" * 40)
 
     def test_cancelled_run_is_terminal_failure_not_pending(self):
         overall, counts = ci_triage.summarize([{"status": "completed", "conclusion": "cancelled"}])
