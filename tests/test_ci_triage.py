@@ -33,22 +33,23 @@ class CITriageTests(unittest.TestCase):
         run_mock.return_value = Mock(
             returncode=0,
             stdout=json.dumps([
-                {"headSha": "target", "name": "same commit"},
-                {"headSha": "other", "name": "different commit"},
+                {"headSha": "a" * 40, "name": "same commit"},
+                {"headSha": "b" * 40, "name": "different commit"},
             ]),
             stderr="",
         )
-        runs = ci_triage.fetch_runs("owner/repo", "branch", "target")
+        runs = ci_triage.fetch_runs("owner/repo", "a".repeat(40))
         self.assertEqual([run["name"] for run in runs], ["same commit"])
         args, kwargs = run_mock.call_args
         self.assertEqual(args[0][0:3], ["gh", "run", "list"])
+        self.assertIn("--commit", args[0])
         self.assertFalse(kwargs["shell"])
         self.assertEqual(kwargs["timeout"], 30)
 
     @patch("tools.ci_triage.shutil.which", return_value=None)
     def test_missing_cli_is_blocked(self, _which):
         with self.assertRaisesRegex(RuntimeError, "not installed"):
-            ci_triage.fetch_runs("owner/repo", "branch", "target")
+            ci_triage.fetch_runs("owner/repo", "a" * 40)
 
     @patch("tools.ci_triage.shutil.which", return_value="gh")
     @patch("tools.ci_triage.subprocess.run")
@@ -57,11 +58,20 @@ class CITriageTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "invalid JSON"):
             ci_triage.fetch_runs("owner/repo", "branch", "target")
 
+    def test_cancelled_run_is_terminal_failure_not_pending(self):
+        overall, counts = ci_triage.summarize([{"status": "completed", "conclusion": "cancelled"}])
+        self.assertEqual(overall, "FAIL")
+        self.assertEqual(counts["failure"], 1)
+
+    def test_malformed_sha_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "full 40-character"):
+            ci_triage.fetch_runs("owner/repo", "not-a-sha")
+
     def test_invalid_repo_and_limit_are_rejected(self):
         with self.assertRaisesRegex(ValueError, "owner/name"):
-            ci_triage.fetch_runs("badrepo", "branch", "sha")
+            ci_triage.fetch_runs("badrepo", "a" * 40)
         with self.assertRaisesRegex(ValueError, "limit"):
-            ci_triage.fetch_runs("owner/repo", "branch", "sha", limit=101)
+            ci_triage.fetch_runs("owner/repo", "a" * 40, limit=101)
 
 
 if __name__ == "__main__":
