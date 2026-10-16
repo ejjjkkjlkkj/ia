@@ -220,9 +220,13 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
         raise ValueError(f"evaluation data exceeds {MAX_EVALUATION_BYTES}-byte limit")
     sequence = [BOS, *data, EOS]
     loss = 0.0
+    probabilities_by_previous: dict[int, list[float]] = {}
     for previous, target in zip(sequence, sequence[1:]):
-        probability = _next_token_probabilities_validated(model, previous)[target]
-        loss -= math.log(max(probability, 1e-300))
+        probabilities = probabilities_by_previous.get(previous)
+        if probabilities is None:
+            probabilities = _next_token_probabilities_validated(model, previous)
+            probabilities_by_previous[previous] = probabilities
+        loss -= math.log(max(probabilities[target], 1e-300))
     count = len(sequence) - 1
     mean_loss = loss / count
     return {"tokens": count, "mean_cross_entropy": mean_loss, "perplexity": math.exp(min(mean_loss, 700.0))}
@@ -238,8 +242,12 @@ def generate(model: dict[str, Any], prompt: str = "", max_bytes: int = 64) -> st
         raise ValueError("prompt must be valid Unicode text") from exc
     previous = prefix[-1] if prefix else BOS
     output = bytearray()
+    probabilities_by_previous: dict[int, list[float]] = {}
     for _ in range(max_bytes):
-        probabilities = _next_token_probabilities_validated(model, previous)
+        probabilities = probabilities_by_previous.get(previous)
+        if probabilities is None:
+            probabilities = _next_token_probabilities_validated(model, previous)
+            probabilities_by_previous[previous] = probabilities
         candidates = [*range(256), EOS]
         token = max(candidates, key=lambda idx: (probabilities[idx], -idx))
         if token == EOS:
