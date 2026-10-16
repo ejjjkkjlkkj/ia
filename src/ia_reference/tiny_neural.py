@@ -69,7 +69,7 @@ def _validate_model(model: Any, require_hash: bool = False) -> dict[str, Any]:
     dim = model["embedding_dim"]
     if type(dim) is not int or not 1 <= dim <= 64:
         raise ValueError("embedding dimension out of range")
-    if type(model["seed"]) is not int or type(model["training_bytes"]) is not int or model["training_bytes"] < 1:
+    if type(model["seed"]) is not int or type(model["training_bytes"]) is not int or not 1 <= model["training_bytes"] <= MAX_TRAINING_BYTES:
         raise ValueError("invalid training metadata")
     if type(model["epochs"]) is not int or not 1 <= model["epochs"] <= MAX_EPOCHS:
         raise ValueError("invalid epoch metadata")
@@ -139,7 +139,7 @@ def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed:
                     row[k] = max(-100.0, min(100.0, row[k] - lr * grad * x[k]))
             for k in range(embedding_dim):
                 grad = max(-1.0, min(1.0, embedding_gradient[k]))
-                embedding[previous][k] = max(-5.0, min(5.0, embedding[previous][k] - lr * grad))
+                embedding[previous][k] = max(-5.0, min(5.0, embedding[previous][k] - lr * grad)
 
     model = {
         "schema_version": SCHEMA_VERSION, "model_type": MODEL_TYPE, "vocab_size": VOCAB_SIZE,
@@ -191,7 +191,6 @@ def generate(model: dict[str, Any], prompt: str = "", max_bytes: int = 64) -> st
     output = bytearray()
     for _ in range(max_bytes):
         probabilities = next_token_probabilities(model, previous)
-        # Deterministic greedy decoding; token ID breaks ties deterministically.
         candidates = [*range(256), EOS]
         token = max(candidates, key=lambda idx: (probabilities[idx], -idx))
         if token == EOS:
@@ -226,6 +225,8 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
         if str(exc) == "checkpoint byte limit exceeded" or str(exc).startswith("duplicate checkpoint") or str(exc).startswith("non-standard JSON"):
             raise
         raise ValueError("unable to read checkpoint JSON") from exc
+    except RecursionError as exc:
+        raise ValueError("checkpoint JSON nesting exceeds parser limit") from exc
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError("unable to read checkpoint JSON") from exc
     return _validate_model(document, require_hash=True)
