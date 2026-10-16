@@ -122,6 +122,8 @@ def validate_patch(patch: str, root: Path) -> None:
         raise AgentError("Binary patches are forbidden.")
     if re.search(r"(?im)^(?:new|old) file mode 120000$", patch):
         raise AgentError("Symbolic-link changes are forbidden.")
+    if re.search(r"(?m)^(?:new file mode|old mode|deleted file mode) (?!100644$)\\d{6}$", patch):
+        raise AgentError("Non-standard file permission changes are forbidden.")
     paths: list[str] = []
     active_path: str | None = None
     old_header_seen = False
