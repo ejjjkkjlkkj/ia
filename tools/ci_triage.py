@@ -48,8 +48,8 @@ def fetch_runs(repo: str, sha: str, limit: int = 100) -> list[dict[str, Any]]:
         raise RuntimeError(detail)
     try:
         payload = json.loads(result.stdout)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError("gh returned invalid JSON") from exc
+    except (json.JSONDecodeError, RecursionError) as exc:
+        raise RuntimeError("gh returned invalid JSON or excessively nested JSON") from exc
     if not isinstance(payload, list):
         raise RuntimeError("gh returned an unexpected JSON shape")
     # gh returns at most --limit rows. A saturated response may be truncated, so
