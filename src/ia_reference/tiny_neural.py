@@ -1,0 +1,230 @@
+"""Small from-scratch trainable neural byte language model (stdlib only).
+
+This is a CPU reference experiment, not a production LLM. It learns a
+single-hidden-layer next-byte predictor and records deterministic checkpoints.
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import random
+from pathlib import Path
+from typing import Any
+
+SCHEMA_VERSION = 1
+MODEL_TYPE = "tiny-neural-utf8-byte"
+BOS, EOS, VOCAB_SIZE = 256, 257, 258
+EMBED_DIM = 8
+MAX_TRAINING_BYTES = 10_000
+MAX_EPOCHS = 20
+
+
+def _canonical(value: Any) -> bytes:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+
+
+def _digest(value: Any) -> str:
+    return hashlib.sha256(_canonical(value)).hexdigest()
+
+
+def _finite_number(value: Any, label: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ValueError(f"{label} must be a finite number")
+    return float(value)
+
+
+def _validate_model(model: Any, require_hash: bool = False) -> dict[str, Any]:
+    if not isinstance(model, dict):
+        raise ValueError("checkpoint must be an object")
+    required = {"schema_version", "model_type", "vocab_size", "embedding_dim", "seed", "training_bytes", "epochs", "embedding", "weights", "bias"}
+    expected = required | {"checkpoint_sha256"} if require_hash else required
+    if set(model) != expected:
+        raise ValueError("invalid checkpoint fields")
+    if type(model["schema_version"]) is not int or model["schema_version"] != SCHEMA_VERSION:
+        raise ValueError("unsupported checkpoint schema")
+    if model["model_type"] != MODEL_TYPE or type(model["vocab_size"]) is not int or model["vocab_size"] != VOCAB_SIZE:
+        raise ValueError("unsupported model type or vocabulary")
+    dim = model["embedding_dim"]
+    if type(dim) is not int or not 1 <= dim <= 64:
+        raise ValueError("embedding dimension out of range")
+    if type(model["seed"]) is not int or type(model["training_bytes"]) is not int or model["training_bytes"] < 1:
+        raise ValueError("invalid training metadata")
+    if type(model["epochs"]) is not int or not 1 <= model["epochs"] <= MAX_EPOCHS:
+        raise ValueError("invalid epoch metadata")
+    embedding, weights, bias = model["embedding"], model["weights"], model["bias"]
+    if not isinstance(embedding, list) or len(embedding) != VOCAB_SIZE or not isinstance(weights, list) or len(weights) != VOCAB_SIZE or not isinstance(bias, list) or len(bias) != VOCAB_SIZE:
+        raise ValueError("invalid parameter shapes")
+    for matrix in (embedding, weights):
+        for row in matrix:
+            if not isinstance(row, list) or len(row) != dim:
+                raise ValueError("invalid parameter dimensions")
+            for item in row:
+                _finite_number(item, "parameter")
+    for item in bias:
+        _finite_number(item, "bias")
+    if require_hash:
+        unsigned = {key: value for key, value in model.items() if key != "checkpoint_sha256"}
+        if not isinstance(model["checkpoint_sha256"], str) or model["checkpoint_sha256"] != _digest(unsigned):
+            raise ValueError("checkpoint SHA-256 mismatch")
+    return model
+
+
+def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed: int = 7, embedding_dim: int = EMBED_DIM) -> dict[str, Any]:
+    """Train a tiny byte-level neural next-token model deterministically."""
+    if not isinstance(text, str):
+        raise ValueError("training text must be text")
+    try:
+        data = text.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("training text contains invalid Unicode") from exc
+    if not data:
+        raise ValueError("training text must not be empty")
+    if len(data) > MAX_TRAINING_BYTES:
+        raise ValueError(f"training data exceeds {MAX_TRAINING_BYTES}-byte limit")
+    if type(epochs) is not int or not 1 <= epochs <= MAX_EPOCHS:
+        raise ValueError(f"epochs must be between 1 and {MAX_EPOCHS}")
+    if type(seed) is not int:
+        raise ValueError("seed must be an integer")
+    if type(embedding_dim) is not int or not 1 <= embedding_dim <= 64:
+        raise ValueError("embedding_dim must be between 1 and 64")
+    lr = _finite_number(learning_rate, "learning_rate")
+    if not 0 < lr <= 1:
+        raise ValueError("learning_rate must be in (0, 1]")
+
+    rng = random.Random(seed)
+    scale = 0.1
+    embedding = [[rng.uniform(-scale, scale) for _ in range(embedding_dim)] for _ in range(VOCAB_SIZE)]
+    weights = [[rng.uniform(-scale, scale) for _ in range(embedding_dim)] for _ in range(VOCAB_SIZE)]
+    bias = [0.0] * VOCAB_SIZE
+    sequence = [BOS, *data, EOS]
+
+    for _ in range(epochs):
+        for previous, target in zip(sequence, sequence[1:]):
+            x = embedding[previous]
+            logits = [bias[j] + sum(weights[j][k] * x[k] for k in range(embedding_dim)) for j in range(VOCAB_SIZE)]
+            peak = max(logits)
+            exps = [math.exp(max(-80.0, value - peak)) for value in logits]
+            total = sum(exps)
+            probs = [value / total for value in exps]
+            probs[target] -= 1.0
+            old_target_weights = weights[target][:]
+            for j, grad in enumerate(probs):
+                bias[j] -= lr * grad
+                row = weights[j]
+                for k in range(embedding_dim):
+                    row[k] -= lr * grad * x[k]
+            for k in range(embedding_dim):
+                embedding[previous][k] -= lr * sum(probs[j] * old_target_weights[k] for j in range(VOCAB_SIZE))
+
+    model = {
+        "schema_version": SCHEMA_VERSION, "model_type": MODEL_TYPE, "vocab_size": VOCAB_SIZE,
+        "embedding_dim": embedding_dim, "seed": seed, "training_bytes": len(data), "epochs": epochs,
+        "embedding": embedding, "weights": weights, "bias": bias,
+    }
+    _validate_model(model)
+    return model
+
+
+def next_token_probabilities(model: dict[str, Any], previous: int) -> list[float]:
+    _validate_model(model)
+    if type(previous) is not int or not 0 <= previous < VOCAB_SIZE:
+        raise ValueError("previous token is outside the vocabulary")
+    x = model["embedding"][previous]
+    logits = [model["bias"][j] + sum(model["weights"][j][k] * x[k] for k in range(model["embedding_dim"])) for j in range(VOCAB_SIZE)]
+    peak = max(logits)
+    exps = [math.exp(max(-80.0, value - peak)) for value in logits]
+    total = sum(exps)
+    return [value / total for value in exps]
+
+
+def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
+    _validate_model(model)
+    if not isinstance(text, str):
+        raise ValueError("evaluation text must be text")
+    data = text.encode("utf-8")
+    if not data:
+        raise ValueError("evaluation text must not be empty")
+    sequence = [BOS, *data, EOS]
+    loss = 0.0
+    for previous, target in zip(sequence, sequence[1:]):
+        probability = next_token_probabilities(model, previous)[target]
+        loss -= math.log(max(probability, 1e-300))
+    count = len(sequence) - 1
+    mean_loss = loss / count
+    return {"tokens": count, "mean_cross_entropy": mean_loss, "perplexity": math.exp(min(mean_loss, 700.0))}
+
+
+def generate(model: dict[str, Any], prompt: str = "", max_bytes: int = 64) -> str:
+    _validate_model(model)
+    if type(max_bytes) is not int or not 0 <= max_bytes <= 4096:
+        raise ValueError("max_bytes must be between 0 and 4096")
+    try:
+        prefix = prompt.encode("utf-8")
+    except (AttributeError, UnicodeEncodeError) as exc:
+        raise ValueError("prompt must be valid Unicode text") from exc
+    previous = prefix[-1] if prefix else BOS
+    output = bytearray()
+    for _ in range(max_bytes):
+        probabilities = next_token_probabilities(model, previous)
+        # Deterministic greedy decoding; token ID breaks ties deterministically.
+        token = max(range(VOCAB_SIZE), key=lambda idx: (probabilities[idx], -idx))
+        if token == EOS:
+            break
+        if token >= 256:
+            token = 0
+        output.append(token)
+        previous = token
+    return (prefix + output).decode("utf-8", errors="replace")
+
+
+def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
+    _validate_model(model)
+    unsigned = dict(model)
+    unsigned.pop("checkpoint_sha256", None)
+    digest = _digest(unsigned)
+    document = dict(unsigned, checkpoint_sha256=digest)
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(destination.name + ".tmp")
+    temporary.write_bytes(_canonical(document))
+    temporary.replace(destination)
+    return digest
+
+
+def load_checkpoint(path: str | Path) -> dict[str, Any]:
+    try:
+        document = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError("unable to read checkpoint JSON") from exc
+    return _validate_model(document, require_hash=True)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="command", required=True)
+    train = sub.add_parser("train")
+    train.add_argument("input", type=Path)
+    train.add_argument("checkpoint", type=Path)
+    train.add_argument("--epochs", type=int, default=3)
+    train.add_argument("--seed", type=int, default=7)
+    evaluate = sub.add_parser("evaluate")
+    evaluate.add_argument("checkpoint", type=Path)
+    evaluate.add_argument("input", type=Path)
+    sample = sub.add_parser("generate")
+    sample.add_argument("checkpoint", type=Path)
+    sample.add_argument("--prompt", default="")
+    sample.add_argument("--max-bytes", type=int, default=64)
+    args = parser.parse_args()
+    if args.command == "train":
+        model = train_text(args.input.read_text(encoding="utf-8"), epochs=args.epochs, seed=args.seed)
+        print(json.dumps({"checkpoint_sha256": save_checkpoint(model, args.checkpoint), "training_bytes": model["training_bytes"], "epochs": model["epochs"]}, sort_keys=True))
+    elif args.command == "evaluate":
+        print(json.dumps(evaluate_text(load_checkpoint(args.checkpoint), args.input.read_text(encoding="utf-8")), sort_keys=True))
+    else:
+        print(generate(load_checkpoint(args.checkpoint), args.prompt, args.max_bytes))
+
+
+if __name__ == "__main__":
+    main()
