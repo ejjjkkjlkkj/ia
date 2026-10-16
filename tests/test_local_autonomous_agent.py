@@ -23,6 +23,30 @@ class PatchValidationTests(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
 
+    def test_accepts_local_ollama_urls(self):
+        for url in (
+            "http://127.0.0.1:11434/api/chat",
+            "http://localhost:11434/api/chat",
+            "http://[::1]:11434/api/chat",
+        ):
+            agent.validate_local_url(url)
+
+    def test_rejects_remote_ollama_urls(self):
+        for url in (
+            "https://example.com/api/chat",
+            "http://192.0.2.10:11434/api/chat",
+            "http://127.0.0.1:11434/api/chat?forward=1",
+            "http://user:pass@127.0.0.1:11434/api/chat",
+            "http://127.0.0.1:11434/api/chat#fragment",
+        ):
+            with self.subTest(url=url), self.assertRaises(agent.AgentError):
+                agent.validate_local_url(url)
+
+    def test_rejects_invalid_timeouts(self):
+        for timeout in (0, -1, 901, True, 1.5):
+            with self.subTest(timeout=timeout), self.assertRaises(agent.AgentError):
+                agent.call_ollama("http://127.0.0.1:11434/api/chat", "test", "task", timeout)
+
     def test_accepts_normal_source_patch(self):
         (self.root / "src").mkdir()
         (self.root / "src" / "example.py").write_text("old\n", encoding="utf-8")
