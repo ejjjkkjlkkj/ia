@@ -5,16 +5,14 @@ on:
     branches: [main, master]
     paths:
       - "src/ia_reference/**"
-      - "tests/test_ngram.py"
-      - "tests/test_universal.py"
-      - "tests/test_nexora_ir*.py"
+      - "src/nexora_*.py"
+      - "tests/**"
       - ".github/workflows/model-baseline.yml"
   pull_request:
     paths:
       - "src/ia_reference/**"
-      - "tests/test_ngram.py"
-      - "tests/test_universal.py"
-      - "tests/test_nexora_ir*.py"
+      - "src/nexora_*.py"
+      - "tests/**"
       - ".github/workflows/model-baseline.yml"
   workflow_dispatch:
 
