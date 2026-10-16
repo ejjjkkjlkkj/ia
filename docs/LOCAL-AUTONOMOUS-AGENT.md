@@ -25,6 +25,8 @@ L'aperçu imprime le résumé et le diff proposé sans modifier les fichiers. Ap
 python tools/local_autonomous_agent.py --repo . --task-file C:/chemin/vers/tache.txt --apply
 ```
 
+Chaque exécution écrit par défaut un rapport JSON avec identifiant unique, empreintes SHA-256 de la tâche et du patch, fichiers concernés, commandes exactes, codes de sortie et extraits de logs dans `~/.ia-agent/last-run.json` (remplaçable avec `--report-file`). Le contenu intégral de la tâche n'est pas enregistré.
+
 Pour appliquer puis lancer les contrôles fixes (syntaxe Python, JSON et suite pytest), avec retour arrière automatique du patch si un contrôle échoue :
 
 ```bash
