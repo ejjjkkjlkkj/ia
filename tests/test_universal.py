@@ -28,7 +28,17 @@ class UniversalByteModelTests(unittest.TestCase):
             checkpoint = json.loads(path.read_text(encoding="utf-8"))
             checkpoint["training_bytes"] = 0
             path.write_text(json.dumps(checkpoint), encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "SHA-256"):
+            with self.assertRaisesRegex(ValueError, "invalid training byte metadata"):
+                load_checkpoint(path)
+
+    def test_valid_metadata_tampering_fails_checkpoint_hash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "universal.json"
+            save_checkpoint(train_text("abc"), path)
+            checkpoint = json.loads(path.read_text(encoding="utf-8"))
+            checkpoint["alpha"] = 0.75
+            path.write_text(json.dumps(checkpoint), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "checkpoint SHA-256 mismatch"):
                 load_checkpoint(path)
 
     def test_rejects_empty_corpus_and_bad_alpha(self):
