@@ -21,9 +21,17 @@ on:
     paths:
       - ".github/workflows/**"
       - "tools/validate_benchmark_truth.py"
-      - "benchmarks/complex_tasks.json"
+      - "benchmarks/**"
+      - "data/**"
       - "src/**"
       - "tests/**"
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - "**/rust-toolchain*"
+      - "pyproject.toml"
+      - "setup.cfg"
+      - "tox.ini"
+      - "requirements*.txt"
   workflow_dispatch:
   schedule:
     - cron: "31 5 * * 1"
