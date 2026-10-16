@@ -1,0 +1,61 @@
+name: Own-model hourly train and held-out evaluation
+
+on:
+  schedule:
+    - cron: "29 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: own-model-hourly-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  train-evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run project tests
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+
+      - name: Train, reload, and evaluate repository-owned baselines
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: |
+          set -euo pipefail
+          mkdir -p model-evidence
+          printf '%s\n' 'screen reader accessible text keyboard focus voice output' 'fn main() { println!("hello"); }' 'def accessible_name(node): return node.name' > model-evidence/train.txt
+          printf '%s\n' 'keyboard navigation landmarks braille cursor' 'fn announce_focus() { speak(label); }' > model-evidence/heldout.txt
+          python -m ia_reference.ngram train model-evidence/train.txt model-evidence/bigram-checkpoint.json | tee model-evidence/bigram-training.json
+          python -m ia_reference.ngram evaluate model-evidence/bigram-checkpoint.json model-evidence/heldout.txt | tee model-evidence/bigram-evaluation.json
+          python -m ia_reference.ngram generate model-evidence/bigram-checkpoint.json --prompt "screen reader" --max-tokens 8 | tee model-evidence/bigram-generation.txt
+          python -m ia_reference.universal train model-evidence/train.txt model-evidence/universal-checkpoint.json | tee model-evidence/universal-training.json
+          python -m ia_reference.universal evaluate model-evidence/universal-checkpoint.json model-evidence/heldout.txt | tee model-evidence/universal-evaluation.json
+          python -m ia_reference.universal generate model-evidence/universal-checkpoint.json --prompt "fn main()" --max-bytes 16 | tee model-evidence/universal-generation.txt
+          python -m ia_reference.tiny_neural train model-evidence/train.txt model-evidence/tiny-neural-checkpoint.json --epochs 1 | tee model-evidence/tiny-neural-training.json
+          python -m ia_reference.tiny_neural evaluate model-evidence/tiny-neural-checkpoint.json model-evidence/heldout.txt | tee model-evidence/tiny-neural-evaluation.json
+          python -m ia_reference.tiny_neural generate model-evidence/tiny-neural-checkpoint.json --prompt "fn main()" --max-bytes 16 | tee model-evidence/tiny-neural-generation.txt
+          sha256sum model-evidence/*checkpoint.json | tee model-evidence/checkpoint-sha256.txt
+          echo "LIMITATION: the word bigram and byte bigram are statistical baselines; the tiny neural predictor is an experimental one-layer byte model. None is a production Transformer or an autonomous coding agent." | tee model-evidence/SCOPE-LIMITATION.txt
+
+      - name: Upload reproducible model evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: own-model-hourly-evidence
+          path: model-evidence/
+          if-no-files-found: error
+          retention-days: 14
