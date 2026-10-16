@@ -108,8 +108,14 @@ class PatchValidationTests(unittest.TestCase):
             agent.validate_patch(diff_for("escape/payload.py"), self.root)
 
     def test_rejects_workflow_changes(self):
-        with self.assertRaises(agent.AgentError):
-            agent.validate_patch(diff_for(".github/workflows/ci.yml"), self.root)
+        for path in (".github/workflows/ci.yml", ".GITHUB/workflows/ci.yml"):
+            with self.subTest(path=path), self.assertRaises(agent.AgentError):
+                agent.validate_patch(diff_for(path), self.root)
+
+    def test_rejects_windows_ads_and_reserved_names(self):
+        for path in ("src/file.py:payload", "src/CON.txt", "src/trailing. "):
+            with self.subTest(path=path), self.assertRaises(agent.AgentError):
+                agent.validate_patch(diff_for(path), self.root)
 
     def test_rejects_symbolic_link_patch(self):
         patch = diff_for("src/link.py").replace(
