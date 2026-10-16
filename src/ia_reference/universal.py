@@ -11,13 +11,71 @@ from typing import Any
 
 SCHEMA_VERSION = 1
 MODEL_TYPE = "universal-utf8-byte-bigram"
+TOKENIZATION = "raw UTF-8 bytes; reserved BOS=256 EOS=257"
 BOS, EOS, VOCAB_SIZE = 256, 257, 258
+MAX_TRAINING_BYTES = 1_000_000
+MAX_EVALUATION_BYTES = 100_000
+MAX_PROMPT_BYTES = 100_000
+MAX_GENERATION_BYTES = 4_096
+MAX_CHECKPOINT_BYTES = 4_000_000
+MAX_ALPHA = 100.0
+MAX_JSON_DEPTH = 64
 
 def _canonical_json(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate checkpoint JSON key")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
+def _check_json_nesting(text: str, max_depth: int = MAX_JSON_DEPTH) -> None:
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == chr(92):
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > max_depth:
+                raise ValueError("checkpoint JSON nesting exceeds parser limit")
+        elif character in "]}":
+            depth -= 1
+            if depth < 0:
+                raise ValueError("malformed checkpoint JSON nesting")
+
+
+def _validate_alpha(alpha: Any) -> float:
+    if isinstance(alpha, bool) or not isinstance(alpha, (int, float)):
+        raise ValueError("alpha must be a finite number greater than zero")
+    try:
+        value = float(alpha)
+    except (OverflowError, TypeError, ValueError) as exc:
+        raise ValueError("alpha must be a finite number greater than zero") from exc
+    if not math.isfinite(value) or not 0 < value <= MAX_ALPHA:
+        raise ValueError(f"alpha must be finite and in (0, {MAX_ALPHA}]")
+    return value
+
 
 def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
     """Train a smoothed byte-level model from mixed-language UTF-8 text."""
