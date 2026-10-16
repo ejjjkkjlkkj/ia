@@ -50,6 +50,19 @@ class PatchValidationTests(unittest.TestCase):
         self.assertEqual(report["summary_chars"], len("proposal"))
         self.assertEqual(list(self.root.glob(".evidence.json.*.tmp")), [])
 
+    def test_report_inside_repository_is_rejected_without_writing(self):
+        task_file = self.root / "task.txt"
+        task_file.write_text("review source changes", encoding="utf-8")
+        report_file = self.root / "evidence.json"
+        with patch.object(agent, "call_ollama") as call:
+            code = agent.main([
+                "--repo", str(self.root), "--task-file", str(task_file),
+                "--report-file", str(report_file),
+            ])
+        self.assertEqual(code, 2)
+        self.assertFalse(report_file.exists())
+        call.assert_not_called()
+
     def test_verify_requires_apply(self):
         with self.assertRaises(SystemExit) as ctx:
             agent.main(["--task-file", "missing.txt", "--verify"])
