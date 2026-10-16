@@ -169,29 +169,36 @@ def _validate_model(model: Any, *, require_hash: bool = False) -> dict[str, Any]
 
 
 def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
-    """Write a hash-protected JSON checkpoint and return its SHA-256."""
-    payload = dict(model)
-    payload.pop("checkpoint_sha256", None)
+    """Validate and atomically write a hash-protected JSON checkpoint."""
+    payload = {key: value for key, value in model.items() if key != "checkpoint_sha256"}
+    _validate_model(payload)
     digest = _sha256(_canonical_json(payload))
     checkpoint = dict(payload, checkpoint_sha256=digest)
+    encoded = (json.dumps(checkpoint, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
+    if len(encoded) > MAX_CHECKPOINT_BYTES:
+        raise ValueError(f"checkpoint exceeds {MAX_CHECKPOINT_BYTES}-byte limit")
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(checkpoint, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    temporary = destination.with_suffix(destination.suffix + ".tmp")
+    temporary.write_bytes(encoded)
+    temporary.replace(destination)
     return digest
 
+
 def load_checkpoint(path: str | Path) -> dict[str, Any]:
-    """Load only supported, integrity-checked checkpoints."""
-    checkpoint = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(checkpoint, dict) or checkpoint.get("schema_version") != SCHEMA_VERSION:
-        raise ValueError("unsupported or malformed checkpoint schema")
-    supplied_hash = checkpoint.pop("checkpoint_sha256", None)
-    if not isinstance(supplied_hash, str) or supplied_hash != _sha256(_canonical_json(checkpoint)):
-        raise ValueError("checkpoint SHA-256 mismatch")
-    if checkpoint.get("model_type") != MODEL_TYPE or checkpoint.get("vocab_size") != VOCAB_SIZE:
-        raise ValueError("unsupported universal model format")
-    if not isinstance(checkpoint.get("counts"), dict):
-        raise ValueError("checkpoint is missing transition counts")
-    checkpoint["checkpoint_sha256"] = supplied_hash
+    """Load only bounded, schema-valid, integrity-checked checkpoints."""
+    source = Path(path)
+    if source.stat().st_size > MAX_CHECKPOINT_BYTES:
+        raise ValueError(f"checkpoint exceeds {MAX_CHECKPOINT_BYTES}-byte limit")
+    try:
+        text = source.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("checkpoint must be valid UTF-8") from exc
+    _check_json_nesting(text)
+    checkpoint = json.loads(
+        text, object_pairs_hook=_unique_json_object, parse_constant=_reject_json_constant
+    )
+    _validate_model(checkpoint, require_hash=True)
     return checkpoint
 
 def next_byte_probability(model: dict[str, Any], previous: int, token: int) -> float:
