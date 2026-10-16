@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import uuid
 from datetime import datetime, timezone
 import urllib.error
@@ -290,9 +291,24 @@ def main(argv: list[str] | None = None) -> int:
         try:
             destination = args.report_file.expanduser().resolve()
             destination.parent.mkdir(parents=True, exist_ok=True)
-            temporary = destination.with_suffix(destination.suffix + ".tmp")
-            temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-            os.replace(temporary, destination)
+            temporary: Path | None = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", encoding="utf-8", dir=destination.parent,
+                    prefix=f".{destination.name}.", suffix=".tmp", delete=False,
+                ) as stream:
+                    temporary = Path(stream.name)
+                    stream.write(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, destination)
+                temporary = None
+            finally:
+                if temporary is not None:
+                    try:
+                        temporary.unlink()
+                    except FileNotFoundError:
+                        pass
             print(f"REPORT_FILE: {destination}")
         except OSError as report_error:
             print(f"REPORT_NOT_SAVED: {report_error}", file=sys.stderr)
