@@ -48,6 +48,8 @@ class CausalAttentionTests(unittest.TestCase):
             causal_scaled_dot_product_attention([[1_000_001.0]], [[1.0]], [[1.0]])
         with self.assertRaisesRegex(ValueError, "finite"):
             causal_scaled_dot_product_attention([[True]], [[1.0]], [[1.0]])
+        with self.assertRaisesRegex(ValueError, "finite"):
+            causal_scaled_dot_product_attention([[10 ** 10000]], [[1.0]], [[1.0]])
         with self.assertRaisesRegex(ValueError, "rectangular"):
             causal_scaled_dot_product_attention([[1.0], [1.0, 2.0]], [[1.0], [1.0]], [[1.0], [2.0]])
 
