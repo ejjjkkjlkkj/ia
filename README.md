@@ -101,3 +101,8 @@ NEXORA IR v1 contract: [NEXORA-IR-V1.md](NEXORA-IR-V1.md). The IR is a bounded J
 ## Séparation obligatoire des pistes
 
 - [Implémentations indépendantes par langage et rôle distinct de NEXORA](docs/INDEPENDENT-LANGUAGE-IMPLEMENTATIONS-AND-NEXORA.md)
+
+
+## Agent de programmation local
+
+Le prototype borné d'agent de programmation utilisant Ollama est documenté dans [docs/LOCAL-AUTONOMOUS-AGENT.md](docs/LOCAL-AUTONOMOUS-AGENT.md) et implémenté dans `tools/local_autonomous_agent.py`. Il fonctionne en aperçu par défaut; l'application du patch exige `--apply`. Il ne pousse pas, ne fusionne pas, n'exécute pas de commandes proposées par le modèle et ne prouve pas une autonomie permanente.
