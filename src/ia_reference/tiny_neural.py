@@ -85,7 +85,7 @@ def _finite_number(value: Any, label: str) -> float:
 def _validate_model(model: Any, require_hash: bool = False) -> dict[str, Any]:
     if not isinstance(model, dict):
         raise ValueError("checkpoint must be an object")
-    required = {"schema_version", "model_type", "vocab_size", "embedding_dim", "seed", "training_bytes", "training_corpus_sha256", "epochs", "embedding", "weights", "bias"}
+    required = {"schema_version", "model_type", "vocab_size", "embedding_dim", "seed", "training_bytes", "training_corpus_sha256", "epochs", "learning_rate", "embedding", "weights", "bias"}
     allowed = required | {"checkpoint_sha256"}
     if set(model) not in (required, allowed) or (require_hash and set(model) != allowed):
         raise ValueError("invalid checkpoint fields")
@@ -105,6 +105,9 @@ def _validate_model(model: Any, require_hash: bool = False) -> dict[str, Any]:
         raise ValueError("invalid training corpus SHA-256")
     if type(model["epochs"]) is not int or not 1 <= model["epochs"] <= MAX_EPOCHS:
         raise ValueError("invalid epoch metadata")
+    learning_rate = _finite_number(model["learning_rate"], "learning_rate")
+    if not 0 < learning_rate <= 1:
+        raise ValueError("invalid learning-rate metadata")
     embedding, weights, bias = model["embedding"], model["weights"], model["bias"]
     if not isinstance(embedding, list) or len(embedding) != VOCAB_SIZE or not isinstance(weights, list) or len(weights) != VOCAB_SIZE or not isinstance(bias, list) or len(bias) != VOCAB_SIZE:
         raise ValueError("invalid parameter shapes")
@@ -181,6 +184,7 @@ def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed:
         "schema_version": SCHEMA_VERSION, "model_type": MODEL_TYPE, "vocab_size": VOCAB_SIZE,
         "embedding_dim": embedding_dim, "seed": seed, "training_bytes": len(data),
         "training_corpus_sha256": hashlib.sha256(data).hexdigest(), "epochs": epochs,
+        "learning_rate": lr,
         "embedding": embedding, "weights": weights, "bias": bias,
     }
     _validate_model(model)
@@ -304,7 +308,7 @@ def main() -> None:
             "checkpoint_sha256": save_checkpoint(model, args.checkpoint),
             "training_corpus_sha256": model["training_corpus_sha256"],
             "training_bytes": model["training_bytes"], "epochs": model["epochs"],
-            "seed": model["seed"], "learning_rate": args.learning_rate,
+            "seed": model["seed"], "learning_rate": model["learning_rate"],
             "embedding_dim": model["embedding_dim"], "schema_version": SCHEMA_VERSION,
         }, sort_keys=True))
     elif args.command == "evaluate":
