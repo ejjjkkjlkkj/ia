@@ -168,7 +168,7 @@ def validate_patch(patch: str, root: Path) -> None:
         raise AgentError("Patch contains no file changes.")
     # Windows and default macOS filesystems may treat case-only path variants as the same file.
     if len({path.casefold() for path in paths}) != len(paths):
-        raise AgentError("Duplicate or case-colliding file paths in patch are forbidden.")
+        raise AgentError("Duplicate file paths or case-colliding paths are forbidden.")
     for relative in paths:
         path = Path(relative)
         windows_path = PureWindowsPath(relative)
