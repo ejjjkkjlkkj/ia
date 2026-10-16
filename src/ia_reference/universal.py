@@ -79,11 +79,17 @@ def _validate_alpha(alpha: Any) -> float:
 
 def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
     """Train a smoothed byte-level model from mixed-language UTF-8 text."""
-    if not math.isfinite(alpha) or alpha <= 0:
-        raise ValueError("alpha must be a finite number greater than zero")
-    data = text.encode("utf-8")
+    if not isinstance(text, str):
+        raise ValueError("training text must be text")
+    try:
+        data = text.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ValueError("training text contains invalid Unicode") from exc
     if not data:
         raise ValueError("training text must contain at least one UTF-8 byte")
+    if len(data) > MAX_TRAINING_BYTES:
+        raise ValueError(f"training data exceeds {MAX_TRAINING_BYTES}-byte limit")
+    alpha = _validate_alpha(alpha)
     counts: dict[str, dict[str, int]] = {}
     previous = BOS
     for byte in data:
@@ -95,7 +101,7 @@ def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
     counts = {key: dict(sorted(row.items(), key=lambda item: int(item[0])))
               for key, row in sorted(counts.items(), key=lambda item: int(item[0]))}
     return {"schema_version": SCHEMA_VERSION, "model_type": MODEL_TYPE,
-            "tokenization": "raw UTF-8 bytes; reserved BOS=256 EOS=257",
+            "tokenization": TOKENIZATION,
             "alpha": alpha, "vocab_size": VOCAB_SIZE, "counts": counts,
             "training_bytes": len(data), "training_corpus_sha256": _sha256(data)}
 
