@@ -71,3 +71,41 @@ jobs:
               raise SystemExit("FAIL: no model tracks found in MODELS-INDEX.md")
           print(f"PASS: {len(targets)} indexed model tracks have README.md")
           PY
+      - name: Validate Python syntax and JSON manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' file; do
+            python -m py_compile "$file"
+          done < <(find . -path './.git' -prune -o -path './.venv' -prune -o -name '*.py' -print0)
+          while IFS= read -r -d '' file; do
+            python -m json.tool "$file" >/dev/null
+          done < <(find . -path './.git' -prune -o -path './.venv' -prune -o -name '*.json' -print0)
+          echo "PASS: Python syntax and JSON manifests"
+      - name: Run Python regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -d tests ]; then
+            echo "FAIL: tests/ directory is missing"
+            exit 1
+          fi
+          python -m pip install --disable-pip-version-check pytest
+          PYTHONPATH=src python -m pytest -q tests
+      - name: Run reproducible neural proof when implemented
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f tools/run_neural_proof.py ]; then
+            PYTHONPATH=src python tools/run_neural_proof.py --output-dir .validation-evidence
+          else
+            echo "PARTIAL: tools/run_neural_proof.py is not present on this ref; no model-proof claim is made."
+          fi
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ia-validation-evidence-${{ github.run_id }}
+          path: .validation-evidence/
+          if-no-files-found: ignore
+          retention-days: 14
