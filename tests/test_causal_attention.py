@@ -33,6 +33,10 @@ class CausalAttentionTests(unittest.TestCase):
     def test_rejects_nonfinite_and_ragged_inputs(self):
         with self.assertRaisesRegex(ValueError, "finite"):
             causal_scaled_dot_product_attention([[float("nan")]], [[1.0]], [[1.0]])
+        with self.assertRaisesRegex(ValueError, "magnitude bound"):
+            causal_scaled_dot_product_attention([[1_000_001.0]], [[1.0]], [[1.0]])
+        with self.assertRaisesRegex(ValueError, "finite"):
+            causal_scaled_dot_product_attention([[True]], [[1.0]], [[1.0]])
         with self.assertRaisesRegex(ValueError, "rectangular"):
             causal_scaled_dot_product_attention([[1.0], [1.0, 2.0]], [[1.0], [1.0]], [[1.0], [2.0]])
 
