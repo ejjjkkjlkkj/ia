@@ -1,0 +1,641 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "IA-CODING-COMPLEX-1",
+  "title": "Complex-first coding benchmark across the shared language catalogue",
+  "status": "SPECIFICATION_READY_EXECUTION_NOT_RUN",
+  "contract": {
+    "submission": "One standalone program per task and language. Read stdin, write only the specified result to stdout, report errors to stderr, exit nonzero on malformed input.",
+    "no_network": true,
+    "no_external_model_calls": true,
+    "compile_and_run_required": true,
+    "hidden_tests_required_for_competitive_claim": true,
+    "unsupported_compiler_status": "BLOCKED",
+    "source_only_or_compile_only_is_not_pass": true,
+    "nexora": "NEXORA must be tested through the repository's actual NEXORA interpreter/compiler. Do not silently translate NEXORA submissions into Python or another language."
+  },
+  "language_catalogue": [
+    {
+      "id": "c",
+      "name": "C",
+      "tier": "systems"
+    },
+    {
+      "id": "cpp",
+      "name": "C++",
+      "tier": "systems"
+    },
+    {
+      "id": "rust",
+      "name": "Rust",
+      "tier": "systems"
+    },
+    {
+      "id": "zig",
+      "name": "Zig",
+      "tier": "systems"
+    },
+    {
+      "id": "ada",
+      "name": "Ada",
+      "tier": "systems"
+    },
+    {
+      "id": "asm-x86_64",
+      "name": "x86-64 Assembly",
+      "tier": "systems-kernel"
+    },
+    {
+      "id": "asm-aarch64",
+      "name": "AArch64 Assembly",
+      "tier": "systems-kernel"
+    },
+    {
+      "id": "asm-riscv64",
+      "name": "RISC-V Assembly",
+      "tier": "systems-kernel"
+    },
+    {
+      "id": "go",
+      "name": "Go",
+      "tier": "systems"
+    },
+    {
+      "id": "d",
+      "name": "D",
+      "tier": "systems"
+    },
+    {
+      "id": "nim",
+      "name": "Nim",
+      "tier": "systems"
+    },
+    {
+      "id": "swift",
+      "name": "Swift",
+      "tier": "systems"
+    },
+    {
+      "id": "pascal",
+      "name": "Free Pascal / Object Pascal",
+      "tier": "systems"
+    },
+    {
+      "id": "odin",
+      "name": "Odin",
+      "tier": "systems"
+    },
+    {
+      "id": "fortran",
+      "name": "Fortran",
+      "tier": "numeric"
+    },
+    {
+      "id": "csharp",
+      "name": "C#",
+      "tier": "systems"
+    },
+    {
+      "id": "objc",
+      "name": "Objective-C",
+      "tier": "systems"
+    },
+    {
+      "id": "v",
+      "name": "V",
+      "tier": "experimental"
+    },
+    {
+      "id": "crystal",
+      "name": "Crystal",
+      "tier": "experimental"
+    },
+    {
+      "id": "modula2",
+      "name": "Modula-2",
+      "tier": "experimental"
+    },
+    {
+      "id": "cobol",
+      "name": "COBOL",
+      "tier": "experimental"
+    },
+    {
+      "id": "pli",
+      "name": "PL/I",
+      "tier": "experimental"
+    },
+    {
+      "id": "java",
+      "name": "Java",
+      "tier": "hosted"
+    },
+    {
+      "id": "kotlin",
+      "name": "Kotlin",
+      "tier": "hosted"
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "tier": "hosted"
+    },
+    {
+      "id": "javascript",
+      "name": "JavaScript",
+      "tier": "hosted"
+    },
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "tier": "hosted"
+    },
+    {
+      "id": "scratch",
+      "name": "Scratch",
+      "tier": "educational"
+    },
+    {
+      "id": "u",
+      "name": "U (ulanguage.org)",
+      "tier": "experimental"
+    },
+    {
+      "id": "nexora",
+      "name": "NEXORA",
+      "tier": "project-native"
+    },
+    {
+      "id": "julia",
+      "name": "Julia",
+      "tier": "numeric"
+    },
+    {
+      "id": "mojo",
+      "name": "Mojo",
+      "tier": "numeric"
+    },
+    {
+      "id": "chapel",
+      "name": "Chapel",
+      "tier": "parallel"
+    },
+    {
+      "id": "r",
+      "name": "R",
+      "tier": "numeric"
+    },
+    {
+      "id": "apl",
+      "name": "APL",
+      "tier": "array"
+    },
+    {
+      "id": "j",
+      "name": "J",
+      "tier": "array"
+    },
+    {
+      "id": "k",
+      "name": "K",
+      "tier": "array"
+    },
+    {
+      "id": "q",
+      "name": "q",
+      "tier": "array"
+    },
+    {
+      "id": "lua",
+      "name": "Lua",
+      "tier": "hosted"
+    }
+  ],
+  "scoring": {
+    "per_task": "All public and hidden tests must pass; compilation alone scores zero.",
+    "per_language": "PASS only if every required task assigned to that language compiles/runs and passes; otherwise PARTIAL, FAIL, or BLOCKED with reasons.",
+    "global": "Report per-language, per-task, and per-category results; do not hide unsupported languages in a global average.",
+    "security": "Run generated programs with CPU, memory, wall-clock, filesystem, and network restrictions. If isolation is unavailable, mark execution UNSANDBOXED and do not treat it as a security validation."
+  },
+  "tasks": [
+    {
+      "id": "merge_intervals",
+      "difficulty": "hard",
+      "category": "algorithms",
+      "io": "Read n then n pairs of integer endpoints. Merge overlapping or touching closed intervals and print count followed by sorted merged pairs.",
+      "cases": [
+        {
+          "input": "5\n1 4\n4 7\n10 12\n11 15\n20 20\n",
+          "output": "3\n1 7\n10 15\n20 20\n"
+        },
+        {
+          "input": "3\n-9 -4\n-5 0\n2 2\n",
+          "output": "2\n-9 0\n2 2\n"
+        },
+        {
+          "input": "1\n0 0\n",
+          "output": "1\n0 0\n"
+        }
+      ]
+    },
+    {
+      "id": "shortest_path",
+      "difficulty": "hard",
+      "category": "graphs",
+      "io": "Read n m s t followed by m directed weighted edges u v w (1-based nodes, nonnegative weights). Print minimum distance or -1 if unreachable. Use 64-bit-safe distances.",
+      "cases": [
+        {
+          "input": "6 8 1 6\n1 2 4\n1 3 2\n3 2 1\n2 4 5\n3 4 8\n2 5 3\n4 6 2\n5 6 1\n",
+          "output": "7\n"
+        },
+        {
+          "input": "4 2 1 4\n1 2 3\n2 3 4\n",
+          "output": "-1\n"
+        },
+        {
+          "input": "3 3 1 3\n1 2 0\n2 3 0\n1 3 2\n",
+          "output": "0\n"
+        }
+      ]
+    },
+    {
+      "id": "topological_sort",
+      "difficulty": "hard",
+      "category": "graphs",
+      "io": "Read n m and directed edges. Output lexicographically smallest topological order. If a cycle exists print CYCLE.",
+      "cases": [
+        {
+          "input": "6 7\n4 2\n4 3\n2 1\n2 5\n3 1\n3 5\n5 6\n",
+          "output": "4 2 3 1 5 6\n"
+        },
+        {
+          "input": "3 3\n1 2\n2 3\n3 1\n",
+          "output": "CYCLE\n"
+        },
+        {
+          "input": "4 0\n",
+          "output": "1 2 3 4\n"
+        }
+      ]
+    },
+    {
+      "id": "dynamic_grid_paths",
+      "difficulty": "hard",
+      "category": "dynamic_programming",
+      "io": "Read width height k, then k blocked integer grid coordinates x y. Start (0,0), end (width,height), moves right/up only. Print exact path count using arbitrary precision or detect/report overflow explicitly.",
+      "cases": [
+        {
+          "input": "8 7 6\n2 1\n2 2\n3 2\n5 4\n6 4\n6 5\n",
+          "output": "943\n"
+        },
+        {
+          "input": "2 2 0\n",
+          "output": "6\n"
+        },
+        {
+          "input": "2 2 1\n1 0\n",
+          "output": "3\n"
+        }
+      ]
+    },
+    {
+      "id": "longest_increasing_subsequence",
+      "difficulty": "hard",
+      "category": "dynamic_programming",
+      "io": "Read n and n signed integers. Print the length of the strictly increasing subsequence in O(n log n) time.",
+      "cases": [
+        {
+          "input": "8\n10 9 2 5 3 7 101 18\n",
+          "output": "4\n"
+        },
+        {
+          "input": "5\n5 5 5 5 5\n",
+          "output": "1\n"
+        },
+        {
+          "input": "0\n",
+          "output": "0\n"
+        }
+      ]
+    },
+    {
+      "id": "range_sum_queries",
+      "difficulty": "hard",
+      "category": "data_structures",
+      "io": "Read n q, array of n integers, then q commands: SUM l r or SET i x (1-based inclusive). Print each SUM result. Require O(log n) per operation.",
+      "cases": [
+        {
+          "input": "5 4\n1 2 3 4 5\nSUM 2 4\nSET 3 10\nSUM 1 5\nSUM 3 3\n",
+          "output": "9\n22\n10\n"
+        },
+        {
+          "input": "1 2\n-7\nSUM 1 1\nSET 1 0\n",
+          "output": "-7\n"
+        },
+        {
+          "input": "4 1\n1 1 1 1\nSUM 1 4\n",
+          "output": "4\n"
+        }
+      ]
+    },
+    {
+      "id": "lru_cache",
+      "difficulty": "hard",
+      "category": "data_structures",
+      "io": "Read capacity q, then q operations PUT key value or GET key. GET prints value or -1. Implement true LRU eviction; capacity can be zero.",
+      "cases": [
+        {
+          "input": "2 7\nPUT 1 10\nPUT 2 20\nGET 1\nPUT 3 30\nGET 2\nGET 3\nGET 1\n",
+          "output": "10\n-1\n30\n10\n"
+        },
+        {
+          "input": "0 2\nPUT 1 5\nGET 1\n",
+          "output": "-1\n"
+        },
+        {
+          "input": "1 4\nPUT 1 1\nPUT 1 2\nGET 1\nGET 2\n",
+          "output": "2\n-1\n"
+        }
+      ]
+    },
+    {
+      "id": "minimum_spanning_tree",
+      "difficulty": "hard",
+      "category": "graphs",
+      "io": "Read n m and undirected weighted edges. Print minimum spanning forest total weight and number of connected components.",
+      "cases": [
+        {
+          "input": "4 5\n1 2 1\n2 3 2\n3 4 3\n1 4 10\n1 3 4\n",
+          "output": "6 1\n"
+        },
+        {
+          "input": "4 2\n1 2 -2\n3 4 5\n",
+          "output": "3 2\n"
+        },
+        {
+          "input": "1 0\n",
+          "output": "0 1\n"
+        }
+      ]
+    },
+    {
+      "id": "edit_distance",
+      "difficulty": "hard",
+      "category": "strings",
+      "io": "Read two lines of UTF-8 text. Print Levenshtein edit distance over Unicode code points, not raw UTF-8 bytes.",
+      "cases": [
+        {
+          "input": "kitten\nsitting\n",
+          "output": "3\n"
+        },
+        {
+          "input": "\nabc\n",
+          "output": "3\n"
+        },
+        {
+          "input": "café\ncafe\n",
+          "output": "1\n"
+        }
+      ]
+    },
+    {
+      "id": "expression_parser",
+      "difficulty": "very_hard",
+      "category": "parsing",
+      "io": "Read one arithmetic expression with integers, parentheses, unary minus, + - * and integer division /. Apply normal precedence and left associativity; division truncates toward zero. Print result; malformed expressions must fail cleanly.",
+      "cases": [
+        {
+          "input": "-(12 + 3) * 4 + 20 / 3\n",
+          "output": "-54\n"
+        },
+        {
+          "input": "2*(3+4*5)\n",
+          "output": "46\n"
+        },
+        {
+          "input": "-7/3\n",
+          "output": "-2\n"
+        }
+      ]
+    },
+    {
+      "id": "interval_scheduling",
+      "difficulty": "hard",
+      "category": "greedy",
+      "io": "Read n and n pairs start end. Select maximum number of mutually non-overlapping half-open intervals [start,end); print count and selected original 1-based indices in chronological order, tie-break by smaller end then smaller index.",
+      "cases": [
+        {
+          "input": "5\n1 3\n2 4\n3 5\n0 7\n5 6\n",
+          "output": "3\n1 3 5\n"
+        },
+        {
+          "input": "3\n0 1\n1 2\n2 3\n",
+          "output": "3\n1 2 3\n"
+        },
+        {
+          "input": "0\n",
+          "output": "0\n\n"
+        }
+      ]
+    },
+    {
+      "id": "big_integer_multiply",
+      "difficulty": "very_hard",
+      "category": "numeric",
+      "io": "Read two signed decimal integers up to 10,000 digits each. Print their exact product. Do not convert through floating point.",
+      "cases": [
+        {
+          "input": "12345678901234567890\n987654321\n",
+          "output": "12193263112482853211126352690\n"
+        },
+        {
+          "input": "-999\n999\n",
+          "output": "-998001\n"
+        },
+        {
+          "input": "0\n123456\n",
+          "output": "0\n"
+        }
+      ]
+    },
+    {
+      "id": "unicode_frequency",
+      "difficulty": "hard",
+      "category": "unicode",
+      "io": "Read one UTF-8 line. Count Unicode code points, excluding Unicode whitespace. Print the most frequent code point and count; tie-break by lowest Unicode scalar value. Print EMPTY 0 if no characters remain.",
+      "cases": [
+        {
+          "input": "aba cab\n",
+          "output": "a 3\n"
+        },
+        {
+          "input": "ééàà\n",
+          "output": "à 2\n"
+        },
+        {
+          "input": "   \n",
+          "output": "EMPTY 0\n"
+        }
+      ]
+    },
+    {
+      "id": "dependency_scheduler",
+      "difficulty": "very_hard",
+      "category": "graphs",
+      "io": "Read n m and prerequisite edges a b meaning a must finish before b. Print lexicographically smallest valid topological order, or CYCLE. Detect duplicate edges and self-loops correctly.",
+      "cases": [
+        {
+          "input": "6 7\n4 2\n4 3\n2 1\n2 5\n3 1\n3 5\n5 6\n",
+          "output": "4 2 3 1 5 6\n"
+        },
+        {
+          "input": "2 2\n1 2\n2 1\n",
+          "output": "CYCLE\n"
+        },
+        {
+          "input": "3 2\n1 2\n1 2\n",
+          "output": "1 2 3\n"
+        }
+      ]
+    },
+    {
+      "id": "knapsack_reconstruction",
+      "difficulty": "very_hard",
+      "category": "dynamic_programming",
+      "io": "Read n capacity, then n pairs weight value. Choose a 0/1 subset with maximum value within capacity; tie-break by lower total weight, then lexicographically smallest sorted list of 1-based item indices. Print value weight and indices.",
+      "cases": [
+        {
+          "input": "4 7\n3 4\n4 5\n2 3\n5 8\n",
+          "output": "11 7\n2 4\n"
+        },
+        {
+          "input": "3 0\n1 100\n2 200\n3 300\n",
+          "output": "0 0\n\n"
+        },
+        {
+          "input": "3 5\n2 5\n3 5\n5 10\n",
+          "output": "10 5\n3\n"
+        }
+      ]
+    },
+    {
+      "id": "streaming_median",
+      "difficulty": "very_hard",
+      "category": "data_structures",
+      "io": "Read n then n integers. After each insertion print the exact median as integer if integral, otherwise as .5. Must support negative values and duplicates.",
+      "cases": [
+        {
+          "input": "5\n5 2 8 1 3\n",
+          "output": "5\n3.5\n5\n3.5\n3\n"
+        },
+        {
+          "input": "4\n-5 -2 -9 -2\n",
+          "output": "-5\n-3.5\n-5\n-3.5\n"
+        },
+        {
+          "input": "3\n7 7 7\n",
+          "output": "7\n7\n7\n"
+        }
+      ]
+    },
+    {
+      "id": "matrix_chain_order",
+      "difficulty": "very_hard",
+      "category": "dynamic_programming",
+      "io": "Read n and n+1 positive dimensions. Find minimum scalar multiplication count for matrix-chain multiplication using exact 64-bit-safe or arbitrary precision arithmetic.",
+      "cases": [
+        {
+          "input": "4\n40 20 30 10 30\n",
+          "output": "26000\n"
+        },
+        {
+          "input": "3\n10 20 30 40\n",
+          "output": "18000\n"
+        },
+        {
+          "input": "1\n5 9\n",
+          "output": "0\n"
+        }
+      ]
+    },
+    {
+      "id": "robust_csv",
+      "difficulty": "very_hard",
+      "category": "parsing",
+      "io": "Read CSV from stdin with quoted fields, escaped double quotes, commas and newlines inside quoted fields. Print the number of records and total field count; malformed quoting must be rejected, not silently misparsed.",
+      "cases": [
+        {
+          "input": "a,\"b,c\",d\n1,\"two \"\"quotes\"\"\",3\n",
+          "output": "2 6\n"
+        },
+        {
+          "input": "\"multi\nline\",x\n",
+          "output": "1 2\n"
+        },
+        {
+          "input": "a,\"unterminated\n",
+          "output": "ERROR\n"
+        }
+      ]
+    },
+    {
+      "id": "concurrent_counter",
+      "difficulty": "very_hard",
+      "category": "concurrency",
+      "io": "Read worker_count increments_per_worker. Run concurrent workers that each increment a shared counter that many times; join all workers and print the exact final count. Must use correct synchronization or a correct atomic operation.",
+      "cases": [
+        {
+          "input": "8 10000\n",
+          "output": "80000\n"
+        },
+        {
+          "input": "1 1\n",
+          "output": "1\n"
+        },
+        {
+          "input": "16 0\n",
+          "output": "0\n"
+        }
+      ]
+    },
+    {
+      "id": "binary_protocol",
+      "difficulty": "very_hard",
+      "category": "systems",
+      "io": "Read a hex string encoding a frame: magic C0DE, 16-bit big-endian payload length, payload bytes, then 32-bit big-endian FNV-1a checksum of payload. Print payload as lowercase hex if valid; otherwise ERROR. Reject truncation, length mismatch and extra trailing bytes.",
+      "cases": [
+        {
+          "input": "C0DE0003616263\n",
+          "output": "ERROR\n"
+        },
+        {
+          "input": "0000\n",
+          "output": "ERROR\n"
+        },
+        {
+          "input": "C0DE0000\n",
+          "output": "ERROR\n"
+        }
+      ]
+    },
+    {
+      "id": "property_based_sort",
+      "difficulty": "hard",
+      "category": "testing",
+      "io": "Read n and n signed integers. Print sorted values ascending, one line. Implementation must be validated against randomized and adversarial cases in addition to examples; worst-case time must be O(n log n).",
+      "cases": [
+        {
+          "input": "7\n3 -1 3 0 9 -10 2\n",
+          "output": "-10 -1 0 2 3 3 9\n"
+        },
+        {
+          "input": "0\n",
+          "output": "\n"
+        },
+        {
+          "input": "5\n5 4 3 2 1\n",
+          "output": "1 2 3 4 5\n"
+        }
+      ]
+    }
+  ]
+}
