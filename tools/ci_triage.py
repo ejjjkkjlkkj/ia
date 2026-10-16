@@ -20,19 +20,17 @@ MAX_WATCH_SECONDS = 3600
 MAX_INTERVAL_SECONDS = 60
 
 
-def fetch_runs(repo: str, branch: str, sha: str, limit: int = 50) -> list[dict[str, Any]]:
+def fetch_runs(repo: str, sha: str, limit: int = 100) -> list[dict[str, Any]]:
     if not repo or "/" not in repo or any(part.strip() == "" for part in repo.split("/", 1)):
         raise ValueError("repo must use owner/name format")
-    if not branch.strip():
-        raise ValueError("branch must not be empty")
-    if not sha.strip():
-        raise ValueError("commit SHA must not be empty")
+    if not sha.strip() or len(sha) not in {40, 64} or any(c not in "0123456789abcdefABCDEF" for c in sha):
+        raise ValueError("sha must be a full 40-character SHA-1 or 64-character SHA-256 hex string")
     if not 1 <= limit <= MAX_LIMIT:
         raise ValueError(f"limit must be between 1 and {MAX_LIMIT}")
     if shutil.which("gh") is None:
         raise RuntimeError("GitHub CLI 'gh' is not installed")
     command = [
-        "gh", "run", "list", "--repo", repo, "--branch", branch,
+        "gh", "run", "list", "--repo", repo, "--commit", sha,
         "--limit", str(limit),
         "--json", "databaseId,name,status,conclusion,headSha,url,workflowName",
     ]
@@ -62,7 +60,7 @@ def summarize(runs: list[dict[str, Any]]) -> tuple[str, dict[str, int]]:
         conclusion = str(run.get("conclusion") or "").lower()
         if status == "completed" and conclusion == "success":
             counts["success"] += 1
-        elif status == "completed" and conclusion in {"failure", "timed_out", "action_required"}:
+        elif status == "completed" and conclusion in {"failure", "timed_out", "action_required", "startup_failure", "cancelled", "skipped", "neutral", "stale"}:
             counts["failure"] += 1
         else:
             counts["pending"] += 1
@@ -91,9 +89,8 @@ def report(runs: list[dict[str, Any]], sha: str) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True, help="GitHub owner/name")
-    parser.add_argument("--branch", required=True)
     parser.add_argument("--sha", required=True, help="Exact commit SHA to inspect")
-    parser.add_argument("--limit", type=int, default=50)
+    parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--watch", type=int, default=0, metavar="SECONDS", help="Poll until settled or this many seconds elapse")
     parser.add_argument("--interval", type=int, default=15, help="Polling interval in seconds")
     args = parser.parse_args(argv)
@@ -105,7 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     deadline = time.monotonic() + args.watch
     while True:
         try:
-            runs = fetch_runs(args.repo, args.branch, args.sha, args.limit)
+            runs = fetch_runs(args.repo, args.sha, args.limit)
         except (RuntimeError, ValueError) as exc:
             print(f"BLOCKED: {exc}", file=sys.stderr)
             return 2
