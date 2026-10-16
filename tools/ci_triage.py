@@ -26,6 +26,7 @@ def fetch_runs(repo: str, sha: str, limit: int = 100) -> list[dict[str, Any]]:
         raise ValueError("repo must use owner/name format")
     if not isinstance(sha, str) or len(sha) not in {40, 64} or any(c not in "0123456789abcdefABCDEF" for c in sha):
         raise ValueError("sha must be a full 40-character SHA-1 or 64-character SHA-256 hex string")
+    sha = sha.lower()
     if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= MAX_LIMIT:
         raise ValueError(f"limit must be between 1 and {MAX_LIMIT}")
     if shutil.which("gh") is None:
@@ -58,7 +59,11 @@ def fetch_runs(repo: str, sha: str, limit: int = 100) -> list[dict[str, Any]]:
             f"GitHub returned the full requested limit ({limit}); results may be truncated. "
             "Use a smaller time/commit scope or inspect GitHub Actions directly."
         )
-    return [run for run in payload if isinstance(run, dict) and run.get("headSha") == sha]
+    return [
+        run for run in payload
+        if isinstance(run, dict) and isinstance(run.get("headSha"), str)
+        and run["headSha"].lower() == sha
+    ]
 
 
 def summarize(runs: list[dict[str, Any]]) -> tuple[str, dict[str, int]]:
@@ -115,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
         except (RuntimeError, ValueError) as exc:
             print(f"BLOCKED: {exc}", file=sys.stderr)
             return 2
-        code = report(runs, args.sha)
+        code = report(runs, args.sha.lower())
         if code != 2 or args.watch == 0 or time.monotonic() >= deadline:
             return code
         time.sleep(min(args.interval, max(0, deadline - time.monotonic())))
