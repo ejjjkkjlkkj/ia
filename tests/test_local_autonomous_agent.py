@@ -27,7 +27,7 @@ class PatchValidationTests(unittest.TestCase):
 
     def test_dry_run_writes_redacted_reproducible_report(self):
         task_file = self.root / "task.txt"
-        report_file = self.root / "evidence.json"
+        report_file = self.root.parent / f"{self.root.name}-evidence.json"
         task_file.write_text("private task text", encoding="utf-8")
         model_result = {"summary": "proposal", "patch": diff_for("src/a.py")}
         with patch.object(agent, "clean_worktree"), patch.object(agent, "call_ollama", return_value=model_result):
@@ -41,7 +41,28 @@ class PatchValidationTests(unittest.TestCase):
         self.assertEqual(report["changed_files"], ["src/a.py"])
         self.assertEqual(len(report["task_sha256"]), 64)
         self.assertEqual(len(report["patch_sha256"]), 64)
-        self.assertNotIn("private task text", report_file.read_text(encoding="utf-8"))
+        report_text = report_file.read_text(encoding="utf-8")
+        self.assertNotIn("private task text", report_text)
+        self.assertNotIn("proposal", report_text)
+        self.assertNotIn(str(self.root), report_text)
+        self.assertEqual(report["repository_name"], self.root.name)
+        self.assertEqual(len(report["summary_sha256"]), 64)
+        self.assertEqual(report["summary_chars"], len("proposal"))
+        self.assertEqual(list(report_file.parent.glob(f".{report_file.name}.*.tmp")), [])
+        report_file.unlink(missing_ok=True)
+
+    def test_report_inside_repository_is_rejected_without_writing(self):
+        task_file = self.root / "task.txt"
+        task_file.write_text("review source changes", encoding="utf-8")
+        report_file = self.root / "evidence.json"
+        with patch.object(agent, "call_ollama") as call:
+            code = agent.main([
+                "--repo", str(self.root), "--task-file", str(task_file),
+                "--report-file", str(report_file),
+            ])
+        self.assertEqual(code, 2)
+        self.assertFalse(report_file.exists())
+        call.assert_not_called()
 
     def test_verify_requires_apply(self):
         with self.assertRaises(SystemExit) as ctx:
@@ -85,8 +106,23 @@ class PatchValidationTests(unittest.TestCase):
             def read(self, limit): return b"{not-json"
         class Opener:
             def open(self, request, timeout): return Response()
-        with patch.object(agent.urllib.request, "build_opener", return_value=Opener()):
+        with patch.object(agent.urllib.request, "build_opener", return_value=Opener()) as build_opener:
             with self.assertRaises(agent.AgentError):
+                agent.call_ollama("http://127.0.0.1:11434/api/chat", "local", "task", 5)
+        handlers = build_opener.call_args.args
+        self.assertIsInstance(handlers[0], agent.urllib.request.ProxyHandler)
+        self.assertEqual(handlers[0].proxies, {})
+
+    def test_rejects_excessively_nested_ollama_response(self):
+        payload = ("[" * 10000 + "0" + "]" * 10000).encode("utf-8")
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, limit): return payload[:limit]
+        class Opener:
+            def open(self, request, timeout): return Response()
+        with patch.object(agent.urllib.request, "build_opener", return_value=Opener()):
+            with self.assertRaisesRegex(agent.AgentError, "excessively nested JSON"):
                 agent.call_ollama("http://127.0.0.1:11434/api/chat", "local", "task", 5)
 
     def test_rejects_oversized_ollama_response(self):
@@ -104,6 +140,16 @@ class PatchValidationTests(unittest.TestCase):
         for timeout in (0, -1, 901, True, 1.5):
             with self.subTest(timeout=timeout), self.assertRaises(agent.AgentError):
                 agent.call_ollama("http://127.0.0.1:11434/api/chat", "test", "task", timeout)
+
+    def test_rejects_duplicate_file_paths_in_patch(self):
+        patch = diff_for("src/a.py") + diff_for("src/a.py", old="new", new="final")
+        with self.assertRaisesRegex(agent.AgentError, "Duplicate file paths"):
+            agent.validate_patch(patch, self.root)
+
+    def test_rejects_case_colliding_file_paths_in_patch(self):
+        patch = diff_for("src/Foo.py") + diff_for("src/foo.py", old="new", new="final")
+        with self.assertRaisesRegex(agent.AgentError, "case-colliding"):
+            agent.validate_patch(patch, self.root)
 
     def test_accepts_normal_source_patch(self):
         (self.root / "src").mkdir()
@@ -181,6 +227,14 @@ class PatchValidationTests(unittest.TestCase):
         )
         with self.assertRaises(agent.AgentError):
             agent.validate_patch(patch, self.root)
+    def test_rejects_executable_mode_changes(self):
+        patch = diff_for("tools/helper.py").replace(
+            "diff --git a/tools/helper.py b/tools/helper.py\n",
+            "diff --git a/tools/helper.py b/tools/helper.py\nold mode 100644\nnew mode 100755\n",
+        )
+        with self.assertRaisesRegex(agent.AgentError, "permission changes"):
+            agent.validate_patch(patch, self.root)
+
     def test_rejects_binary_artifact(self):
         with self.assertRaises(agent.AgentError):
             agent.validate_patch(diff_for("models/weights.safetensors"), self.root)
@@ -205,6 +259,23 @@ class PatchValidationTests(unittest.TestCase):
         deletion = diff_for("src/old.py").replace("+++ b/src/old.py", "+++ /dev/null")
         agent.validate_patch(addition, self.root)
         agent.validate_patch(deletion, self.root)
+
+    def test_rejects_deleting_regression_tests(self):
+        deletion = diff_for("tests/test_example.py").replace(
+            "+++ b/tests/test_example.py", "+++ /dev/null"
+        )
+        with self.assertRaisesRegex(agent.AgentError, "Deleting tests is forbidden"):
+            agent.validate_patch(deletion, self.root)
+
+    def test_rejects_deleting_tests_with_case_variant_paths(self):
+        for path in ("Tests/test_example.py", "TESTS/test_example.py"):
+            deletion = diff_for(path).replace(
+                f"+++ b/{path}", "+++ /dev/null"
+            )
+            with self.subTest(path=path), self.assertRaisesRegex(
+                agent.AgentError, "Deleting tests is forbidden"
+            ):
+                agent.validate_patch(deletion, self.root)
 
     def test_rejects_both_null_device_headers(self):
         patch = diff_for("src/a.py").replace("--- a/src/a.py", "--- /dev/null").replace("+++ b/src/a.py", "+++ /dev/null")

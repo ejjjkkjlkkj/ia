@@ -14,6 +14,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,6 +23,10 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 MAX_CYCLES = 100
 MAX_INTERVAL = 3600
+EXCLUDED_SCAN_DIRS = frozenset({
+    ".git", ".venv", "venv", "node_modules", "__pycache__", "build", "dist",
+    ".tox", ".nox", ".pytest_cache", ".mypy_cache",
+})
 
 
 def _run(command: list[str], timeout: int = 300) -> dict[str, Any]:
@@ -50,18 +55,26 @@ def _run(command: list[str], timeout: int = 300) -> dict[str, Any]:
         return {"status": "BLOCKED", "reason": type(exc).__name__}
 
 
+def _iter_scan_files(suffix: str):
+    """Walk only relevant source directories, pruning generated/dependency trees."""
+    for directory, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = sorted(
+            name for name in dirnames if name.casefold() not in EXCLUDED_SCAN_DIRS
+        )
+        for filename in filenames:
+            if Path(filename).suffix.casefold() == suffix:
+                yield Path(directory) / filename
+
+
 def run_cycle() -> dict[str, Any]:
     tasks: list[dict[str, Any]] = []
-    py_files = sorted(
-        p for p in ROOT.rglob("*.py")
-        if not any(part in {".git", ".venv", "__pycache__", "build", "dist"} for part in p.parts)
-    )
+    py_files = sorted(_iter_scan_files(".py"))
     syntax_errors = []
     for path in py_files:
         try:
             source = path.read_bytes()
             compile(source, str(path), "exec")
-        except (OSError, SyntaxError, UnicodeError) as exc:
+        except (OSError, SyntaxError, UnicodeError, RecursionError) as exc:
             syntax_errors.append({"path": str(path.relative_to(ROOT)), "error": type(exc).__name__})
     tasks.append({
         "id": "python-syntax",
@@ -70,15 +83,12 @@ def run_cycle() -> dict[str, Any]:
         "errors": syntax_errors[:100],
     })
 
-    json_files = sorted(
-        p for p in ROOT.rglob("*.json")
-        if not any(part in {".git", ".venv", "__pycache__", "build", "dist"} for part in p.parts)
-    )
+    json_files = sorted(_iter_scan_files(".json"))
     json_errors = []
     for path in json_files:
         try:
             json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
             json_errors.append({"path": str(path.relative_to(ROOT)), "error": type(exc).__name__})
     tasks.append({
         "id": "json-syntax",
@@ -126,7 +136,7 @@ def run_cycle() -> dict[str, Any]:
         "schema_version": 1,
         "agent": "repository-owned-maintenance-agent",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-        "repository_root": str(ROOT),
+        "repository_name": ROOT.name,
         "overall_status": overall,
         "safety": {
             "network_access": False,
@@ -161,9 +171,26 @@ def main() -> int:
             runs.append(report)
             runs = runs[-1000:]
             report_path.parent.mkdir(parents=True, exist_ok=True)
-            report_path.write_text(json.dumps(
-                {"schema_version": 1, "runs": runs}, ensure_ascii=False, indent=2
-            ) + "\n", encoding="utf-8")
+            temporary_path: Path | None = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", encoding="utf-8", dir=report_path.parent,
+                    prefix=f".{report_path.name}.", suffix=".tmp", delete=False,
+                ) as stream:
+                    temporary_path = Path(stream.name)
+                    stream.write(json.dumps(
+                        {"schema_version": 1, "runs": runs}, ensure_ascii=False, indent=2
+                    ) + "\n")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary_path, report_path)
+                temporary_path = None
+            finally:
+                if temporary_path is not None:
+                    try:
+                        temporary_path.unlink()
+                    except FileNotFoundError:
+                        pass
             print(f"{report['generated_at_utc']} overall={report['overall_status']}", flush=True)
             if report["overall_status"] == "FAIL":
                 return 1

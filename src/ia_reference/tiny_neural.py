@@ -24,6 +24,7 @@ MAX_EPOCHS = 20
 MAX_CHECKPOINT_BYTES = 2_000_000
 MAX_TRAINING_WORK = 40_000_000
 MAX_EVALUATION_BYTES = 100_000
+MAX_EVALUATION_WORK = 40_000_000
 MAX_PROMPT_BYTES = 100_000
 MAX_SEED = (1 << 63) - 1
 
@@ -206,11 +207,19 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
     _validate_model(model)
     if not isinstance(text, str):
         raise ValueError("evaluation text must be text")
-    data = text.encode("utf-8")
+    try:
+        data = text.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ValueError("evaluation text contains invalid Unicode") from exc
     if not data:
         raise ValueError("evaluation text must not be empty")
     if len(data) > MAX_EVALUATION_BYTES:
         raise ValueError(f"evaluation data exceeds {MAX_EVALUATION_BYTES}-byte limit")
+    estimated_work = len(data) * VOCAB_SIZE * model["embedding_dim"]
+    if estimated_work > MAX_EVALUATION_WORK:
+        raise ValueError(
+            f"estimated evaluation work exceeds {MAX_EVALUATION_WORK}-operation budget"
+        )
     sequence = [BOS, *data, EOS]
     loss = 0.0
     for previous, target in zip(sequence, sequence[1:]):

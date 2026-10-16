@@ -17,6 +17,36 @@ Les langages partagent une **spécification mathématique, un tokenizer versionn
 
 Le contrat commun versionné est maintenu dans [ACCESSIBILITY — AI integration contract](https://github.com/ejjjkkjlkkj/accessibility/blob/feature/dark-redteam-from-scratch-20261015/docs/AI-ACCESSIBILITY-INTEGRATION-CONTRACT-V1.md). Il fixe la séparation des preuves, le mode sans IA, la confidentialité et les critères d'interopérabilité. La présence du contrat ne signifie pas que le modèle est entraîné ni que l'intégration est exécutée.
 
+## Inclusion universelle de tous les handicaps
+
+NEXORA IA est conçue pour être accessible aux personnes ayant **tout type de handicap**, y compris les handicaps multiples, fluctuants, invisibles ou temporaires. L'objectif est de prévenir la discrimination par la conception, sans demander de diagnostic, sans imposer une modalité unique (voix, vision, audition, souris) et en laissant à chaque personne le contrôle de ses réglages.
+
+- Politique et exigences produit : [docs/UNIVERSAL-DISABILITY-INCLUSION-POLICY.md](docs/UNIVERSAL-DISABILITY-INCLUSION-POLICY.md)
+- Contrat machine-readable : [data/universal-disability-inclusion-contract-v1.json](data/universal-disability-inclusion-contract-v1.json)
+- Tests de régression du contrat : [tests/test_universal_disability_inclusion_contract.py](tests/test_universal_disability_inclusion_contract.py)
+
+Le périmètre couvre notamment vision, audition, mobilité/motricité, parole et communication, cognition/apprentissage/neurodivergence, fatigue/douleur/santé chronique, ainsi que handicaps combinés et fluctuants. L'accessibilité doit aussi couvrir l'installation, la configuration, le support, les mises à jour, la confidentialité et la récupération après erreur.
+
+**Statut honnête : PARTIAL / NOT_VALIDATED.** Le contrat et les tests de structure sont ajoutés ; cela ne prouve pas que toutes ces fonctions sont implémentées, compatibles avec toutes les aides techniques ou validées avec des personnes handicapées. Les déclarations PASS exigent des résultats reproductibles et des essais réels adaptés à chaque parcours.
+
+## Accessibilité visuelle et lecteur d'écran
+
+L'objectif produit inclut une IA de référence pour les personnes aveugles et malvoyantes, avec un lecteur d'écran clavier-first, des adaptateurs natifs par plateforme, une voix locale, le braille, une aide IA facultative et une piste UEFI distincte. Les fonctions essentielles doivent rester utilisables sans modèle ni réseau. Les propriétés d'accessibilité doivent provenir des API de la plateforme ; OCR et vision sont complémentaires, jamais une preuve équivalente à l'arbre d'accessibilité.
+
+La spécification de travail, les priorités, les tests et les références officielles sont dans [la feuille de route accessibilité visuelle et lecteur d'écran](docs/VISUAL-ACCESSIBILITY-SCREEN-READER-ROADMAP.md). Le contrat machine-readable versionné est dans [data/accessibility-screenreader-contract-v1.json](data/accessibility-screenreader-contract-v1.json), avec des tests de régression dans `tests/test_accessibility_screenreader_contract.py`. Le dépôt partenaire `ejjjkkjlkkj/accessibility` demeure la source de l'implémentation des adaptateurs et du lecteur d'écran : ce dépôt IA doit intégrer ce contrat sans prétendre remplacer un lecteur d'écran déjà validé.
+
+**Statut actuel : PARTIAL / NOT_VALIDATED.** L'ajout de cette feuille de route ne prouve pas qu'un lecteur d'écran complet, une voix réelle, le braille, les adaptateurs natifs ou l'UEFI fonctionnent. Chaque plateforme doit fournir ses propres résultats reproductibles et essais réels.
+
+## Création multimodale : images, vidéo, jeux et cinéma
+
+L'objectif inclut la compréhension et la création de médias : images, vidéo, audio, animation, assets 3D, prototypes de jeux et workflows de cinéma (scénario, storyboard, montage, sous-titres et postproduction). Chaque pipeline doit distinguer les composants réellement exécutés des objectifs futurs et respecter licences, droits à l'image, consentement vocal, sécurité et accessibilité universelle.
+
+- Feuille de route et critères de validation : [docs/MULTIMODAL-CREATIVE-CAPABILITIES-ROADMAP.md](docs/MULTIMODAL-CREATIVE-CAPABILITIES-ROADMAP.md)
+- Contrat machine-readable : [data/multimodal-creative-capabilities-contract-v1.json](data/multimodal-creative-capabilities-contract-v1.json)
+- Tests du contrat : [tests/test_multimodal_creative_capabilities_contract.py](tests/test_multimodal_creative_capabilities_contract.py)
+
+**Statut honnête : PARTIAL / NOT_VALIDATED.** Le contrat et la feuille de route sont ajoutés ; ils ne prouvent pas que les moteurs de génération image/vidéo, un jeu jouable ou une chaîne de production de film existent déjà. Les capacités doivent être inventoriées, exécutées et évaluées séparément avant d'être annoncées comme disponibles.
+
 ## Langage universel NEXORA
 
 Le dépôt contient aussi le prototype initial du langage **NEXORA**, distinct du langage existant U : [spécification NEXORA](NEXORA-LANGUAGE-SPEC.md), lexer/parseur/interpréteur de référence dans `src/nexora_language.py`, et tests dans `tests/test_nexora_language.py`. Le prototype gère un sous-ensemble syntaxique avec identifiants Unicode et arithmétique; il n'est pas encore un compilateur ni un langage prêt pour l'OS/UEFI. Les backends et la représentation intermédiaire seront ajoutés après stabilisation de la grammaire et des tests de conformité.

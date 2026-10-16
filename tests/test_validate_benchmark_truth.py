@@ -1,6 +1,8 @@
 import contextlib
 import io
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -51,6 +53,26 @@ class BenchmarkOracleValidationTests(unittest.TestCase):
             path.write_text(" " * (MAX_BENCHMARK_BYTES + 1), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "byte limit"):
                 load_suite(path)
+
+    def test_cli_propagates_oracle_failure_as_nonzero_exit_code(self):
+        suite = json.loads(Path("benchmarks/complex_tasks.json").read_text(encoding="utf-8"))
+        suite["tasks"].append({
+            "id": "unverified_cli_task",
+            "category": "reasoning",
+            "prompt": "A task without an independent oracle.",
+            "expected_output": {},
+        })
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.json"
+            path.write_text(json.dumps(suite), encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, "tools/validate_benchmark_truth.py", str(path)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("missing independent oracles", result.stdout)
 
     def test_main_fails_when_task_has_no_independent_oracle(self):
         suite = json.loads(Path("benchmarks/complex_tasks.json").read_text(encoding="utf-8"))

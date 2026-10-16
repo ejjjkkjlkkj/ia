@@ -41,6 +41,25 @@ class CausalAttentionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "operation budget"):
             causal_scaled_dot_product_attention(query, key, value)
 
+
+    def test_rejects_empty_and_non_matrix_inputs(self):
+        for query, key, value in (
+            ([], [[1.0]], [[1.0]]),
+            ([[1.0]], [], [[1.0]]),
+            ([[1.0]], [[1.0]], []),
+            (None, [[1.0]], [[1.0]]),
+            ([[1.0]], [[1.0]], [[1.0], [2.0]]),
+        ):
+            with self.subTest(query=query, key=key, value=value):
+                with self.assertRaises(ValueError):
+                    causal_scaled_dot_product_attention(query, key, value)
+
+    def test_rejects_infinite_and_extreme_numeric_inputs(self):
+        for bad in (float("inf"), float("-inf"), 10 ** 10000):
+            with self.subTest(value=type(bad).__name__):
+                with self.assertRaisesRegex(ValueError, "finite"):
+                    causal_scaled_dot_product_attention([[bad]], [[1.0]], [[1.0]])
+
     def test_rejects_nonfinite_and_ragged_inputs(self):
         with self.assertRaisesRegex(ValueError, "finite"):
             causal_scaled_dot_product_attention([[float("nan")]], [[1.0]], [[1.0]])
@@ -48,6 +67,8 @@ class CausalAttentionTests(unittest.TestCase):
             causal_scaled_dot_product_attention([[1_000_001.0]], [[1.0]], [[1.0]])
         with self.assertRaisesRegex(ValueError, "finite"):
             causal_scaled_dot_product_attention([[True]], [[1.0]], [[1.0]])
+        with self.assertRaisesRegex(ValueError, "finite"):
+            causal_scaled_dot_product_attention([[10 ** 10000]], [[1.0]], [[1.0]])
         with self.assertRaisesRegex(ValueError, "rectangular"):
             causal_scaled_dot_product_attention([[1.0], [1.0, 2.0]], [[1.0], [1.0]], [[1.0], [2.0]])
 

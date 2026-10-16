@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import uuid
 from datetime import datetime, timezone
 import urllib.error
@@ -89,7 +90,7 @@ def call_ollama(url: str, model: str, task: str, timeout: int) -> dict[str, Any]
         url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
     )
     try:
-        with urllib.request.build_opener(_NoRedirect()).open(request, timeout=timeout) as response:
+        with urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect()).open(request, timeout=timeout) as response:
             raw = response.read(MAX_RESPONSE_BYTES + 1)
     except (urllib.error.URLError, TimeoutError) as exc:
         raise AgentError(f"Ollama local endpoint unavailable or timed out: {exc}") from exc
@@ -99,8 +100,8 @@ def call_ollama(url: str, model: str, task: str, timeout: int) -> dict[str, Any]
         outer = json.loads(raw)
         message = outer["message"]["content"]
         result = json.loads(message)
-    except (ValueError, KeyError, TypeError) as exc:
-        raise AgentError("Ollama returned invalid response JSON.") from exc
+    except (ValueError, KeyError, TypeError, RecursionError) as exc:
+        raise AgentError("Ollama returned invalid response JSON or excessively nested JSON.") from exc
     if not isinstance(result, dict) or not isinstance(result.get("summary"), str) or not isinstance(result.get("patch"), str):
         raise AgentError("Model response must contain string fields 'summary' and 'patch'.")
     if len(result["patch"].encode("utf-8")) > MAX_PATCH_BYTES:
@@ -121,6 +122,8 @@ def validate_patch(patch: str, root: Path) -> None:
         raise AgentError("Binary patches are forbidden.")
     if re.search(r"(?im)^(?:new|old) file mode 120000$", patch):
         raise AgentError("Symbolic-link changes are forbidden.")
+    if re.search(r"(?m)^(?:new file mode|old mode|new mode|deleted file mode) (?!100644$)\d{6}$", patch):
+        raise AgentError("Non-standard file permission changes are forbidden.")
     paths: list[str] = []
     active_path: str | None = None
     old_header_seen = False
@@ -159,10 +162,15 @@ def validate_patch(patch: str, root: Path) -> None:
             new_header_seen = True
             if old_header_path == "/dev/null" and new_header_path == "/dev/null":
                 raise AgentError("A patch cannot add and delete /dev/null.")
+            if new_header_path == "/dev/null" and active_path.casefold().startswith("tests/"):
+                raise AgentError("Deleting tests is forbidden; preserve regression coverage.")
     if active_path is not None and not (old_header_seen and new_header_seen):
         raise AgentError(f"Incomplete file headers for: {active_path}")
     if not paths:
         raise AgentError("Patch contains no file changes.")
+    # Windows and default macOS filesystems may treat case-only path variants as the same file.
+    if len({path.casefold() for path in paths}) != len(paths):
+        raise AgentError("Duplicate file paths or case-colliding paths are forbidden.")
     for relative in paths:
         path = Path(relative)
         windows_path = PureWindowsPath(relative)
@@ -273,7 +281,8 @@ def main(argv: list[str] | None = None) -> int:
         "schema_version": 1,
         "run_id": str(uuid.uuid4()),
         "started_at_utc": datetime.now(timezone.utc).isoformat(),
-        "repository": str(root),
+        # Do not persist a local absolute path: it can expose usernames and directory layout.
+        "repository_name": root.name,
         "model": args.model,
         "mode": "verify" if args.verify else ("apply" if args.apply else "dry-run"),
         "status": "RUNNING",
@@ -288,15 +297,35 @@ def main(argv: list[str] | None = None) -> int:
             report["error"] = error
         try:
             destination = args.report_file.expanduser().resolve()
+            if destination == root or root in destination.parents:
+                raise OSError("Report file must be outside the repository to preserve dry-run and clean-worktree guarantees.")
             destination.parent.mkdir(parents=True, exist_ok=True)
-            temporary = destination.with_suffix(destination.suffix + ".tmp")
-            temporary.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-            os.replace(temporary, destination)
+            temporary: Path | None = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", encoding="utf-8", dir=destination.parent,
+                    prefix=f".{destination.name}.", suffix=".tmp", delete=False,
+                ) as stream:
+                    temporary = Path(stream.name)
+                    stream.write(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, destination)
+                temporary = None
+            finally:
+                if temporary is not None:
+                    try:
+                        temporary.unlink()
+                    except FileNotFoundError:
+                        pass
             print(f"REPORT_FILE: {destination}")
         except OSError as report_error:
             print(f"REPORT_NOT_SAVED: {report_error}", file=sys.stderr)
 
     try:
+        report_destination = args.report_file.expanduser().resolve()
+        if report_destination == root or root in report_destination.parents:
+            raise AgentError("Report file must be outside the repository to preserve dry-run and clean-worktree guarantees.")
         if not task_path.is_file():
             raise AgentError(f"Task file not found: {task_path}")
         task = task_path.read_text(encoding="utf-8")
@@ -305,7 +334,10 @@ def main(argv: list[str] | None = None) -> int:
             raise AgentError(f"Task must contain 1..{MAX_TASK_CHARS} characters.")
         clean_worktree(root)
         result = call_ollama(args.url, args.model, task, args.timeout)
-        report["summary"] = result["summary"][:2000]
+        # Model summaries may echo private task content; persist only non-reversible metadata.
+        summary_bytes = result["summary"].encode("utf-8", errors="strict")
+        report["summary_sha256"] = hashlib.sha256(summary_bytes).hexdigest()
+        report["summary_chars"] = len(result["summary"])
         print("RUN_ID:", report["run_id"])
         print("TASK_SHA256:", report.get("task_sha256", "NOT_AVAILABLE"))
         print("SUMMARY:", result["summary"])

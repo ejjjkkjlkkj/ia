@@ -78,9 +78,24 @@ class NEXORALanguageTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORASyntaxError, "token limit exceeded"):
             tokenize(source)
 
+    def test_non_text_source_is_rejected(self):
+        with self.assertRaisesRegex(NEXORASyntaxError, "source must be text"):
+            tokenize(None)
+
     def test_invalid_unicode_scalar_is_rejected(self):
         with self.assertRaisesRegex(NEXORASyntaxError, "invalid Unicode"):
             tokenize(chr(0xD800))
+
+    def test_escaped_surrogate_in_string_literal_is_rejected(self):
+        source = 'print("' + chr(92) + 'ud800");'
+        with self.assertRaisesRegex(NEXORASyntaxError, "invalid Unicode"):
+            run(source)
+
+    def test_string_escape_is_validated_before_becoming_ast(self):
+        source = 'print("' + chr(92) + 'udfff");'
+        with self.assertRaises(NEXORASyntaxError):
+            from nexora_language import parse
+            parse(source)
 
 
 if __name__ == "__main__":

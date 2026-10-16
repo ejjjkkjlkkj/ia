@@ -31,6 +31,8 @@ class TinyNeuralModelTests(unittest.TestCase):
         self.assertGreater(report["mean_cross_entropy"], 0)
         self.assertGreater(report["perplexity"], 1)
         self.assertIsInstance(generate(model, "screen", max_bytes=8), str)
+        with self.assertRaisesRegex(ValueError, "invalid Unicode"):
+            evaluate_text(model, "\ud800")
 
     def test_checkpoint_round_trip_and_tampering_detection(self):
         model = train_text("local model", epochs=1)
@@ -115,6 +117,29 @@ class TinyNeuralModelTests(unittest.TestCase):
             train_text("")
         with self.assertRaisesRegex(ValueError, "byte limit"):
             train_text("x" * 10_001)
+
+
+    def test_training_and_generation_reject_invalid_unicode(self):
+        with self.assertRaisesRegex(ValueError, "invalid Unicode"):
+            train_text("\ud800")
+        model = train_text("valid", epochs=1)
+        with self.assertRaisesRegex(ValueError, "valid Unicode"):
+            generate(model, "\ud800")
+
+    def test_evaluation_rejects_work_exceeding_budget(self):
+        model = train_text("valid", epochs=1, embedding_dim=64)
+        with self.assertRaisesRegex(ValueError, "evaluation work"):
+            evaluate_text(model, "x" * 3000)
+
+    def test_checkpoint_rejects_invalid_utf8_and_malformed_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "invalid.json"
+            path.write_bytes(b"\xff")
+            with self.assertRaisesRegex(ValueError, "unable to read checkpoint JSON"):
+                load_checkpoint(path)
+            path.write_text('{"schema_version":', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "unable to read checkpoint JSON"):
+                load_checkpoint(path)
 
     def test_cli_train_checkpoint_evaluate_generate(self):
         import subprocess

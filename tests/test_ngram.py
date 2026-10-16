@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from ia_reference.ngram import UNK, evaluate_text, generate, load_checkpoint, next_token_probability, save_checkpoint, train_text
@@ -13,6 +14,19 @@ class BigramBaselineTests(unittest.TestCase):
         self.assertEqual(report["tokens"], 3)
         self.assertGreater(report["perplexity"], 0)
         self.assertEqual(generate(model, "bonjour", max_tokens=1), "bonjour monde")
+
+    def test_generation_is_deterministic_and_does_not_compute_probabilities(self):
+        from ia_reference import ngram
+
+        model = train_text("alpha beta alpha gamma")
+        # beta and gamma have equal counts after alpha; lexical tie-breaking is stable.
+        with patch("ia_reference.ngram._next_token_probability", side_effect=AssertionError("generation must use observed counts")):
+            self.assertEqual(generate(model, "alpha", max_tokens=1), "alpha beta")
+
+    def test_generation_zero_tokens_and_empty_prompt_are_stable(self):
+        model = train_text("alpha beta gamma")
+        self.assertEqual(generate(model, "", max_tokens=0), "")
+        self.assertEqual(generate(model, "", max_tokens=1), "alpha")
 
     def test_oov_tokens_map_to_unk_and_probabilities_normalize(self):
         model = train_text("alpha beta alpha gamma")
@@ -29,6 +43,23 @@ class BigramBaselineTests(unittest.TestCase):
     def test_boolean_smoothing_parameter_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "alpha"):
             train_text("alpha beta", alpha=True)
+
+    def test_inference_reuses_vocabulary_index_instead_of_rebuilding_it_per_token(self):
+        from ia_reference import ngram
+
+        model = train_text("alpha beta gamma alpha beta gamma")
+        original = ngram._next_token_probability
+        with patch("ia_reference.ngram._next_token_probability", wraps=original) as mocked:
+            evaluate_text(model, "alpha beta gamma")
+        evaluation_sets = [call.args[3] for call in mocked.call_args_list]
+        self.assertTrue(evaluation_sets)
+        self.assertTrue(all(isinstance(value, set) for value in evaluation_sets))
+        self.assertEqual(len({id(value) for value in evaluation_sets}), 1)
+
+        with patch("ia_reference.ngram._vocabulary_index", wraps=ngram._vocabulary_index) as indexer:
+            generated = generate(model, "alpha", max_tokens=3)
+        self.assertIsInstance(generated, str)
+        self.assertEqual(indexer.call_count, 1)
 
     def test_checkpoint_round_trip_and_hash(self):
         model = train_text("la voix lit le texte la voix lit")
@@ -97,6 +128,27 @@ class BigramBaselineTests(unittest.TestCase):
             path.write_text("[" * 100 + "0" + "]" * 100, encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "nesting"):
                 load_checkpoint(path)
+
+    def test_checkpoint_rejects_escaped_surrogate_unicode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "invalid-unicode.json"
+            path.write_text(
+                r'{"schema_version":2,"model_type":"smoothed-bigram-baseline-v2",'
+                r'"alpha":0.5,"vocabulary":["<EOS>","<UNK>","\ud800"],'
+                r'"counts":{"<BOS>":{"<UNK>":1},"<UNK>":{"<EOS>":1}},'
+                r'"training_tokens":1,"training_corpus_sha256":"' + "0" * 64 +
+                r'","checkpoint_sha256":"' + "0" * 64 + r'"}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "model JSON cannot be canonically encoded"):
+                load_checkpoint(path)
+
+    def test_tokenizer_rejects_non_text_and_invalid_unicode(self):
+        from ia_reference.ngram import tokenize
+        with self.assertRaisesRegex(ValueError, "input must be text"):
+            tokenize(None)
+        with self.assertRaisesRegex(ValueError, "invalid Unicode"):
+            tokenize(chr(0xD800))
 
     def test_invalid_training_inputs_are_rejected(self):
         with self.assertRaises(ValueError):

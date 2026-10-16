@@ -5,9 +5,9 @@ on:
     - cron: "17 * * * *"
   workflow_dispatch:
 
+# This workflow may inspect and test code, but must never publish unreviewed changes.
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: repository-owned-agent-${{ github.repository }}
@@ -18,69 +18,57 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
-      - name: Checkout repository
+      - name: Checkout repository without persistent credentials
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Select persistent proposal branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git ls-remote --exit-code --heads origin agent/own-model-development >/dev/null 2>&1; then
-            git fetch origin agent/own-model-development
-            git checkout -B agent/own-model-development origin/agent/own-model-development
-          else
-            git checkout -b agent/own-model-development
-          fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Install validation tools
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install pytest
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install --disable-pip-version-check pytest
 
-      - name: Use repository-owned model only
+      # Do not execute a candidate merely because a file has its executable bit
+      # set. Until a machine-readable readiness contract and its validation
+      # tests exist, code generation must remain explicitly blocked.
+      - name: Gate autonomous code generation on validated readiness contract
         id: agent
         shell: bash
         run: |
           set -euo pipefail
-          AGENT=''
-          for candidate in tools/nexora-agent tools/own-model-agent; do
-            if [ -x "$candidate" ]; then AGENT="$candidate"; break; fi
-          done
-          if [ -n "$AGENT" ]; then
-            "$AGENT" --task-file .github/agent-task.md
-            echo 'ready=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'ready=false' >> "$GITHUB_OUTPUT"
-            {
-              echo '## Autonomous coding agent: BLOCKED'
-              echo 'No validated repository-owned coding-agent executable/checkpoint exists yet.'
-              echo 'No third-party LLM fallback was used. Deterministic repository tests still run; source changes and proposal publication are skipped.'
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo 'BLOCKED: own-model coding CLI/checkpoint is not implemented and validated; no third-party fallback.'
-          fi
+          echo 'ready=false' >> "$GITHUB_OUTPUT"
+          {
+            echo '## Autonomous coding agent: BLOCKED'
+            echo 'No validated repository-owned readiness contract, executable, and checkpoint gate is available.'
+            echo 'Executable-bit detection alone is not validation. No candidate agent is executed and no third-party LLM fallback is used.'
+            echo 'Deterministic repository tests still run; source changes are never published by this workflow.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo 'BLOCKED: readiness contract and checkpoint validation are not implemented.'
 
       - name: Run repository tests
         shell: bash
+        env:
+          PYTHONPATH: src
+          PYTHONDONTWRITEBYTECODE: "1"
         run: |
           set -euo pipefail
           if [ -d tests ] || find . -maxdepth 3 -name 'test_*.py' -not -path './.git/*' -print -quit | grep -q .; then python -m pytest -q; fi
           while IFS= read -r manifest; do [ -z "$manifest" ] || cargo test --manifest-path "$manifest"; done < <(find . -maxdepth 5 -name Cargo.toml -not -path './.git/*' | sort)
           git diff --check
 
-      - name: Publish proposal for review
-        if: success() && steps.agent.outputs.ready == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Record that changes remain unapproved and unpublished
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
-          if [ -z "$(git status --porcelain)" ]; then echo 'No changes to publish.'; exit 0; fi
-          git add -A
-          git commit -m 'chore(agent): own-model development cycle'
-          git push origin HEAD:agent/own-model-development
-          if ! gh pr view agent/own-model-development >/dev/null 2>&1; then gh pr create --base "${GITHUB_REPOSITORY_DEFAULT_BRANCH:-main}" --head agent/own-model-development --title 'Own-model development loop proposals' --body 'Repository automation; no third-party LLM fallback. Review before merging.'; fi
+          {
+            echo '## Publication safety'
+            echo 'This workflow has read-only repository permissions. It does not commit, push, open pull requests, or merge.'
+            if [ -n "$(git status --porcelain)" ]; then
+              echo 'Uncommitted changes exist only in the ephemeral runner and are not published.'
+              git diff --stat
+            else
+              echo 'No working-tree changes remain.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
