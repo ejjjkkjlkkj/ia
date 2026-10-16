@@ -21,6 +21,8 @@ MAX_TRAINING_BYTES = 10_000
 MAX_EPOCHS = 20
 MAX_CHECKPOINT_BYTES = 2_000_000
 MAX_TRAINING_WORK = 40_000_000
+MAX_EVALUATION_BYTES = 100_000
+MAX_SEED = (1 << 63) - 1
 
 
 def _canonical(value: Any) -> bytes:
@@ -70,7 +72,9 @@ def _validate_model(model: Any, require_hash: bool = False) -> dict[str, Any]:
     dim = model["embedding_dim"]
     if type(dim) is not int or not 1 <= dim <= 64:
         raise ValueError("embedding dimension out of range")
-    if type(model["seed"]) is not int or type(model["training_bytes"]) is not int or not 1 <= model["training_bytes"] <= MAX_TRAINING_BYTES:
+    if (type(model["seed"]) is not int or not -(1 << 63) <= model["seed"] <= MAX_SEED
+            or type(model["training_bytes"]) is not int
+            or not 1 <= model["training_bytes"] <= MAX_TRAINING_BYTES):
         raise ValueError("invalid training metadata")
     if type(model["epochs"]) is not int or not 1 <= model["epochs"] <= MAX_EPOCHS:
         raise ValueError("invalid epoch metadata")
@@ -108,8 +112,8 @@ def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed:
         raise ValueError(f"training data exceeds {MAX_TRAINING_BYTES}-byte limit")
     if type(epochs) is not int or not 1 <= epochs <= MAX_EPOCHS:
         raise ValueError(f"epochs must be between 1 and {MAX_EPOCHS}")
-    if type(seed) is not int:
-        raise ValueError("seed must be an integer")
+    if type(seed) is not int or not -(1 << 63) <= seed <= MAX_SEED:
+        raise ValueError("seed must be a signed 64-bit integer")
     if type(embedding_dim) is not int or not 1 <= embedding_dim <= 64:
         raise ValueError("embedding_dim must be between 1 and 64")
     lr = _finite_number(learning_rate, "learning_rate")
@@ -174,6 +178,8 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
     data = text.encode("utf-8")
     if not data:
         raise ValueError("evaluation text must not be empty")
+    if len(data) > MAX_EVALUATION_BYTES:
+        raise ValueError(f"evaluation data exceeds {MAX_EVALUATION_BYTES}-byte limit")
     sequence = [BOS, *data, EOS]
     loss = 0.0
     for previous, target in zip(sequence, sequence[1:]):
