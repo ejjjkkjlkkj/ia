@@ -87,6 +87,23 @@ jobs:
           echo "RESULT=$([ "$failed" -eq 0 ] && echo PASS || echo FAIL)" | tee -a "$report"
           exit "$failed"
 
+      - name: Run bounded offline autonomous maintenance audit
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          if [ ! -f tools/autonomous_agent.py ]; then
+            echo "PARTIAL: offline maintenance agent is missing"
+            exit 0
+          fi
+          PYTHONPATH=src python tools/autonomous_agent.py --cycles 1 --report .maintenance-report/autonomous-agent.json
+          status=$?
+          if [ "$status" -eq 2 ]; then
+            echo "PARTIAL: deterministic checks completed, but project-owned generative coding remains blocked"
+            exit 0
+          fi
+          exit "$status"
+
       - name: Preserve audit report
         if: always()
         uses: actions/upload-artifact@v4
