@@ -82,6 +82,10 @@ class NumericReferenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside"):
             cross_entropy([1.0, 2.0], 2)
 
+    def test_rejects_integer_outside_float_range_as_value_error(self):
+        with self.assertRaisesRegex(ValueError, "finite numbers"):
+            softmax([10 ** 10000, 0])
+
     def test_bounded_large_inputs_remain_finite(self):
         result = matvec([[1_000_000.0, 1_000_000.0]], [1_000_000.0, 1_000_000.0])
         self.assertEqual(result, [2_000_000_000_000.0])
