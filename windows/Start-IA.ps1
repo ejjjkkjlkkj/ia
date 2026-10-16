@@ -31,15 +31,15 @@ function Invoke-Python {
 
 function Select-Python {
     $candidates = New-Object System.Collections.Generic.List[object]
+    $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+    if ($pythonCommand -and $pythonCommand.Source -notmatch "\\\\WindowsApps\\\\") {
+        $candidates.Add([pscustomobject]@{ Executable = $pythonCommand.Source; Prefix = @() })
+    }
     $pyCommand = Get-Command py -ErrorAction SilentlyContinue
     if ($pyCommand) {
         foreach ($version in @("-3.13", "-3.12", "-3.11")) {
             $candidates.Add([pscustomobject]@{ Executable = $pyCommand.Source; Prefix = @($version) })
         }
-    }
-    $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
-    if ($pythonCommand) {
-        $candidates.Add([pscustomobject]@{ Executable = $pythonCommand.Source; Prefix = @() })
     }
     foreach ($candidate in $candidates) {
         $executable = [string]$candidate.Executable
