@@ -5,13 +5,13 @@
 - [x] Corriger l'objectif du dépôt : construire les modèles IA eux-mêmes avec les langages du catalogue commun.
 - [x] Distinguer la fabrication de modèles des outils d'agent et des adaptateurs.
 - [ ] Geler la version du contrat mathématique et du format checkpoint.
-- [ ] Ajouter un manifeste de preuve par langage sans attribuer de faux statuts PASS.
+- [x] Ajouter un manifeste de preuve par langage sans attribuer de faux statuts PASS (`data/language-implementation-status.json`), contrôlé par test contre le catalogue.
 
 ## Phase 1 — référence CPU
 
 - [x] Ajouter des kernels Python FP64 de référence : matvec, matmul, softmax stable et cross-entropy, avec tests de validation des entrées.
 - [x] Ajouter un noyau Python d'attention causale avec tests de non-fuite vers le passé.
-- [ ] Définir des vecteurs numériques communs versionnés, partagés entre langages, et leur tolérance.
+- [x] Définir des vecteurs numériques communs versionnés (`data/reference-vectors-v1.json`) et leur tolérance, vérifiés contre les kernels Python de référence. Les ports C/Rust restent à implémenter et à comparer.
 - [ ] Implémenter en C les tenseurs FP32, opérations de base, softmax stable et tests.
 - [ ] Implémenter un modèle causal compact complet, avec projections, embeddings, couches, perte, gradients et boucle d'entraînement.
 - [ ] Entraîner sur un corpus synthétique déterministe et vérifier que la perte évolue.
