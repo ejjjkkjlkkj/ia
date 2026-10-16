@@ -42,9 +42,17 @@ class EvaluateTinyNeuralTests(unittest.TestCase):
         self.assertEqual(len(report["training_corpus_sha256"]), 64)
         self.assertEqual(len(report["heldout_corpus_sha256"]), 64)
         self.assertIn("perplexity", report["metrics"])
+        self.assertEqual(report["checkpoint_training_corpus_match"], "PASS")
+        self.assertEqual(report["learning_rate"], 0.05)
         self.assertNotEqual(
             report["training_corpus_sha256"], report["heldout_corpus_sha256"]
         )
+
+    def test_refuses_training_corpus_that_does_not_match_checkpoint(self) -> None:
+        self.training_path.write_text("different training data", encoding="utf-8")
+        self.heldout.write_text("separate validation corpus", encoding="utf-8")
+        with self.assertRaisesRegex(ValueError, "does not match checkpoint training corpus"):
+            MODULE.evaluate(self.checkpoint, self.heldout, self.training_path)
 
     def test_refuses_exact_training_corpus_reuse(self) -> None:
         self.heldout.write_text(self.training, encoding="utf-8")
