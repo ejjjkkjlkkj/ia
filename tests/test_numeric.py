@@ -20,6 +20,18 @@ class NumericReferenceTests(unittest.TestCase):
         self.assertAlmostEqual(cross_entropy([0.0, 0.0], 0), math.log(2.0))
         self.assertAlmostEqual(cross_entropy([0.0, 4.0], 1), math.log1p(math.exp(-4.0)))
 
+    def test_rejects_oversized_vectors_and_matrices(self):
+        with self.assertRaisesRegex(ValueError, "vector length limit"):
+            softmax([0.0] * 100_001)
+        with self.assertRaisesRegex(ValueError, "column limit"):
+            matvec([[0.0] * 4097], [0.0] * 4097)
+
+    def test_rejects_excessive_matrix_multiplication_work(self):
+        left = [[1.0] * 200 for _ in range(250)]
+        right = [[1.0] * 250 for _ in range(200)]
+        with self.assertRaisesRegex(ValueError, "operation budget"):
+            matmul(left, right)
+
     def test_rejects_shape_errors(self):
         with self.assertRaisesRegex(ValueError, "columns"):
             matvec([[1.0, 2.0]], [1.0])
