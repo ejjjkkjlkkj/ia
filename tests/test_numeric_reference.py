@@ -42,9 +42,10 @@ class NumericReferenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "outside"):
             cross_entropy([1.0, 2.0], 2)
 
-    def test_rejects_nonfinite_computation_result(self):
-        with self.assertRaisesRegex(ValueError, "non-finite result"):
-            matvec([[1_000_000.0, 1_000_000.0]], [1_000_000.0, 1_000_000.0])
+    def test_bounded_large_inputs_remain_finite(self):
+        result = matvec([[1_000_000.0, 1_000_000.0]], [1_000_000.0, 1_000_000.0])
+        self.assertEqual(result, [2_000_000_000_000.0])
+        self.assertTrue(all(math.isfinite(item) for item in result))
 
 
 if __name__ == "__main__":
