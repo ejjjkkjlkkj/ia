@@ -6,6 +6,7 @@ It does not execute or score any model adapter.
 """
 from __future__ import annotations
 
+import argparse
 import heapq
 import itertools
 import json
@@ -152,6 +153,85 @@ ORACLES = {
     "robust_calculation_09": rational_sum,
     "state_machine_10": state_machine,
 }
+
+
+MAX_BENCHMARK_BYTES = 2_000_000
+MAX_JSON_DEPTH = 64
+
+
+def _unique_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value):
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
+def _check_json_nesting(text):
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == chr(92):
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > MAX_JSON_DEPTH:
+                raise ValueError("JSON nesting exceeds parser limit")
+        elif character in "]}":
+            depth -= 1
+            if depth < 0:
+                raise ValueError("malformed JSON nesting")
+
+
+def load_suite(path):
+    with Path(path).open("rb") as stream:
+        raw = stream.read(MAX_BENCHMARK_BYTES + 1)
+    if len(raw) > MAX_BENCHMARK_BYTES:
+        raise ValueError(f"benchmark suite exceeds {MAX_BENCHMARK_BYTES}-byte limit")
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ValueError("benchmark suite must be valid UTF-8") from exc
+    _check_json_nesting(text)
+    suite = json.loads(
+        text, object_pairs_hook=_unique_json_object, parse_constant=_reject_json_constant
+    )
+    if not isinstance(suite, dict) or type(suite.get("schema_version")) is not int or suite["schema_version"] != 1:
+        raise ValueError("unsupported benchmark suite schema")
+    tasks = suite.get("tasks")
+    if not isinstance(tasks, list) or not tasks:
+        raise ValueError("benchmark tasks must be a non-empty list")
+    identifiers = []
+    for index, task in enumerate(tasks):
+        if not isinstance(task, dict):
+            raise ValueError(f"task at index {index} must be an object")
+        task_id = task.get("id")
+        if not isinstance(task_id, str) or not task_id:
+            raise ValueError(f"task at index {index} must have a non-empty string id")
+        if not isinstance(task.get("category"), str) or not task["category"]:
+            raise ValueError(f"task {task_id} must have a non-empty category")
+        if not isinstance(task.get("prompt"), str) or not task["prompt"]:
+            raise ValueError(f"task {task_id} must have a non-empty prompt")
+        if "expected_output" not in task:
+            raise ValueError(f"task {task_id} is missing expected_output")
+        identifiers.append(task_id)
+    if len(set(identifiers)) != len(identifiers):
+        raise ValueError("benchmark task IDs must be unique")
+    return suite
 
 
 def main():
