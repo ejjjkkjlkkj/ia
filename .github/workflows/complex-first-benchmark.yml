@@ -1,0 +1,35 @@
+name: Complex-first model benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      adapter_command:
+        description: "Local model adapter executable (runner will execute this command)"
+        required: true
+        type: string
+      timeout_seconds:
+        description: "Per-task timeout"
+        required: true
+        default: "90"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate complex benchmark suite and harness
+        run: |
+          python -m unittest tests.test_complex_benchmarks -v
+          python tools/run_complex_benchmarks.py --list
+      - name: Explain execution boundary
+        run: |
+          echo "A benchmark run against a model must use an explicitly supplied adapter command."
+          echo "This workflow does not download model weights or call a hosted model."
+          echo "No superiority claim is inferred from suite validation."
