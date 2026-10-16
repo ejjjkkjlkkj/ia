@@ -17,6 +17,14 @@ Les langages partagent une **spécification mathématique, un tokenizer versionn
 
 Le contrat commun versionné est maintenu dans [ACCESSIBILITY — AI integration contract](https://github.com/ejjjkkjlkkj/accessibility/blob/feature/dark-redteam-from-scratch-20261015/docs/AI-ACCESSIBILITY-INTEGRATION-CONTRACT-V1.md). Il fixe la séparation des preuves, le mode sans IA, la confidentialité et les critères d'interopérabilité. La présence du contrat ne signifie pas que le modèle est entraîné ni que l'intégration est exécutée.
 
+## Accessibilité visuelle et lecteur d'écran
+
+L'objectif produit inclut une IA de référence pour les personnes aveugles et malvoyantes, avec un lecteur d'écran clavier-first, des adaptateurs natifs par plateforme, une voix locale, le braille, une aide IA facultative et une piste UEFI distincte. Les fonctions essentielles doivent rester utilisables sans modèle ni réseau. Les propriétés d'accessibilité doivent provenir des API de la plateforme ; OCR et vision sont complémentaires, jamais une preuve équivalente à l'arbre d'accessibilité.
+
+La spécification de travail, les priorités, les tests et les références officielles sont dans [la feuille de route accessibilité visuelle et lecteur d'écran](docs/VISUAL-ACCESSIBILITY-SCREEN-READER-ROADMAP.md). Le dépôt partenaire `ejjjkkjlkkj/accessibility` demeure la source de l'implémentation des adaptateurs et du lecteur d'écran : ce dépôt IA doit intégrer ce contrat sans prétendre remplacer un lecteur d'écran déjà validé.
+
+**Statut actuel : PARTIAL / NOT_VALIDATED.** L'ajout de cette feuille de route ne prouve pas qu'un lecteur d'écran complet, une voix réelle, le braille, les adaptateurs natifs ou l'UEFI fonctionnent. Chaque plateforme doit fournir ses propres résultats reproductibles et essais réels.
+
 ## Langage universel NEXORA
 
 Le dépôt contient aussi le prototype initial du langage **NEXORA**, distinct du langage existant U : [spécification NEXORA](NEXORA-LANGUAGE-SPEC.md), lexer/parseur/interpréteur de référence dans `src/nexora_language.py`, et tests dans `tests/test_nexora_language.py`. Le prototype gère un sous-ensemble syntaxique avec identifiants Unicode et arithmétique; il n'est pas encore un compilateur ni un langage prêt pour l'OS/UEFI. Les backends et la représentation intermédiaire seront ajoutés après stabilisation de la grammaire et des tests de conformité.
