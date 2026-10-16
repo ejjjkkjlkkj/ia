@@ -2,8 +2,8 @@
 """Fast, read-only GitHub Actions triage for one exact commit.
 
 Requires GitHub CLI (gh) authenticated for the target repository. It never
-starts, cancels, reruns, or modifies workflows. Exit codes: 0 all matching runs
-succeeded; 1 at least one execution failed; 2 validation is incomplete or blocked.
+starts, cancels, reruns, or modifies workflows. Exit codes: 0 all returned runs
+succeeded; 1 at least one returned run failed; 2 validation is incomplete or blocked.
 """
 from __future__ import annotations
 
@@ -19,7 +19,6 @@ MAX_LIMIT = 100
 MAX_WATCH_SECONDS = 3600
 MAX_INTERVAL_SECONDS = 60
 FAILED_CONCLUSIONS = {"failure", "timed_out", "action_required", "startup_failure"}
-INCOMPLETE_CONCLUSIONS = {"cancelled", "skipped", "neutral", "stale"}
 
 
 def fetch_runs(repo: str, sha: str, limit: int = 100) -> list[dict[str, Any]]:
@@ -52,6 +51,13 @@ def fetch_runs(repo: str, sha: str, limit: int = 100) -> list[dict[str, Any]]:
         raise RuntimeError("gh returned invalid JSON") from exc
     if not isinstance(payload, list):
         raise RuntimeError("gh returned an unexpected JSON shape")
+    # gh returns at most --limit rows. A saturated response may be truncated, so
+    # do not silently claim that all runs for this SHA were examined.
+    if len(payload) >= limit:
+        raise RuntimeError(
+            f"GitHub returned the full requested limit ({limit}); results may be truncated. "
+            "Use a smaller time/commit scope or inspect GitHub Actions directly."
+        )
     return [run for run in payload if isinstance(run, dict) and run.get("headSha") == sha]
 
 
@@ -65,7 +71,7 @@ def summarize(runs: list[dict[str, Any]]) -> tuple[str, dict[str, int]]:
         elif status == "completed" and conclusion in FAILED_CONCLUSIONS:
             counts["failure"] += 1
         else:
-            # Cancelled/skipped/neutral/stale runs did not prove success; leave them unvalidated.
+            # Cancelled/skipped/neutral/stale runs do not prove success.
             counts["pending"] += 1
     if counts["failure"]:
         overall = "FAIL"
