@@ -31,7 +31,14 @@ def _run(command: list[str], timeout: int = 300) -> dict[str, Any]:
             command, cwd=ROOT, stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             text=True, timeout=timeout, check=False, shell=False,
-            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            env={
+                **os.environ,
+                "PYTHONDONTWRITEBYTECODE": "1",
+                "PYTHONPATH": os.pathsep.join(
+                    part for part in (str(ROOT / "src"), os.environ.get("PYTHONPATH", ""))
+                    if part
+                ),
+            },
         )
         return {
             "status": "PASS" if result.returncode == 0 else "FAIL",
