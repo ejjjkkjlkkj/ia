@@ -82,6 +82,17 @@ class NEXORALanguageTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORASyntaxError, "invalid Unicode"):
             tokenize(chr(0xD800))
 
+    def test_escaped_surrogate_in_string_literal_is_rejected(self):
+        source = 'print("' + chr(92) + 'ud800");'
+        with self.assertRaisesRegex(NEXORASyntaxError, "invalid Unicode"):
+            run(source)
+
+    def test_string_escape_is_validated_before_becoming_ast(self):
+        source = 'print("' + chr(92) + 'udfff");'
+        with self.assertRaises(NEXORASyntaxError):
+            from nexora_language import parse
+            parse(source)
+
 
 if __name__ == "__main__":
     unittest.main()
