@@ -185,6 +185,21 @@ def _validate_model_payload(model: Any) -> None:
         raise ValueError("transition counts do not match training token totals")
 
 
+def _validate_model(model: Any) -> dict[str, Any]:
+    if not isinstance(model, dict):
+        raise ValueError("model must be a checkpoint object")
+    payload = {key: value for key, value in model.items() if key != "checkpoint_sha256"}
+    _validate_model_payload(payload)
+    if "checkpoint_sha256" in model:
+        if set(model) != set(payload) | {"checkpoint_sha256"}:
+            raise ValueError("checkpoint fields do not match the model schema")
+        if model["checkpoint_sha256"] != _sha256(_canonical_json(payload)):
+            raise ValueError("checkpoint SHA-256 mismatch")
+    elif set(model) != set(payload):
+        raise ValueError("checkpoint fields do not match the model schema")
+    return model
+
+
 def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
     """Validate and atomically write an integrity-checked JSON checkpoint."""
     if not isinstance(model, dict):
@@ -247,8 +262,7 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
     checkpoint["checkpoint_sha256"] = supplied_hash
     return checkpoint
 
-def next_token_probability(model: dict[str, Any], previous: str, token: str) -> float:
-    """Return a normalized add-alpha probability, mapping OOV tokens to UNK."""
+def _next_token_probability(model: dict[str, Any], previous: str, token: str) -> float:
     vocabulary = model["vocabulary"]
     vocabulary_set = set(vocabulary)
     if token not in vocabulary_set:
@@ -258,18 +272,35 @@ def next_token_probability(model: dict[str, Any], previous: str, token: str) -> 
     alpha = float(model["alpha"])
     counts = model["counts"].get(previous, {})
     total = sum(counts.values())
-    return (int(counts.get(token, 0)) + alpha) / (total + alpha * len(vocabulary))
+    return (counts.get(token, 0) + alpha) / (total + alpha * len(vocabulary))
+
+
+def next_token_probability(model: dict[str, Any], previous: str, token: str) -> float:
+    """Return a normalized add-alpha probability, mapping OOV tokens to UNK."""
+    _validate_model(model)
+    if not isinstance(previous, str) or not isinstance(token, str):
+        raise ValueError("previous and next tokens must be text")
+    return _next_token_probability(model, previous, token)
 
 
 def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
-    """Evaluate token negative log-likelihood and perplexity on supplied text."""
+    """Evaluate token negative log-likelihood and perplexity on bounded text."""
+    _validate_model(model)
+    if not isinstance(text, str):
+        raise ValueError("evaluation text must be text")
+    try:
+        encoded = text.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ValueError("evaluation text contains invalid Unicode") from exc
+    if len(encoded) > MAX_EVALUATION_BYTES:
+        raise ValueError(f"evaluation data exceeds {MAX_EVALUATION_BYTES}-byte limit")
     tokens = tokenize(text)
     if not tokens:
         raise ValueError("evaluation text must contain at least one token")
     previous = BOS
     total_nll = 0.0
     for token in tokens + [EOS]:
-        probability = next_token_probability(model, previous, token)
+        probability = _next_token_probability(model, previous, token)
         total_nll -= math.log(max(probability, 1e-300))
         previous = token
     token_count = len(tokens) + 1
