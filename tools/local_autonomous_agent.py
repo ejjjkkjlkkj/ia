@@ -193,7 +193,13 @@ def validate_patch(patch: str, root: Path) -> None:
         normalized = relative.casefold()
         if normalized.startswith(".github/") or normalized in {".gitignore", "pyproject.toml", "cargo.lock", "package-lock.json"}:
             raise AgentError(f"Protected configuration path: {relative}")
-        resolved = (root / path).resolve()
+        candidate = root / path
+        current = root.resolve()
+        for part in path.parts:
+            current = current / part
+            if current.is_symlink():
+                raise AgentError(f"Symlink path components are forbidden: {relative}")
+        resolved = candidate.resolve()
         if root.resolve() not in resolved.parents:
             raise AgentError(f"Path escapes repository: {relative}")
 def run_validation_checks(root: Path) -> list[dict[str, Any]]:
