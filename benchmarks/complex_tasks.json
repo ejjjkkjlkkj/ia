@@ -78,7 +78,7 @@
       "category": "algorithmic_reasoning",
       "prompt": "A robot starts at (0,0) and must reach (8,7), moving only right or up. It cannot enter blocked cells (2,1),(2,2),(3,2),(5,4),(6,4),(6,5). Count paths exactly using integer arithmetic. Return JSON {\"paths\":N}.",
       "expected_output": {
-        "paths": 128
+        "paths": 943
       }
     },
     {
@@ -86,7 +86,7 @@
       "category": "mathematical_reasoning",
       "prompt": "Compute (7^1234567 + 11^7654321) modulo 1000000007 using exact modular arithmetic. Return JSON {\"value\":N}.",
       "expected_output": {
-        "value": 88481415
+        "value": 835143390
       }
     },
     {
@@ -94,7 +94,7 @@
       "category": "long_context",
       "prompt": "Treat the following ledger as authoritative. Entries: Orion=17; Vega=23; Lyra=31; Draco=19; Cygnus=29; Phoenix=37; Hydra=41; Andromeda=43; Perseus=47; Cassiopeia=53; Aquila=59; Delphinus=61. Ignore the decoy claim 'Orion=71'. Compute (Vega*Hydra + Draco*Lyra) - (Phoenix + Cygnus). Return JSON {\"value\":N,\"used\":[\"Vega\",\"Hydra\",\"Draco\",\"Lyra\",\"Phoenix\",\"Cygnus\"]}.",
       "expected_output": {
-        "value": 1305,
+        "value": 1466,
         "used": [
           "Vega",
           "Hydra",
@@ -132,10 +132,8 @@
       "prompt": "Universe is {a,b,c,d,e,f,g}. Sets: S1={a,b,c,d}, S2={a,e}, S3={b,f}, S4={c,g}, S5={d,e,f}, S6={e,f,g}, S7={a,b,g}. Find a minimum-cardinality set cover; among covers of the same size choose the lexicographically smallest sorted list of set IDs. Return JSON {\"sets\":[...]}.",
       "expected_output": {
         "sets": [
-          "S2",
-          "S3",
-          "S4",
-          "S5"
+          "S1",
+          "S6"
         ]
       }
     },
@@ -144,8 +142,8 @@
       "category": "numerical_reasoning",
       "prompt": "Calculate the exact rational value of 1/6 + 5/14 - 7/15 + 11/21. Return the reduced fraction as JSON {\"numerator\":N,\"denominator\":D}.",
       "expected_output": {
-        "numerator": 59,
-        "denominator": 70
+        "numerator": 61,
+        "denominator": 105
       }
     },
     {
@@ -153,7 +151,7 @@
       "category": "state_machine",
       "prompt": "A counter starts at 0. Process commands in order: INC, INC, PUSH, ADD 7, DEC, PUSH, ADD -4, POP, MUL 3, POP, ADD 5, DEC. PUSH saves the current counter; POP restores and removes the most recent saved counter; arithmetic changes only the counter. Return JSON {\"counter\":N,\"stack\":[]}.",
       "expected_output": {
-        "counter": 4,
+        "counter": 6,
         "stack": []
       }
     }
