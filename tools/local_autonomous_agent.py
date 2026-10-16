@@ -164,6 +164,8 @@ def validate_patch(patch: str, root: Path) -> None:
         raise AgentError(f"Incomplete file headers for: {active_path}")
     if not paths:
         raise AgentError("Patch contains no file changes.")
+    if len(set(paths)) != len(paths):
+        raise AgentError("Duplicate file paths in patch are forbidden.")
     for relative in paths:
         path = Path(relative)
         windows_path = PureWindowsPath(relative)
