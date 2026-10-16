@@ -78,6 +78,10 @@ class NEXORALanguageTests(unittest.TestCase):
         with self.assertRaisesRegex(NEXORASyntaxError, "token limit exceeded"):
             tokenize(source)
 
+    def test_non_text_source_is_rejected(self):
+        with self.assertRaisesRegex(NEXORASyntaxError, "source must be text"):
+            tokenize(None)
+
     def test_invalid_unicode_scalar_is_rejected(self):
         with self.assertRaisesRegex(NEXORASyntaxError, "invalid Unicode"):
             tokenize(chr(0xD800))
