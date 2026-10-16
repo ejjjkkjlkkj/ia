@@ -3,6 +3,7 @@ name: Windows validation and portable package
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -16,6 +17,8 @@ concurrency:
 jobs:
   windows-test-package:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -42,12 +45,16 @@ jobs:
       - name: Verify Windows quickstart and package inputs
         shell: pwsh
         run: |
-          $required = @("README.md", "docs/WINDOWS-QUICKSTART.md", "src/ia_reference/tiny_neural.py", "tools/evaluate_tiny_neural.py")
+          $required = @("README.md", "docs/WINDOWS-QUICKSTART.md", "src/ia_reference/tiny_neural.py", "tools/evaluate_tiny_neural.py", "windows/Start-IA.ps1", "docs/WINDOWS-RELEASE-NOTES.md")
           foreach ($path in $required) {
             if (!(Test-Path -LiteralPath $path -PathType Leaf)) {
               throw "Required package input missing: $path"
             }
           }
+
+      - name: Run Windows local demo
+        shell: pwsh
+        run: .\windows\Start-IA.ps1 -Mode Demo
 
       - name: Build portable source package
         shell: pwsh
@@ -56,7 +63,7 @@ jobs:
           $stage = Join-Path $env:RUNNER_TEMP "ia-windows-package"
           $archive = Join-Path $env:RUNNER_TEMP "nexora-ia-windows-source.zip"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          $include = @("README.md", "LICENSE", "docs", "data", "src", "tools", "tests", "models", "LANGUAGE-CATALOG.md", "MODEL-SPEC.md", "TRAINING-ROADMAP.md", "MODELS-INDEX.md", "UNIVERSAL-MODEL-ARCHITECTURE.md", "NEXORA-LANGUAGE-SPEC.md", "NEXORA-IR-V1.md")
+          $include = @("README.md", "LICENSE", "docs", "data", "src", "tools", "tests", "models", "LANGUAGE-CATALOG.md", "MODEL-SPEC.md", "TRAINING-ROADMAP.md", "MODELS-INDEX.md", "UNIVERSAL-MODEL-ARCHITECTURE.md", "NEXORA-LANGUAGE-SPEC.md", "NEXORA-IR-V1.md", "windows")
           foreach ($item in $include) {
             if (Test-Path -LiteralPath $item) {
               Copy-Item -LiteralPath $item -Destination $stage -Recurse -Force
@@ -75,13 +82,25 @@ jobs:
           }
           $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $stage "PACKAGE-MANIFEST.json") -Encoding utf8
           Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $archive -CompressionLevel Optimal -Force
-          Get-FileHash -LiteralPath $archive -Algorithm SHA256 | Format-List | Out-String | Write-Host
+          $hash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumFile = Join-Path $env:RUNNER_TEMP "SHA256SUMS.txt"
+          Set-Content -LiteralPath $checksumFile -Value ("$hash  " + [IO.Path]::GetFileName($archive)) -Encoding ascii
+          Write-Host "SHA256: $hash"
           "PACKAGE_PATH=$archive" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "PACKAGE_SHA_FILE=$checksumFile" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Upload portable Windows source package
         uses: actions/upload-artifact@v6
         with:
           name: nexora-ia-windows-source
-          path: ${{ env.PACKAGE_PATH }}
+          path: |
+            ${{ env.PACKAGE_PATH }}
+            ${{ env.PACKAGE_SHA_FILE }}
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 30\n\n      - name: Publish GitHub release for version tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$env:GITHUB_REF_NAME" "$env:PACKAGE_PATH" "$env:PACKAGE_SHA_FILE" --title "NEXORA IA Windows $env:GITHUB_REF_NAME" --notes-file docs/WINDOWS-RELEASE-NOTES.md
