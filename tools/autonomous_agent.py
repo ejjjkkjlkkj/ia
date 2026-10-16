@@ -62,7 +62,7 @@ def run_cycle() -> dict[str, Any]:
         try:
             source = path.read_bytes()
             compile(source, str(path), "exec")
-        except (OSError, SyntaxError, UnicodeError) as exc:
+        except (OSError, SyntaxError, UnicodeError, RecursionError) as exc:
             syntax_errors.append({"path": str(path.relative_to(ROOT)), "error": type(exc).__name__})
     tasks.append({
         "id": "python-syntax",
@@ -79,7 +79,7 @@ def run_cycle() -> dict[str, Any]:
     for path in json_files:
         try:
             json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
             json_errors.append({"path": str(path.relative_to(ROOT)), "error": type(exc).__name__})
     tasks.append({
         "id": "json-syntax",
