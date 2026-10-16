@@ -79,5 +79,37 @@ class UniversalByteModelTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             train_text("abc", alpha=0)
 
+    def test_rejects_oversized_training_and_evaluation_inputs(self):
+        from ia_reference.universal import MAX_TRAINING_BYTES, MAX_EVALUATION_BYTES
+        with self.assertRaisesRegex(ValueError, "training data exceeds"):
+            train_text("x" * (MAX_TRAINING_BYTES + 1))
+        model = train_text("valid corpus")
+        with self.assertRaisesRegex(ValueError, "evaluation data exceeds"):
+            evaluate_text(model, "x" * (MAX_EVALUATION_BYTES + 1))
+
+    def test_rejects_bool_alpha_and_non_text_inputs(self):
+        with self.assertRaisesRegex(ValueError, "alpha"):
+            train_text("valid", alpha=True)
+        with self.assertRaisesRegex(ValueError, "training text must be text"):
+            train_text(b"bytes")
+        with self.assertRaisesRegex(ValueError, "evaluation text must be text"):
+            evaluate_text(train_text("valid"), 123)
+
+    def test_revalidates_in_memory_model_before_evaluation_or_generation(self):
+        model = train_text("valid corpus")
+        model["training_bytes"] = 0
+        with self.assertRaisesRegex(ValueError, "training_bytes"):
+            evaluate_text(model, "held out")
+        with self.assertRaisesRegex(ValueError, "training_bytes"):
+            generate(model, "prompt")
+
+    def test_generation_output_budget_is_bounded(self):
+        from ia_reference.universal import MAX_GENERATION_BYTES
+        model = train_text("hello world")
+        with self.assertRaisesRegex(ValueError, "max_bytes"):
+            generate(model, "hello", MAX_GENERATION_BYTES + 1)
+        with self.assertRaisesRegex(ValueError, "max_bytes"):
+            generate(model, "hello", True)
+
 if __name__ == "__main__":
     unittest.main()
