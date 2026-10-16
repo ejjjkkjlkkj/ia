@@ -3,7 +3,7 @@
 
 Requires GitHub CLI (gh) authenticated for the target repository. It never
 starts, cancels, reruns, or modifies workflows. Exit codes: 0 all matching runs
-succeeded; 1 at least one run failed or was cancelled; 2 validation is incomplete or blocked.
+succeeded; 1 at least one execution failed; 2 validation is incomplete or blocked.
 """
 from __future__ import annotations
 
@@ -18,8 +18,8 @@ from typing import Any
 MAX_LIMIT = 100
 MAX_WATCH_SECONDS = 3600
 MAX_INTERVAL_SECONDS = 60
-FAILED_CONCLUSIONS = {"failure", "timed_out", "action_required", "startup_failure", "cancelled"}
-INCOMPLETE_CONCLUSIONS = {"skipped", "neutral", "stale"}
+FAILED_CONCLUSIONS = {"failure", "timed_out", "action_required", "startup_failure"}
+INCOMPLETE_CONCLUSIONS = {"cancelled", "skipped", "neutral", "stale"}
 
 
 def fetch_runs(repo: str, sha: str, limit: int = 100) -> list[dict[str, Any]]:
@@ -65,7 +65,7 @@ def summarize(runs: list[dict[str, Any]]) -> tuple[str, dict[str, int]]:
         elif status == "completed" and conclusion in FAILED_CONCLUSIONS:
             counts["failure"] += 1
         else:
-            # Skipped/neutral/stale runs do not prove success; keep them unvalidated.
+            # Cancelled/skipped/neutral/stale runs did not prove success; leave them unvalidated.
             counts["pending"] += 1
     if counts["failure"]:
         overall = "FAIL"
