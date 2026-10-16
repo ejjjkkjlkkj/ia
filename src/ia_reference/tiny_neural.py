@@ -9,7 +9,9 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import random
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +24,7 @@ MAX_EPOCHS = 20
 MAX_CHECKPOINT_BYTES = 2_000_000
 MAX_TRAINING_WORK = 40_000_000
 MAX_EVALUATION_BYTES = 100_000
+MAX_PROMPT_BYTES = 100_000
 MAX_SEED = (1 << 63) - 1
 
 
@@ -183,16 +186,20 @@ def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed:
     return model
 
 
-def next_token_probabilities(model: dict[str, Any], previous: int) -> list[float]:
-    _validate_model(model)
-    if type(previous) is not int or not 0 <= previous < VOCAB_SIZE:
-        raise ValueError("previous token is outside the vocabulary")
+def _next_token_probabilities_validated(model: dict[str, Any], previous: int) -> list[float]:
     x = model["embedding"][previous]
     logits = [model["bias"][j] + sum(model["weights"][j][k] * x[k] for k in range(model["embedding_dim"])) for j in range(VOCAB_SIZE)]
     peak = max(logits)
     exps = [math.exp(max(-80.0, value - peak)) for value in logits]
     total = sum(exps)
     return [value / total for value in exps]
+
+
+def next_token_probabilities(model: dict[str, Any], previous: int) -> list[float]:
+    _validate_model(model)
+    if type(previous) is not int or not 0 <= previous < VOCAB_SIZE:
+        raise ValueError("previous token is outside the vocabulary")
+    return _next_token_probabilities_validated(model, previous)
 
 
 def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
@@ -207,7 +214,7 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
     sequence = [BOS, *data, EOS]
     loss = 0.0
     for previous, target in zip(sequence, sequence[1:]):
-        probability = next_token_probabilities(model, previous)[target]
+        probability = _next_token_probabilities_validated(model, previous)[target]
         loss -= math.log(max(probability, 1e-300))
     count = len(sequence) - 1
     mean_loss = loss / count
@@ -216,16 +223,20 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
 
 def generate(model: dict[str, Any], prompt: str = "", max_bytes: int = 64) -> str:
     _validate_model(model)
+    if not isinstance(prompt, str):
+        raise ValueError("prompt must be text")
     if type(max_bytes) is not int or not 0 <= max_bytes <= 4096:
         raise ValueError("max_bytes must be between 0 and 4096")
     try:
-        prefix = prompt.encode("utf-8")
-    except (AttributeError, UnicodeEncodeError) as exc:
+        prefix = prompt.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
         raise ValueError("prompt must be valid Unicode text") from exc
+    if len(prefix) > MAX_PROMPT_BYTES:
+        raise ValueError(f"prompt exceeds {MAX_PROMPT_BYTES}-byte limit")
     previous = prefix[-1] if prefix else BOS
     output = bytearray()
     for _ in range(max_bytes):
-        probabilities = next_token_probabilities(model, previous)
+        probabilities = _next_token_probabilities_validated(model, previous)
         candidates = [*range(256), EOS]
         token = max(candidates, key=lambda idx: (probabilities[idx], -idx))
         if token == EOS:
@@ -241,20 +252,42 @@ def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
     unsigned.pop("checkpoint_sha256", None)
     digest = _digest(unsigned)
     document = dict(unsigned, checkpoint_sha256=digest)
+    encoded = _canonical(document)
+    if len(encoded) > MAX_CHECKPOINT_BYTES:
+        raise ValueError("checkpoint byte limit exceeded")
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = destination.with_name(destination.name + ".tmp")
-    temporary.write_bytes(_canonical(document))
-    temporary.replace(destination)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=destination.parent,
+            prefix=f".{destination.name}.", suffix=".tmp", delete=False,
+        ) as stream:
+            temporary_path = Path(stream.name)
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_path, destination)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink()
+            except FileNotFoundError:
+                pass
     return digest
 
 
 def load_checkpoint(path: str | Path) -> dict[str, Any]:
     try:
-        raw = Path(path).read_bytes()
+        source = Path(path)
+        if source.stat().st_size > MAX_CHECKPOINT_BYTES:
+            raise ValueError("checkpoint byte limit exceeded")
+        with source.open("rb") as stream:
+            raw = stream.read(MAX_CHECKPOINT_BYTES + 1)
         if len(raw) > MAX_CHECKPOINT_BYTES:
             raise ValueError("checkpoint byte limit exceeded")
-        text = raw.decode("utf-8")
+        text = raw.decode("utf-8", errors="strict")
         _check_json_nesting(text)
         document = json.loads(text, object_pairs_hook=_unique_json_object, parse_constant=_reject_json_constant)
     except ValueError as exc:
