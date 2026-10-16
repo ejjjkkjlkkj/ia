@@ -1,3 +1,4 @@
+import hashlib
 import json
 import tempfile
 import unittest
@@ -17,6 +18,18 @@ class TinyNeuralModelTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(first["model_type"], MODEL_TYPE)
         self.assertNotEqual(first["bias"], [0.0] * 258)
+
+    def test_checkpoint_records_training_corpus_and_hyperparameters(self):
+        corpus = "training source\n"
+        model = train_text(corpus, epochs=2, seed=19, learning_rate=0.03, embedding_dim=4)
+        self.assertEqual(model["schema_version"], 2)
+        self.assertEqual(model["training_corpus_sha256"], hashlib.sha256(corpus.encode("utf-8")).hexdigest())
+        self.assertEqual(model["learning_rate"], 0.03)
+        self.assertEqual(model["embedding_dim"], 4)
+        tampered = dict(model)
+        tampered["training_corpus_sha256"] = "z" * 64
+        with self.assertRaisesRegex(ValueError, "training corpus SHA-256"):
+            evaluate_text(tampered, "held out")
 
     def test_probability_distribution_is_normalized(self):
         model = train_text("abcabc", epochs=1)
@@ -154,7 +167,16 @@ class TinyNeuralModelTests(unittest.TestCase):
             import os
             env = os.environ.copy()
             env["PYTHONPATH"] = str(Path("src").resolve())
-            subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "train", str(train), str(checkpoint), "--epochs", "1"], env=env, check=True, capture_output=True, text=True)
+            trained = subprocess.run([
+                sys.executable, "-m", "ia_reference.tiny_neural", "train",
+                str(train), str(checkpoint), "--epochs", "1", "--seed", "13",
+                "--learning-rate", "0.03", "--embedding-dim", "4",
+            ], env=env, check=True, capture_output=True, text=True)
+            training_report = json.loads(trained.stdout)
+            restored = load_checkpoint(checkpoint)
+            self.assertEqual(training_report["training_corpus_sha256"], hashlib.sha256(train.read_bytes()).hexdigest())
+            self.assertEqual(restored["learning_rate"], 0.03)
+            self.assertEqual(restored["embedding_dim"], 4)
             evaluated = subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "evaluate", str(checkpoint), str(heldout)], env=env, check=True, capture_output=True, text=True)
             self.assertIn("perplexity", evaluated.stdout)
             generated = subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "generate", str(checkpoint), "--prompt", "screen", "--max-bytes", "4"], env=env, check=True, capture_output=True, text=True)
