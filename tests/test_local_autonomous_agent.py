@@ -95,7 +95,7 @@ class PatchValidationTests(unittest.TestCase):
             agent.validate_patch(patch, self.root)
 
     def test_rejects_missing_file_headers(self):
-        patch = "diff --git a/src/a.py b/src/a.py\\n@@ -1 +1 @@\\n-old\\n+new\\n"
+        patch = "diff --git a/src/a.py b/src/a.py\n@@ -1 +1 @@\n-old\n+new\n"
         with self.assertRaises(agent.AgentError):
             agent.validate_patch(patch, self.root)
 
