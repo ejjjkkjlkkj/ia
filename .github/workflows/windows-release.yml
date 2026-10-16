@@ -1,0 +1,86 @@
+name: Windows standalone package and release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Artifact version label (for example 0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ia-windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows-package:
+    name: Windows / Python 3.11
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Compile all Python source and tests
+        shell: pwsh
+        run: python -m compileall -q src tests tools
+      - name: Run full unit-test suite on Windows
+        shell: pwsh
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
+      - name: Run documented Windows demo
+        shell: pwsh
+        run: .\windows\Start-IA.ps1 -Mode Demo
+      - name: Verify Windows launcher rejects missing corpus arguments
+        shell: pwsh
+        run: |
+          $result = .\windows\Start-IA.ps1 -Mode Train 2>&1
+          if ($LASTEXITCODE -ne 0 -or ($result -join "`n") -notmatch "requires -TrainingCorpus") {
+            throw "Expected clear validation for missing training corpus."
+          }
+      - name: Build source archive and checksum
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version || github.ref_name }}".Trim()
+          if ([string]::IsNullOrWhiteSpace($version)) { throw "Version label is empty." }
+          $zip = Join-Path $env:RUNNER_TEMP ("IA-Windows-" + $version + ".zip")
+          $checksums = Join-Path $env:RUNNER_TEMP "SHA256SUMS.txt"
+          git archive --format=zip --output="$zip" HEAD
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $zip)) { throw "Source archive creation failed." }
+          $hash = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -LiteralPath $checksums -Value ("$hash  " + [IO.Path]::GetFileName($zip)) -Encoding ascii
+          "IA_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "IA_WINDOWS_ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "IA_SHA256_FILE=$checksums" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "PASS: created $zip"
+          Write-Host "SHA256: $hash"
+      - name: Upload reproducible build artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: IA-Windows-${{ inputs.version || github.ref_name }}
+          path: |
+            ${{ runner.temp }}/IA-Windows-${{ inputs.version || github.ref_name }}.zip
+            ${{ runner.temp }}/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish GitHub release for version tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$env:GITHUB_REF_NAME" "$env:IA_WINDOWS_ZIP" "$env:IA_SHA256_FILE" --title "IA Windows $env:GITHUB_REF_NAME" --notes-file windows/RELEASE-NOTES.md
