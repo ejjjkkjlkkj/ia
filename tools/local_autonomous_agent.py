@@ -109,6 +109,8 @@ def validate_patch(patch: str, root: Path) -> None:
         raise AgentError("Patch is not a standard git unified diff.")
     if re.search(r"(?im)^GIT binary patch$|^Binary files .* differ$", patch):
         raise AgentError("Binary patches are forbidden.")
+    if re.search(r"(?im)^(?:new|old) file mode 120000$", patch):
+        raise AgentError("Symbolic-link changes are forbidden.")
     paths: list[str] = []
     active_path: str | None = None
     old_header_seen = False
