@@ -39,20 +39,38 @@ jobs:
             git checkout -b "$AGENT_BRANCH"
           fi
 
-      - name: Require configured model credential
+      - name: Detect optional hosted model credential
+        id: credential
         shell: bash
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "$OPENAI_API_KEY" ]; then
-            echo "::error::BLOCKED: add the repository Actions secret OPENAI_API_KEY to enable the hosted coding agent."
-            exit 1
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "PASS: optional hosted model credential is configured."
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "PARTIAL: no API key configured; continue with local-independent repository checks."
           fi
-          echo "PASS: hosted coding-agent credential is configured (value not displayed)."
+
+      - name: Write no-key execution report
+        if: steps.credential.outputs.available != 'true'
+        shell: bash
+        run: |
+          {
+            echo "# Continuous agent report"
+            echo
+            echo "- Status: PARTIAL"
+            echo "- Hosted model: skipped; no API key is required for repository validation."
+            echo "- Mode: no-cloud, deterministic repository checks only."
+            echo "- Limitation: this GitHub-hosted runner cannot access Ollama on a private local PC."
+            echo "- Next: use the bounded local Ollama agent on a machine with Ollama installed for model-generated patches."
+          } > agent-report.md
 
       - name: Run Codex engineering cycle
         id: codex
+        if: steps.credential.outputs.available == 'true'
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -68,6 +86,7 @@ jobs:
             If no safe useful code change can be verified, make no code changes and explain why in the report.
 
       - name: Create or update reviewable pull request
+        if: steps.credential.outputs.available == 'true' && steps.codex.outcome == 'success'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ github.token }}
@@ -82,3 +101,12 @@ jobs:
           add-paths: |
             **
             !.github/workflows/**
+
+      - name: Upload agent execution report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: continuous-agent-report-${{ github.run_id }}
+          path: agent-report.md
+          if-no-files-found: warn
+          retention-days: 14
