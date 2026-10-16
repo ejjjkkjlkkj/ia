@@ -252,11 +252,29 @@ def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
     unsigned.pop("checkpoint_sha256", None)
     digest = _digest(unsigned)
     document = dict(unsigned, checkpoint_sha256=digest)
+    encoded = _canonical(document)
+    if len(encoded) > MAX_CHECKPOINT_BYTES:
+        raise ValueError("checkpoint byte limit exceeded")
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = destination.with_name(destination.name + ".tmp")
-    temporary.write_bytes(_canonical(document))
-    temporary.replace(destination)
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=destination.parent,
+            prefix=f".{destination.name}.", suffix=".tmp", delete=False,
+        ) as stream:
+            temporary_path = Path(stream.name)
+            stream.write(encoded)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_path, destination)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            try:
+                temporary_path.unlink()
+            except FileNotFoundError:
+                pass
     return digest
 
 
