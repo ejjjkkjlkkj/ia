@@ -92,9 +92,12 @@ class PatchValidationTests(unittest.TestCase):
             def read(self, limit): return b"{not-json"
         class Opener:
             def open(self, request, timeout): return Response()
-        with patch.object(agent.urllib.request, "build_opener", return_value=Opener()):
+        with patch.object(agent.urllib.request, "build_opener", return_value=Opener()) as build_opener:
             with self.assertRaises(agent.AgentError):
                 agent.call_ollama("http://127.0.0.1:11434/api/chat", "local", "task", 5)
+        handlers = build_opener.call_args.args
+        self.assertIsInstance(handlers[0], agent.urllib.request.ProxyHandler)
+        self.assertEqual(handlers[0].proxies, {})
 
     def test_rejects_excessively_nested_ollama_response(self):
         payload = ("[" * 10000 + "0" + "]" * 10000).encode("utf-8")
