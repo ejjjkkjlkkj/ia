@@ -31,7 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Validate dictionary source manifest
-        shell: python
+        shell: python {0}
         run: |
           import json
           import pathlib
