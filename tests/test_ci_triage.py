@@ -106,6 +106,15 @@ class CITriageTests(unittest.TestCase):
 
     @patch("tools.ci_triage.shutil.which", return_value="gh")
     @patch("tools.ci_triage.subprocess.run")
+    def test_excessively_nested_cli_json_is_blocked(self, run_mock, _which):
+        run_mock.return_value = Mock(
+            returncode=0, stdout="[" * 2000 + "0" + "]" * 2000, stderr=""
+        )
+        with self.assertRaisesRegex(RuntimeError, "excessively nested JSON"):
+            ci_triage.fetch_runs("owner/repo", "a" * 40)
+
+    @patch("tools.ci_triage.shutil.which", return_value="gh")
+    @patch("tools.ci_triage.subprocess.run")
     def test_non_list_json_is_blocked(self, run_mock, _which):
         run_mock.return_value = Mock(returncode=0, stdout=json.dumps({"runs": []}), stderr="")
         with self.assertRaisesRegex(RuntimeError, "unexpected JSON shape"):
