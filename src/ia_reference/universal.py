@@ -150,9 +150,9 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
     supplied_hash = checkpoint.pop("checkpoint_sha256", None)
     if not isinstance(supplied_hash, str) or len(supplied_hash) != 64 or any(c not in "0123456789abcdef" for c in supplied_hash):
         raise ValueError("checkpoint SHA-256 is malformed")
-    _validate_checkpoint_payload(checkpoint)
     if supplied_hash != _sha256(_canonical_json(checkpoint)):
         raise ValueError("checkpoint SHA-256 mismatch")
+    _validate_checkpoint_payload(checkpoint)
     checkpoint["checkpoint_sha256"] = supplied_hash
     return checkpoint
 
