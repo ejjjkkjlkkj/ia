@@ -110,6 +110,15 @@ class PatchValidationTests(unittest.TestCase):
         (self.root / "src" / "example.py").write_text("old\n", encoding="utf-8")
         agent.validate_patch(diff_for("src/example.py"), self.root)
 
+    def test_rejects_oversized_patch_before_parsing(self):
+        with self.assertRaisesRegex(agent.AgentError, "500 KiB"):
+            agent.validate_patch("diff --git a/src/a.py b/src/a.py\\n" + "x" * agent.MAX_PATCH_BYTES, self.root)
+
+    def test_rejects_sensitive_filename_variants(self):
+        for path in ("id_rsa.pub", "id_ed25519.txt", "secrets.txt", "credentials.md"):
+            with self.subTest(path=path), self.assertRaises(agent.AgentError):
+                agent.validate_patch(diff_for(path), self.root)
+
     def test_rejects_empty_patch(self):
         with self.assertRaises(agent.AgentError):
             agent.validate_patch("", self.root)
