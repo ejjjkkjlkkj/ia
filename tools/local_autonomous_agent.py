@@ -25,7 +25,8 @@ MAX_TASK_CHARS = 12_000
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_PATCH_BYTES = 500_000
 FORBIDDEN_PATH_PARTS = {".git", ".env", "secrets", "credentials", "id_rsa"}
-FORBIDDEN_SUFFIXES = {".exe", ".dll", ".so", ".dylib", ".bin", ".pt", ".pth", ".safetensors"}
+FORBIDDEN_SUFFIXES = {".exe", ".dll", ".so", ".dylib", ".bin", ".pt", ".pth", ".safetensors", ".pem", ".key", ".p12", ".pfx"}
+ALLOWED_TEXT_SUFFIXES = {".py", ".rs", ".go", ".js", ".ts", ".tsx", ".jsx", ".c", ".h", ".cc", ".cpp", ".hpp", ".java", ".kt", ".swift", ".cs", ".php", ".rb", ".sh", ".ps1", ".md", ".rst", ".txt"}
 SYSTEM_PROMPT = """You are a repository coding assistant working locally. Return ONLY one JSON object:
 {"summary":"short explanation","patch":"unified diff or empty string","tests":["test intent"]}
 Rules: produce a standard git unified diff with a/ and b/ paths; change only source, tests,
@@ -174,10 +175,12 @@ def validate_patch(patch: str, root: Path) -> None:
             or any(ord(char) < 32 for char in relative)
         ):
             raise AgentError(f"Unsafe path: {relative}")
-        if any(part.lower() in FORBIDDEN_PATH_PARTS for part in parts):
+        if any(part.lower() in FORBIDDEN_PATH_PARTS or part.lower().startswith(".env") for part in parts):
             raise AgentError(f"Protected path: {relative}")
         if path.suffix.lower() in FORBIDDEN_SUFFIXES:
-            raise AgentError(f"Binary/model artifact path forbidden: {relative}")
+            raise AgentError(f"Binary/model/credential artifact path forbidden: {relative}")
+        if path.suffix.lower() not in ALLOWED_TEXT_SUFFIXES:
+            raise AgentError(f"File type is outside the agent allowlist: {relative}")
         normalized = relative.casefold()
         if normalized.startswith(".github/") or normalized in {".gitignore", "pyproject.toml", "cargo.lock", "package-lock.json"}:
             raise AgentError(f"Protected configuration path: {relative}")
