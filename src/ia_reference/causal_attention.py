@@ -25,7 +25,10 @@ def _matrix(name: str, values: Matrix) -> list[list[float]]:
         for item in row:
             if isinstance(item, bool) or not isinstance(item, (int, float)):
                 raise ValueError(f"{name} values must be finite numbers")
-            value = float(item)
+            try:
+                value = float(item)
+            except (OverflowError, TypeError, ValueError) as exc:
+                raise ValueError(f"{name} values must be finite numbers") from exc
             if not math.isfinite(value):
                 raise ValueError(f"{name} values must be finite numbers")
             if abs(value) > 1_000_000:
