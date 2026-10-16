@@ -9,9 +9,11 @@
 
 ## Phase 1 — référence CPU
 
-- [ ] Définir les vecteurs numériques communs et la tolérance.
+- [x] Ajouter des kernels Python FP64 de référence : matvec, matmul, softmax stable et cross-entropy, avec tests de validation des entrées.
+- [x] Ajouter un noyau Python d'attention causale avec tests de non-fuite vers le passé.
+- [ ] Définir des vecteurs numériques communs versionnés, partagés entre langages, et leur tolérance.
 - [ ] Implémenter en C les tenseurs FP32, opérations de base, softmax stable et tests.
-- [ ] Implémenter un modèle causal compact, perte, gradients et boucle d'entraînement.
+- [ ] Implémenter un modèle causal compact complet, avec projections, embeddings, couches, perte, gradients et boucle d'entraînement.
 - [ ] Entraîner sur un corpus synthétique déterministe et vérifier que la perte évolue.
 - [ ] Sauvegarder/recharger un checkpoint et exécuter une inférence séparée.
 - [ ] Enregistrer commandes, journaux, hash, temps et mémoire.
@@ -30,15 +32,18 @@ Pour chaque ID du `LANGUAGE-CATALOG.md`, évaluer séparément la contribution a
 
 Les langages sans runtime, compilateur ou bibliothèques adaptés ne sont pas supprimés silencieusement : ils reçoivent un blocage précis et une preuve minimale de faisabilité. Les pistes assembleur portent sur les kernels numériques et leurs benchmarks.
 
-## Phase 3 — spécialisation code
+## Phase 3 — chaîne d'outils locale et spécialisation code
 
-- [ ] Créer des tâches de génération et correction de code avec licences et provenance.
-- [ ] Ajouter des tests de compilation et d'exécution en sandbox.
+- [ ] CLI native de bout en bout pour préparer les données, entraîner, évaluer, exporter, recharger et générer sans Ollama ni fournisseur externe.
+- [ ] Manifeste de données et licences, déduplication, filtrage et séparation train/validation/test.
+- [ ] Reprise après interruption, checkpoints atomiques, journaux et budgets de ressources.
+- [ ] Tests de compilation et d'exécution du code généré en sandbox.
 - [ ] Mesurer sur des fichiers/problèmes tenus à l'écart.
 - [ ] Ne revendiquer une spécialisation que si elle améliore une baseline mesurée.
 
-## Phase 4 — performance et extensions
+## Phase 4 — runtime, performance et extensions
 
+- [ ] Runtime d'inférence local autonome, avec limites mémoire/temps et erreurs explicites.
 - [ ] Profilage CPU avant optimisation.
 - [ ] SIMD/GPU uniquement avec tests de correction et benchmarks reproductibles.
 - [ ] Quantification uniquement avec mesures de qualité, mémoire et vitesse.
