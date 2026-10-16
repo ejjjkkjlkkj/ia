@@ -61,5 +61,5 @@ jobs:
         with:
           name: own-model-hourly-evidence
           path: model-evidence/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
