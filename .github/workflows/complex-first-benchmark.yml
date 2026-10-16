@@ -45,6 +45,7 @@ jobs:
           python tools/run_complex_benchmarks.py --list
 
       - name: Execute explicitly supplied adapter against project-authored tasks
+        if: github.event_name == 'workflow_dispatch'
         env:
           OUR_ADAPTER_COMMAND: ${{ inputs.adapter_command }}
           TIMEOUT_SECONDS: ${{ inputs.timeout_seconds }}
@@ -80,6 +81,10 @@ jobs:
           )
           raise SystemExit(result.returncode)
           PY
+
+      - name: Explain validation-only pull request run
+        if: github.event_name != 'workflow_dispatch'
+        run: echo "PASS: suite and harness validated; external adapter benchmark is skipped because no adapter command was explicitly supplied."
 
       - name: Upload benchmark report
         if: always() && hashFiles('reports/tool-comparison.json') != ''
