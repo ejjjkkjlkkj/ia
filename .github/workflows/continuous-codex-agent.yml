@@ -85,17 +85,23 @@ jobs:
       - name: Report coding-agent readiness without cloud fallback
         if: always()
         shell: bash
+        env:
+          VALIDATION_JOB_STATUS: ${{ job.status }}
         run: |
           mkdir -p agent-evidence
           python - <<'PY'
           import json
+          import os
           from datetime import datetime, timezone
           from pathlib import Path
 
+          job_status = os.environ.get("VALIDATION_JOB_STATUS", "unknown")
+          validation_status = "PASS" if job_status == "success" else ("FAIL" if job_status == "failure" else "PARTIAL")
           report = {
               "schema_version": 1,
               "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-              "repository_validation": "RUN_BY_PREVIOUS_WORKFLOW_STEPS",
+              "workflow_job_status": job_status,
+              "repository_validation": validation_status,
               "generative_coding_status": "BLOCKED",
               "reason": "A repository-owned coding model and validated checkpoint/patch contract are not yet available to this hosted runner.",
               "cloud_model_used": False,
