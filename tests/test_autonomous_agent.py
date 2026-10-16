@@ -39,6 +39,31 @@ class AutonomousAgentTests(unittest.TestCase):
         self.assertIn(task["status"], {"PASS", "FAIL"})
         self.assertGreaterEqual(task["files_checked"], 0)
 
+    def test_cycle_report_does_not_expose_absolute_repository_path(self):
+        with patch.object(autonomous_agent, "_run", return_value={
+            "status": "PASS", "returncode": 0, "output_tail": ""
+        }):
+            report = autonomous_agent.run_cycle()
+        self.assertEqual(report["repository_name"], autonomous_agent.ROOT.name)
+        self.assertNotIn(str(autonomous_agent.ROOT), json.dumps(report))
+
+    def test_report_write_is_atomic_and_leaves_no_temporary_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report_path = Path(directory) / "evidence.json"
+            report = {
+                "schema_version": 1,
+                "overall_status": "PASS",
+                "generated_at_utc": "2026-01-01T00:00:00+00:00",
+                "tasks": [],
+            }
+            with patch("sys.argv", [
+                "autonomous_agent.py", "--cycles", "1", "--report", str(report_path)
+            ]), patch.object(autonomous_agent, "run_cycle", return_value=report):
+                self.assertEqual(autonomous_agent.main(), 0)
+            saved = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(saved["runs"], [report])
+            self.assertEqual(list(Path(directory).glob(".evidence.json.*.tmp")), [])
+
     def test_invalid_cycle_count_is_rejected_by_cli(self):
         with patch("sys.argv", ["autonomous_agent.py", "--cycles", "0"]):
             with self.assertRaises(SystemExit) as exc:
