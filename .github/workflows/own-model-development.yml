@@ -29,27 +29,22 @@ jobs:
           python -m pip install --disable-pip-version-check --upgrade pip
           python -m pip install --disable-pip-version-check pytest
 
-      - name: Use repository-owned model only
+      # Do not execute a candidate merely because a file has its executable bit
+      # set. Until a machine-readable readiness contract and its validation
+      # tests exist, code generation must remain explicitly blocked.
+      - name: Gate autonomous code generation on validated readiness contract
         id: agent
         shell: bash
         run: |
           set -euo pipefail
-          AGENT=''
-          for candidate in tools/nexora-agent tools/own-model-agent; do
-            if [ -x "$candidate" ]; then AGENT="$candidate"; break; fi
-          done
-          if [ -n "$AGENT" ]; then
-            "$AGENT" --task-file .github/agent-task.md
-            echo 'ready=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'ready=false' >> "$GITHUB_OUTPUT"
-            {
-              echo '## Autonomous coding agent: BLOCKED'
-              echo 'No validated repository-owned coding-agent executable/checkpoint exists yet.'
-              echo 'No third-party LLM fallback was used. Deterministic repository tests still run; no source changes are published.'
-            } >> "$GITHUB_STEP_SUMMARY"
-            echo 'BLOCKED: own-model coding CLI/checkpoint is not implemented and validated; no third-party fallback.'
-          fi
+          echo 'ready=false' >> "$GITHUB_OUTPUT"
+          {
+            echo '## Autonomous coding agent: BLOCKED'
+            echo 'No validated repository-owned readiness contract, executable, and checkpoint gate is available.'
+            echo 'Executable-bit detection alone is not validation. No candidate agent is executed and no third-party LLM fallback is used.'
+            echo 'Deterministic repository tests still run; source changes are never published by this workflow.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo 'BLOCKED: readiness contract and checkpoint validation are not implemented.'
 
       - name: Run repository tests
         shell: bash
