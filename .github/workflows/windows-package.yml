@@ -36,7 +36,7 @@ jobs:
 
       - name: Run full test suite through Windows launcher
         shell: pwsh
-        run: .\\windows\\Start-IA.ps1 -Mode Verify
+        run: .\windows\Start-IA.ps1 -Mode Verify
 
       - name: Verify Windows quickstart and package inputs
         shell: pwsh
