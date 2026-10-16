@@ -55,7 +55,7 @@ def _check_json_nesting(text: str, max_depth: int = 64) -> None:
         if in_string:
             if escaped:
                 escaped = False
-            elif character == "\\\\":
+            elif character == chr(92):
                 escaped = True
             elif character == '"':
                 in_string = False
