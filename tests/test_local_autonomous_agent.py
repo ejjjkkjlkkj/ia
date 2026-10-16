@@ -226,6 +226,14 @@ class PatchValidationTests(unittest.TestCase):
         )
         with self.assertRaises(agent.AgentError):
             agent.validate_patch(patch, self.root)
+    def test_rejects_executable_mode_changes(self):
+        patch = diff_for("tools/helper.py").replace(
+            "diff --git a/tools/helper.py b/tools/helper.py\\n",
+            "diff --git a/tools/helper.py b/tools/helper.py\\nold mode 100644\\nnew mode 100755\\n",
+        )
+        with self.assertRaisesRegex(agent.AgentError, "file permission changes"):
+            agent.validate_patch(patch, self.root)
+
     def test_rejects_binary_artifact(self):
         with self.assertRaises(agent.AgentError):
             agent.validate_patch(diff_for("models/weights.safetensors"), self.root)
