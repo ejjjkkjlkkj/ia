@@ -183,7 +183,7 @@ def validate_patch(patch: str, root: Path) -> None:
             raise AgentError(f"Unsafe path: {relative}")
         if any(
             part.lower() in FORBIDDEN_PATH_PARTS
-            or part.lower().startswith((".env", "credential", "secret", "id_rsa"))
+            or part.lower().startswith((".env", "credential", "secret", "id_rsa", "id_ed25519"))
             for part in parts
         ):
             raise AgentError(f"Protected path: {relative}")
