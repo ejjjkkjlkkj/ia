@@ -16,7 +16,8 @@
 - [ ] Implémenter un modèle causal compact complet, avec projections, embeddings, couches, perte, gradients et boucle d'entraînement.
 - [ ] Entraîner sur un corpus synthétique déterministe et vérifier que la perte évolue.
 - [ ] Sauvegarder/recharger un checkpoint et exécuter une inférence séparée.
-- [ ] Enregistrer commandes, journaux, hash, temps et mémoire.
+- [x] Ajouter un runner de preuve synthétique reproductible pour le modèle neuronal de référence : séparation entraînement/test, hashes SHA-256, round-trip checkpoint, métriques hors entraînement, génération, temps et rapport JSON archivable par CI. Cette preuve valide le pipeline minimal, pas la qualité générale du modèle.
+- [ ] Enregistrer les mesures mémoire et les journaux complets d'entraînement pour le modèle causal complet.
 - [ ] Porter le même contrat en Rust et comparer les résultats au modèle de référence, sans créer un objectif de modèle indépendant par langage.
 
 ## Phase 2 — matrice des langages
