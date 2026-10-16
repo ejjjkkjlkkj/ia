@@ -26,6 +26,12 @@ class NumericReferenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "column limit"):
             matvec([[0.0] * 4097], [0.0] * 4097)
 
+    def test_rejects_excessive_matrix_multiplication_output_size(self):
+        left = [[1.0] for _ in range(1001)]
+        right = [[1.0] * 1001]
+        with self.assertRaisesRegex(ValueError, "output exceeds"):
+            matmul(left, right)
+
     def test_rejects_excessive_matrix_multiplication_work(self):
         left = [[1.0] * 200 for _ in range(250)]
         right = [[1.0] * 250 for _ in range(200)]
