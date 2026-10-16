@@ -5,7 +5,7 @@ language without language-specific tokenization. This is a deliberately small
 statistical baseline, not a neural model or a claim of semantic universality.
 """
 from __future__ import annotations
-import argparse, hashlib, json, math
+import argparse, hashlib, json, math, os, tempfile
 from pathlib import Path
 from typing import Any
 
