@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 """Bounded local Ollama coding agent. No cloud, shell-generated commands, or auto-push.
-
 Default mode is planning/dry-run. --apply permits a validated unified diff to be
 applied to the current clean Git worktree; it never commits, pushes, merges, or
 runs commands proposed by the model.
 """
 from __future__ import annotations
-
 import argparse
 import json
 import ipaddress
@@ -19,7 +17,6 @@ import urllib.request
 from urllib.parse import urlsplit
 from pathlib import Path
 from typing import Any
-
 DEFAULT_URL = "http://127.0.0.1:11434/api/chat"
 MAX_TASK_CHARS = 12_000
 MAX_RESPONSE_BYTES = 2_000_000
@@ -33,12 +30,8 @@ and documentation needed for the task. Never edit workflow/CI files, secrets, cr
 lockfiles, binary/model weights, or files outside the repository. Do not include shell commands.
 Do not claim tests passed. If unsure, return an empty patch and explain the blocker.
 The caller validates and previews the patch; do not include markdown fences."""
-
-
 class AgentError(Exception):
     pass
-
-
 def git(root: Path, *args: str) -> str:
     proc = subprocess.run(
         ["git", "-C", str(root), *args],
@@ -48,15 +41,11 @@ def git(root: Path, *args: str) -> str:
     if proc.returncode:
         raise AgentError(f"git {' '.join(args)} failed: {proc.stderr.strip()}")
     return proc.stdout.strip()
-
-
 def clean_worktree(root: Path) -> None:
     if git(root, "status", "--porcelain"):
         raise AgentError("Worktree is not clean; commit or stash existing changes first.")
     if not git(root, "rev-parse", "--is-inside-work-tree") == "true":
         raise AgentError("Not a Git worktree.")
-
-
 def validate_local_url(url: str) -> None:
     """Reject non-loopback Ollama endpoints so task/code cannot be sent to a remote host."""
     try:
@@ -75,13 +64,9 @@ def validate_local_url(url: str) -> None:
             raise ValueError
     except (ValueError, TypeError) as exc:
         raise AgentError("Ollama URL must be an HTTP loopback endpoint (localhost/127.0.0.1/::1) on an explicit port, with no credentials, query, or fragment.") from exc
-
-
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
-
-
 def call_ollama(url: str, model: str, task: str, timeout: int) -> dict[str, Any]:
     validate_local_url(url)
     if not isinstance(timeout, int) or isinstance(timeout, bool) or not 1 <= timeout <= 900:
@@ -117,8 +102,6 @@ def call_ollama(url: str, model: str, task: str, timeout: int) -> dict[str, Any]
     if len(result["patch"].encode("utf-8")) > MAX_PATCH_BYTES:
         raise AgentError("Proposed patch exceeds 500 KiB.")
     return result
-
-
 def validate_patch(patch: str, root: Path) -> None:
     if not patch.strip():
         raise AgentError("Model proposed no patch.")
@@ -145,17 +128,16 @@ def validate_patch(patch: str, root: Path) -> None:
         if line.startswith("--- "):
             if active_path is None or old_header_seen:
                 raise AgentError("Unexpected or duplicate old-file header.")
-            header_path = line[4:].split("\\t", 1)[0]
+            header_path = line[4:].split("\t", 1)[0]
             if header_path != "/dev/null" and header_path != f"a/{active_path}":
                 raise AgentError("Old-file header does not match the validated diff path.")
             old_header_seen = True
         elif line.startswith("+++ "):
             if active_path is None or not old_header_seen or new_header_seen:
                 raise AgentError("Unexpected or duplicate new-file header.")
-            header_path = line[4:].split("\\t", 1)[0]
+            header_path = line[4:].split("\t", 1)[0]
             if header_path != "/dev/null" and header_path != f"b/{active_path}":
                 raise AgentError("New-file header does not match the validated diff path.")
-            if header_path == "/dev/null" and line[4:].split("\\t", 1)[0] != "/dev/null":
                 raise AgentError("Invalid deletion header.")
             new_header_seen = True
     if active_path is not None and not (old_header_seen and new_header_seen):
@@ -176,8 +158,6 @@ def validate_patch(patch: str, root: Path) -> None:
         resolved = (root / path).resolve()
         if root.resolve() not in resolved.parents:
             raise AgentError(f"Path escapes repository: {relative}")
-
-
 def apply_patch(root: Path, patch: str) -> None:
     validate_patch(patch, root)
     check = subprocess.run(
@@ -192,8 +172,6 @@ def apply_patch(root: Path, patch: str) -> None:
     )
     if applied.returncode:
         raise AgentError(f"Patch application failed: {applied.stderr.strip()}")
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=Path.cwd())
@@ -232,7 +210,5 @@ def main(argv: list[str] | None = None) -> int:
     except (AgentError, OSError, UnicodeError, subprocess.TimeoutExpired) as exc:
         print(f"STATUS: BLOCKED — {exc}", file=sys.stderr)
         return 2
-
-
 if __name__ == "__main__":
     raise SystemExit(main())
