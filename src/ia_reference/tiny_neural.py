@@ -20,6 +20,7 @@ EMBED_DIM = 8
 MAX_TRAINING_BYTES = 10_000
 MAX_EPOCHS = 20
 MAX_CHECKPOINT_BYTES = 2_000_000
+MAX_TRAINING_WORK = 40_000_000
 
 
 def _canonical(value: Any) -> bytes:
@@ -114,6 +115,10 @@ def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed:
     lr = _finite_number(learning_rate, "learning_rate")
     if not 0 < lr <= 1:
         raise ValueError("learning_rate must be in (0, 1]")
+
+    estimated_work = len(data) * epochs * VOCAB_SIZE * embedding_dim
+    if estimated_work > MAX_TRAINING_WORK:
+        raise ValueError(f"estimated training work exceeds {MAX_TRAINING_WORK}-operation budget")
 
     rng = random.Random(seed)
     scale = 0.1
