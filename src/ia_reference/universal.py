@@ -157,7 +157,9 @@ def _validate_model(model: Any, *, require_hash: bool = False) -> dict[str, Any]
     if total_transitions != training_bytes + 1 or eos_transitions != 1:
         raise ValueError("transition counts do not match training metadata")
     bos_row = counts.get(str(BOS))
-    if not isinstance(bos_row, dict) or len(bos_row) != 1 or sum(bos_row.values()) != 1:
+    if (not isinstance(bos_row, dict) or len(bos_row) != 1
+            or sum(bos_row.values()) != 1
+            or any(not 0 <= int(token) <= 255 for token in bos_row)):
         raise ValueError("invalid beginning-of-sequence transitions")
     if "checkpoint_sha256" in model:
         unsigned = {key: value for key, value in model.items() if key != "checkpoint_sha256"}
@@ -170,6 +172,8 @@ def _validate_model(model: Any, *, require_hash: bool = False) -> dict[str, Any]
 
 def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
     """Validate and atomically write a hash-protected JSON checkpoint."""
+    if not isinstance(model, dict):
+        raise ValueError("checkpoint must be an object")
     payload = {key: value for key, value in model.items() if key != "checkpoint_sha256"}
     _validate_model(payload)
     digest = _sha256(_canonical_json(payload))
@@ -190,8 +194,12 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
     source = Path(path)
     if source.stat().st_size > MAX_CHECKPOINT_BYTES:
         raise ValueError(f"checkpoint exceeds {MAX_CHECKPOINT_BYTES}-byte limit")
+    with source.open("rb") as handle:
+        raw = handle.read(MAX_CHECKPOINT_BYTES + 1)
+    if len(raw) > MAX_CHECKPOINT_BYTES:
+        raise ValueError(f"checkpoint exceeds {MAX_CHECKPOINT_BYTES}-byte limit")
     try:
-        text = source.read_text(encoding="utf-8")
+        text = raw.decode("utf-8", errors="strict")
     except UnicodeDecodeError as exc:
         raise ValueError("checkpoint must be valid UTF-8") from exc
     _check_json_nesting(text)
@@ -270,6 +278,17 @@ def generate(model: dict[str, Any], prompt: str = "", max_bytes: int = 64) -> st
         previous = token
     return bytes(output).decode("utf-8", errors="replace")
 
+def _read_utf8_bounded(path: Path, maximum_bytes: int, label: str) -> str:
+    with path.open("rb") as handle:
+        raw = handle.read(maximum_bytes + 1)
+    if len(raw) > maximum_bytes:
+        raise ValueError(f"{label} exceeds {maximum_bytes}-byte limit")
+    try:
+        return raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"{label} must be valid UTF-8") from exc
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Universal UTF-8 byte-level bigram baseline")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -283,7 +302,7 @@ def main(argv: list[str] | None = None) -> int:
     gen.add_argument("--max-bytes", type=int, default=64)
     args = parser.parse_args(argv)
     if args.command == "train":
-        model = train_text(args.corpus.read_text(encoding="utf-8"), args.alpha)
+        model = train_text(_read_utf8_bounded(args.corpus, MAX_TRAINING_BYTES, "training data"), args.alpha)
         digest = save_checkpoint(model, args.checkpoint)
         result = {"status": "PASS", "model_type": MODEL_TYPE, "training_bytes": model["training_bytes"],
                   "checkpoint": str(args.checkpoint), "checkpoint_sha256": digest,
