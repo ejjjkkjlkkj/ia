@@ -126,6 +126,11 @@ class TinyNeuralModelTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "valid Unicode"):
             generate(model, "\ud800")
 
+    def test_evaluation_rejects_work_exceeding_budget(self):
+        model = train_text("valid", epochs=1, embedding_dim=64)
+        with self.assertRaisesRegex(ValueError, "evaluation work"):
+            evaluate_text(model, "x" * 3000)
+
     def test_checkpoint_rejects_invalid_utf8_and_malformed_json(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "invalid.json"
