@@ -73,6 +73,21 @@ class PatchValidationTests(unittest.TestCase):
         with self.assertRaises(agent.AgentError):
             agent.validate_patch(patch, self.root)
 
+    def test_rejects_mismatched_old_file_header(self):
+        patch = diff_for("src/a.py").replace("--- a/src/a.py", "--- a/src/other.py")
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(patch, self.root)
+
+    def test_rejects_mismatched_new_file_header(self):
+        patch = diff_for("src/a.py").replace("+++ b/src/a.py", "+++ b/src/other.py")
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(patch, self.root)
+
+    def test_rejects_missing_file_headers(self):
+        patch = "diff --git a/src/a.py b/src/a.py\\n@@ -1 +1 @@\\n-old\\n+new\\n"
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(patch, self.root)
+
     def test_rejects_non_standard_patch(self):
         with self.assertRaises(agent.AgentError):
             agent.validate_patch("Here is your patch:\n" + diff_for("src/a.py"), self.root)
