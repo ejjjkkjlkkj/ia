@@ -67,6 +67,17 @@ class CITriageTests(unittest.TestCase):
         self.assertEqual(kwargs["timeout"], 30)
         self.assertIs(kwargs["stdin"], subprocess.DEVNULL)
 
+    @patch("tools.ci_triage.shutil.which", return_value="gh")
+    @patch("tools.ci_triage.subprocess.run")
+    def test_limit_saturated_response_is_blocked_as_potentially_truncated(self, run_mock, _which):
+        run_mock.return_value = Mock(
+            returncode=0,
+            stdout=json.dumps([{"headSha": "a" * 40}]),
+            stderr="",
+        )
+        with self.assertRaisesRegex(RuntimeError, "may be truncated"):
+            ci_triage.fetch_runs("owner/repo", "a" * 40, limit=1)
+
     @patch("tools.ci_triage.shutil.which", return_value=None)
     def test_missing_cli_is_blocked(self, _which):
         with self.assertRaisesRegex(RuntimeError, "not installed"):
@@ -88,7 +99,7 @@ class CITriageTests(unittest.TestCase):
 
     @patch("tools.ci_triage.shutil.which", return_value="gh")
     @patch("tools.ci_triage.subprocess.run")
-    def test_gh_failure_is_blocked_without_exposing_unbounded_stderr(self, run_mock, _which):
+    def test_gh_failure_is_blocked(self, run_mock, _which):
         run_mock.return_value = Mock(returncode=1, stdout="", stderr="permission denied")
         with self.assertRaisesRegex(RuntimeError, "permission denied"):
             ci_triage.fetch_runs("owner/repo", "a" * 40)
