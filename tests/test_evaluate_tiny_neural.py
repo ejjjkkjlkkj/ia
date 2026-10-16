@@ -55,7 +55,7 @@ class EvaluateTinyNeuralTests(unittest.TestCase):
             MODULE.evaluate(self.checkpoint, self.heldout)
 
     def test_refuses_non_utf8_heldout_corpus(self) -> None:
-        self.heldout.write_bytes(b"\\xff\\xfe")
+        self.heldout.write_bytes(b"\xff\xfe")
         with self.assertRaisesRegex(ValueError, "valid UTF-8"):
             MODULE.evaluate(self.checkpoint, self.heldout)
 
