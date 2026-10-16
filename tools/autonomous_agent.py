@@ -65,6 +65,7 @@ def _iter_scan_files(suffix: str):
             if Path(filename).suffix.casefold() == suffix:
                 yield Path(directory) / filename
 
+
 def run_cycle() -> dict[str, Any]:
     tasks: list[dict[str, Any]] = []
     py_files = sorted(_iter_scan_files(".py"))
