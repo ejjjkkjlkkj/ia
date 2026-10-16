@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from ia_reference.ngram import UNK, evaluate_text, generate, load_checkpoint, next_token_probability, save_checkpoint, train_text
@@ -29,6 +30,24 @@ class BigramBaselineTests(unittest.TestCase):
     def test_boolean_smoothing_parameter_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "alpha"):
             train_text("alpha beta", alpha=True)
+
+    def test_inference_reuses_vocabulary_index_instead_of_rebuilding_it_per_token(self):
+        from ia_reference import ngram
+
+        model = train_text("alpha beta gamma alpha beta gamma")
+        original = ngram._next_token_probability
+        with patch("ia_reference.ngram._next_token_probability", wraps=original) as mocked:
+            evaluate_text(model, "alpha beta gamma")
+        evaluation_sets = [call.args[3] for call in mocked.call_args_list]
+        self.assertTrue(evaluation_sets)
+        self.assertTrue(all(isinstance(value, set) for value in evaluation_sets))
+        self.assertEqual(len({id(value) for value in evaluation_sets}), 1)
+
+        with patch("ia_reference.ngram._next_token_probability", wraps=original) as mocked:
+            generate(model, "alpha", max_tokens=3)
+        generation_sets = [call.args[3] for call in mocked.call_args_list]
+        self.assertTrue(generation_sets)
+        self.assertEqual(len({id(value) for value in generation_sets}), 1)
 
     def test_checkpoint_round_trip_and_hash(self):
         model = train_text("la voix lit le texte la voix lit")
