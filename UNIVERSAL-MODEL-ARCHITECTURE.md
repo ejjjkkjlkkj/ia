@@ -1,6 +1,6 @@
 # Architecture du modèle universel — contrat commun
 
-**Statut au 2026-10-16 : baselines statistiques et prototype neuronal minuscule implémentés ; CI GitHub Actions sur le HEAD e428051f40cad309c4993443f741ebcf7989e4a8 PASS (validation dépôt, maintenance, catalogue/modèles, tests fonctionnels de base et validation multi-OS). Modèle neuronal universel de type Transformer NOT_IMPLEMENTED ; aucun benchmark de qualité universelle publié.**
+**Statut au 2026-10-16 : baselines statistiques, prototype neuronal minuscule, noyau d'attention causale isolé et primitives numériques de référence implémentés. CI du HEAD `38c5a4469c2775a50c05d86244464886d84a24b5` en cours au moment de cette mise à jour : NOT YET VALIDATED. Modèle neuronal universel de type Transformer NOT_IMPLEMENTED ; aucun benchmark de qualité universelle publié.**
 
 ## Objectif produit
 
@@ -21,6 +21,10 @@ Construire un modèle commun capable de traiter les langues naturelles et les la
 5. **Spécialisation sans fragmentation obligatoire** : capacités de code, accessibilité, UEFI et OS évaluées comme tâches du même modèle. Des adaptateurs ou experts ne sont retenus que si les benchmarks prouvent leur valeur; ils ne remplacent pas le modèle commun.
 6. **Interopérabilité** : même configuration, noms/formes des tenseurs, dtype, ordre des poids, tokenisation versionnée et vecteurs de référence pour toutes les implémentations.
 7. **Exécution portable** : cœur CPU de référence d'abord; SIMD/GPU et runtimes spécifiques ensuite. Les pistes freestanding/UEFI sont limitées par la mémoire, le compilateur, le runtime et les pilotes disponibles; ne pas prétendre qu'un modèle de grande taille fonctionne directement dans UEFI.
+
+## Primitives numériques de référence
+
+`src/ia_reference/numeric.py` fournit des kernels CPU de référence sans dépendance externe : multiplication matrice-vecteur, multiplication matrice-matrice, softmax stable et entropie croisée d'un exemple. Les entrées sont contrôlées (formes rectangulaires, nombres finis, rejet des booléens et bornes de magnitude). Les tests `tests/test_numeric_reference.py` couvrent des résultats connus, la stabilité du softmax, la perte et les erreurs de forme/valeur. Il s'agit de primitives en précision Python standard (pas d'un runtime FP32 tensoriel) : pas d'autograd, pas de rétropropagation et pas de modèle complet. Les primitives doivent encore être étendues par des gradients et des vecteurs numériques interopérables avant la porte G1.
 
 ## Brique d'attention causale de référence
 
