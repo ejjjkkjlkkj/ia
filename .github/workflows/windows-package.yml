@@ -1,0 +1,88 @@
+name: Windows validation and portable package
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ia-windows-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-test-package:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install test runner
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Validate Python syntax
+        run: python -m compileall -q src tests tools
+
+      - name: Run repository tests
+        shell: pwsh
+        env:
+          PYTHONPATH: src
+        run: |
+          python -m pytest -q
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify Windows quickstart and package inputs
+        shell: pwsh
+        run: |
+          $required = @("README.md", "docs/WINDOWS-QUICKSTART.md", "src/ia_reference/tiny_neural.py", "tools/evaluate_tiny_neural.py")
+          foreach ($path in $required) {
+            if (!(Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "Required package input missing: $path"
+            }
+          }
+          python -c "import json, pathlib; p=pathlib.Path('data/language-implementation-status.json'); d=json.loads(p.read_text(encoding='utf-8')); assert isinstance(d, dict); print('PASS: language status manifest is valid JSON')"
+
+      - name: Build portable source package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $stage = Join-Path $env:RUNNER_TEMP "ia-windows-package"
+          $archive = Join-Path $env:RUNNER_TEMP "nexora-ia-windows-source.zip"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          $include = @("README.md", "LICENSE", "docs", "data", "src", "tools", "tests", "models", "LANGUAGE-CATALOG.md", "MODEL-SPEC.md", "TRAINING-ROADMAP.md", "MODELS-INDEX.md", "UNIVERSAL-MODEL-ARCHITECTURE.md", "NEXORA-LANGUAGE-SPEC.md", "NEXORA-IR-V1.md")
+          foreach ($item in $include) {
+            if (Test-Path -LiteralPath $item) {
+              Copy-Item -LiteralPath $item -Destination $stage -Recurse -Force
+            }
+          }
+          Get-ChildItem -LiteralPath $stage -Directory -Recurse -Force | Where-Object { $_.Name -in @("__pycache__", ".pytest_cache", ".mypy_cache") } | Sort-Object FullName -Descending | Remove-Item -Recurse -Force
+          Get-ChildItem -LiteralPath $stage -File -Recurse -Force | Where-Object { $_.Extension -in @(".pyc", ".pyo") } | Remove-Item -Force
+          $manifest = [ordered]@{
+            product = "NEXORA IA"
+            package_type = "portable-source"
+            target = "Windows 10/11 x64 with Python 3.12+"
+            generated_utc = [DateTime]::UtcNow.ToString("o")
+            git_commit = "${{ github.sha }}"
+            runtime_dependencies = @("Python 3.12 or newer")
+            limitations = @("This package is source code, not a compiled executable.", "The tiny byte-level neural model is experimental and is not a production LLM.", "Full Transformer, production multimodal generation, and complete screen-reader/UEFI functions are not claimed as available.")
+          }
+          $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $stage "PACKAGE-MANIFEST.json") -Encoding utf8
+          Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $archive -CompressionLevel Optimal -Force
+          Get-FileHash -LiteralPath $archive -Algorithm SHA256 | Format-List | Out-String | Write-Host
+          "PACKAGE_PATH=$archive" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Upload portable Windows source package
+        uses: actions/upload-artifact@v6
+        with:
+          name: nexora-ia-windows-source
+          path: ${{ env.PACKAGE_PATH }}
+          if-no-files-found: error
+          retention-days: 30
