@@ -24,6 +24,20 @@ class TinyNeuralModelTests(unittest.TestCase):
         self.assertAlmostEqual(sum(probabilities), 1.0, places=12)
         self.assertTrue(all(0.0 <= value <= 1.0 for value in probabilities))
 
+    def test_evaluation_and_generation_validate_model_only_once(self):
+        from unittest.mock import patch
+        import ia_reference.tiny_neural as implementation
+
+        model = train_text("abcabcabc\n", epochs=1)
+        with patch.object(implementation, "_validate_model", wraps=implementation._validate_model) as validate:
+            report = evaluate_text(model, "abcabc\n")
+            self.assertGreater(report["perplexity"], 1)
+            validate.assert_called_once()
+        with patch.object(implementation, "_validate_model", wraps=implementation._validate_model) as validate:
+            generated = generate(model, "abc", max_bytes=8)
+            self.assertIsInstance(generated, str)
+            validate.assert_called_once()
+
     def test_evaluation_and_generation(self):
         model = train_text("screen reader speaks text\n", epochs=2)
         report = evaluate_text(model, "screen reader")
