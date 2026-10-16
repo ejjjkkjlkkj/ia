@@ -160,6 +160,8 @@ def validate_patch(patch: str, root: Path) -> None:
             new_header_seen = True
             if old_header_path == "/dev/null" and new_header_path == "/dev/null":
                 raise AgentError("A patch cannot add and delete /dev/null.")
+            if new_header_path == "/dev/null" and active_path.startswith("tests/"):
+                raise AgentError("Deleting tests is forbidden; preserve regression coverage.")
     if active_path is not None and not (old_header_seen and new_header_seen):
         raise AgentError(f"Incomplete file headers for: {active_path}")
     if not paths:
