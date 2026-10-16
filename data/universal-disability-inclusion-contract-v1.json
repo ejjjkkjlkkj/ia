@@ -1,0 +1,143 @@
+{
+  "schema_version": "1.0.0",
+  "contract_id": "ia.universal-disability-inclusion",
+  "status": "PARTIAL",
+  "evidence_status": "NOT_VALIDATED",
+  "mission": "Design the AI for people with any disability, including multiple, fluctuating, invisible and temporary disabilities, without requiring disclosure of a diagnosis.",
+  "coverage_domains": [
+    {
+      "id": "vision",
+      "needs": [
+        "screen_reader",
+        "braille",
+        "magnification",
+        "contrast",
+        "non_color_cues",
+        "image_descriptions"
+      ],
+      "status": "NOT_VALIDATED"
+    },
+    {
+      "id": "hearing",
+      "needs": [
+        "captions",
+        "transcripts",
+        "visual_alerts",
+        "optional_haptics",
+        "audio_controls"
+      ],
+      "status": "NOT_VALIDATED"
+    },
+    {
+      "id": "mobility_motor",
+      "needs": [
+        "keyboard_only",
+        "switch_access_when_supported",
+        "no_drag_only_tasks",
+        "alternatives_to_precision_gestures"
+      ],
+      "status": "NOT_VALIDATED"
+    },
+    {
+      "id": "speech_communication",
+      "needs": [
+        "non_voice_input",
+        "text_input_output",
+        "AAC_compatibility_when_supported",
+        "copyable_responses"
+      ],
+      "status": "NOT_VALIDATED"
+    },
+    {
+      "id": "cognitive_learning_neurodivergence",
+      "needs": [
+        "plain_language",
+        "predictable_structure",
+        "stepwise_guidance",
+        "adjustable_detail",
+        "error_recovery",
+        "distraction_controls"
+      ],
+      "status": "NOT_VALIDATED"
+    },
+    {
+      "id": "mental_health_fatigue_chronic_pain",
+      "needs": [
+        "pause_and_resume",
+        "avoid_unnecessary_time_limits",
+        "adjustable_stimulation",
+        "preserve_progress"
+      ],
+      "status": "NOT_VALIDATED"
+    },
+    {
+      "id": "multiple_fluctuating_invisible_temporary",
+      "needs": [
+        "combinable_preferences",
+        "independent_settings",
+        "no_diagnosis_required",
+        "easy_reconfiguration"
+      ],
+      "status": "NOT_VALIDATED"
+    }
+  ],
+  "principles": [
+    "equal_access_to_essential_tasks",
+    "user_control_and_configurable_preferences",
+    "no_diagnosis_or_medical_disclosure_required",
+    "multimodal_critical_information",
+    "keyboard_and_alternative_input",
+    "plain_language_and_adjustable_detail",
+    "predictability_pause_and_resume",
+    "native_accessibility_apis_and_open_interoperability",
+    "privacy_by_default_no_silent_medical_inference",
+    "co_design_with_diverse_disabled_people",
+    "accessibility_of_setup_support_and_updates",
+    "claims_require_reproducible_evidence"
+  ],
+  "essential_requirements": [
+    "no_essential_task_requires_only_one_sensory_channel_when_a_reasonable_alternative_exists",
+    "no_essential_task_requires_voice_input",
+    "preferences_are_combinable_and_changeable",
+    "accessible_recovery_when_ai_network_or_device_fails",
+    "automated_regression_tests_for_accessibility_critical_paths",
+    "publish_platform_specific_limits_and_known_issues"
+  ],
+  "validation": {
+    "required_areas": [
+      "keyboard_only_and_alternative_input",
+      "screen_readers_magnification_contrast_and_braille_on_real_configurations",
+      "captions_transcripts_and_non_audio_alerts",
+      "plain_language_cognitive_load_errors_and_resume",
+      "combined_and_conflicting_preferences",
+      "offline_and_device_failure",
+      "installation_onboarding_recovery_privacy_and_support",
+      "automated_manual_specialist_and_user_testing"
+    ],
+    "evidence_fields": [
+      "version",
+      "platform",
+      "assistive_technology",
+      "user_journey",
+      "commands_or_method",
+      "results",
+      "known_limits"
+    ],
+    "automated_test_is_user_validation": false,
+    "claims_without_evidence": "NOT_VALIDATED"
+  },
+  "evidence_statuses": [
+    "NOT_IMPLEMENTED",
+    "PARTIAL",
+    "BLOCKED",
+    "NOT_VALIDATED",
+    "PASS"
+  ],
+  "references": [
+    "https://www.w3.org/WAI/",
+    "https://www.w3.org/WAI/standards-guidelines/wcag/",
+    "https://www.w3.org/WAI/standards-guidelines/aria/",
+    "https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-uiautomationoverview",
+    "https://gnome.pages.gitlab.gnome.org/at-spi2-core/devel-docs/index.html"
+  ]
+}
