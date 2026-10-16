@@ -3,7 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from ia_reference.universal import evaluate_text, generate, load_checkpoint, save_checkpoint, train_text
+from ia_reference.universal import evaluate_text, generate, load_checkpoint, next_byte_probability, save_checkpoint, train_text
 
 class UniversalByteModelTests(unittest.TestCase):
     def test_accepts_mixed_natural_and_programming_languages(self):
