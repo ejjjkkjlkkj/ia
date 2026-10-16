@@ -31,7 +31,7 @@ class LanguageStatusManifestTests(unittest.TestCase):
 
     def test_generator_output_is_deterministic(self):
         manifest = build_manifest(read_catalog(ROOT / "LANGUAGE-CATALOG.md"))
-        serialized = json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        serialized = json.dumps(manifest, ensure_ascii=False, sort_keys=False, indent=2) + "\n"
         self.assertEqual(
             serialized,
             (ROOT / "data" / "language-implementation-status.json").read_text(encoding="utf-8"),
