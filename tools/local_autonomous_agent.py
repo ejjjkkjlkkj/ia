@@ -185,6 +185,11 @@ def validate_patch(patch: str, root: Path) -> None:
             raise AgentError(f"Binary/model/credential artifact path forbidden: {relative}")
         if path.suffix.lower() not in ALLOWED_TEXT_SUFFIXES:
             raise AgentError(f"File type is outside the agent allowlist: {relative}")
+        allowed_roots = {"src", "tests", "docs", "tools"}
+        if len(parts) > 1 and parts[0].lower() not in allowed_roots:
+            raise AgentError(f"Path is outside source, tests, docs, and tools: {relative}")
+        if len(parts) == 1 and path.suffix.lower() not in {".md", ".rst", ".txt"}:
+            raise AgentError(f"Only root-level documentation may be edited: {relative}")
         normalized = relative.casefold()
         if normalized.startswith(".github/") or normalized in {".gitignore", "pyproject.toml", "cargo.lock", "package-lock.json"}:
             raise AgentError(f"Protected configuration path: {relative}")
