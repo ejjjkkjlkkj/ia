@@ -33,6 +33,44 @@ class ToolComparisonTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unique"):
                 load_suite(path)
 
+    def test_suite_root_must_be_object(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.json"
+            path.write_text("[]", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "root must be a JSON object"):
+                load_suite(path)
+
+    def test_suite_rejects_duplicate_json_keys_and_nonstandard_numbers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.json"
+            path.write_text('{"schema_version":1,"schema_version":1,"tasks":[]}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "duplicate JSON key"):
+                load_suite(path)
+            path.write_text('{"schema_version":NaN,"tasks":[]}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "non-standard JSON"):
+                load_suite(path)
+
+    def test_suite_rejects_invalid_unicode_prompt(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.json"
+            path.write_text(
+                '{"schema_version":1,"tasks":[{"id":"x","prompt":"\\ud800","expected_output":1}]}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "invalid Unicode"):
+                load_suite(path)
+
+    def test_json_scoring_does_not_treat_boolean_as_number(self):
+        command = [
+            sys.executable, "-c",
+            "import json; print(json.dumps({'output': True}))",
+        ]
+        result = run_one(
+            command, {"id": "strict-json", "prompt": "Return number 1", "expected_output": 1}, 5
+        )
+        self.assertEqual(result["status"], "FAIL")
+        self.assertEqual(result["reason"], "exact_mismatch")
+
     def test_adapter_output_must_have_output_field(self):
         self.assertEqual(parse_output('{"output": {"answer": 42}}'), {"answer": 42})
         with self.assertRaisesRegex(ValueError, "output"):
