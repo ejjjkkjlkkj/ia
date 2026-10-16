@@ -15,6 +15,7 @@ class TinyNeuralModelTests(unittest.TestCase):
         text = "provenance—😊\n"
         model = train_text(text, epochs=1)
         self.assertEqual(model["schema_version"], 2)
+        self.assertEqual(model["learning_rate"], 0.05)
         self.assertEqual(
             model["training_corpus_sha256"],
             hashlib.sha256(text.encode("utf-8")).hexdigest(),
@@ -147,6 +148,7 @@ class TinyNeuralModelTests(unittest.TestCase):
             training_report = json.loads(trained.stdout)
             self.assertEqual(training_report["status"], "PASS")
             self.assertEqual(training_report["embedding_dim"], 4)
+            self.assertEqual(training_report["learning_rate"], 0.03)
             self.assertEqual(len(training_report["training_corpus_sha256"]), 64)
             evaluated = subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "evaluate", str(checkpoint), str(heldout)], env=env, check=True, capture_output=True, text=True)
             evaluation_report = json.loads(evaluated.stdout)
