@@ -98,6 +98,20 @@ class BigramBaselineTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "nesting"):
                 load_checkpoint(path)
 
+    def test_checkpoint_rejects_escaped_surrogate_unicode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "invalid-unicode.json"
+            path.write_text(
+                r'{"schema_version":2,"model_type":"smoothed-bigram-baseline-v2",'
+                r'"alpha":0.5,"vocabulary":["<EOS>","<UNK>","\\ud800"],'
+                r'"counts":{"<BOS>":{"<UNK>":1},"<UNK>":{"<EOS>":1}},'
+                r'"training_tokens":1,"training_corpus_sha256":"' + "0" * 64 +
+                r'","checkpoint_sha256":"' + "0" * 64 + r'"}',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "model JSON cannot be canonically encoded"):
+                load_checkpoint(path)
+
     def test_tokenizer_rejects_non_text_and_invalid_unicode(self):
         from ia_reference.ngram import tokenize
         with self.assertRaisesRegex(ValueError, "input must be text"):
