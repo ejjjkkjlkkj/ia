@@ -97,6 +97,17 @@ class PatchValidationTests(unittest.TestCase):
             with self.subTest(path=path), self.assertRaises(agent.AgentError):
                 agent.validate_patch(diff_for(path), self.root)
 
+    def test_rejects_internal_symlink_redirection(self):
+        protected = self.root / "protected"
+        protected.mkdir()
+        link = self.root / "src"
+        try:
+            link.symlink_to(protected, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("directory symlink unavailable on this platform")
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(diff_for("src/hidden.py"), self.root)
+
     def test_rejects_symlink_escape(self):
         outside = Path(tempfile.mkdtemp())
         link = self.root / "escape"
