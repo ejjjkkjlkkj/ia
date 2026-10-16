@@ -36,5 +36,17 @@ class ComplexBenchmarkHarnessTests(unittest.TestCase):
                 load_suite(path)
 
 
+    def test_coding_suite_covers_every_catalogue_language_and_complex_tasks(self):
+        suite = json.loads(Path("benchmarks/coding_challenges.json").read_text(encoding="utf-8"))
+        self.assertEqual(suite["schema_version"], 1)
+        self.assertGreaterEqual(len(suite["language_catalogue"]), 35)
+        self.assertGreaterEqual(len(suite["tasks"]), 20)
+        self.assertEqual(len({row["id"] for row in suite["language_catalogue"]}), len(suite["language_catalogue"]))
+        self.assertEqual(len({row["id"] for row in suite["tasks"]}), len(suite["tasks"]))
+        self.assertIn("nexora", {row["id"] for row in suite["language_catalogue"]})
+        self.assertTrue(all(task.get("cases") and task.get("difficulty") in {"hard", "very_hard"} for task in suite["tasks"]))
+        self.assertTrue(all(case.get("input") is not None and case.get("output") is not None for task in suite["tasks"] for case in task["cases"]))
+
+
 if __name__ == "__main__":
     unittest.main()
