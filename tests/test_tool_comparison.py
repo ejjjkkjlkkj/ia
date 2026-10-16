@@ -76,6 +76,36 @@ class ToolComparisonTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "root must be a JSON object"):
                 load_suite(path)
 
+    def test_suite_schema_version_rejects_boolean(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.json"
+            path.write_text(json.dumps({
+                "schema_version": True,
+                "tasks": [{"id": "one", "prompt": "x", "expected_output": 1}],
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Unsupported suite schema"):
+                load_suite(path)
+
+    def test_suite_rejects_excessive_json_nesting(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.json"
+            path.write_text(
+                '{"schema_version":1,"tasks":[{"id":"nested","prompt":"x","expected_output":'
+                + "[" * 70 + "0" + "]" * 70 + "}]}"
+            , encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "nesting exceeds parser limit"):
+                load_suite(path)
+
+    def test_suite_nesting_scanner_ignores_brackets_inside_strings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.json"
+            path.write_text(json.dumps({
+                "schema_version": 1,
+                "tasks": [{"id": "brackets", "prompt": 'text with [{{}}] and \\" quote', "expected_output": 1}],
+            }), encoding="utf-8")
+            suite, _ = load_suite(path)
+            self.assertEqual(suite["tasks"][0]["id"], "brackets")
+
     def test_suite_rejects_duplicate_json_keys_and_nonstandard_numbers(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "suite.json"
