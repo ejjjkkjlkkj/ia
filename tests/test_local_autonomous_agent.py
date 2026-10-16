@@ -78,6 +78,28 @@ class PatchValidationTests(unittest.TestCase):
             with self.subTest(url=url), self.assertRaises(agent.AgentError):
                 agent.validate_local_url(url)
 
+    def test_rejects_malformed_ollama_response(self):
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, limit): return b"{not-json"
+        class Opener:
+            def open(self, request, timeout): return Response()
+        with patch.object(agent.urllib.request, "build_opener", return_value=Opener()):
+            with self.assertRaises(agent.AgentError):
+                agent.call_ollama("http://127.0.0.1:11434/api/chat", "local", "task", 5)
+
+    def test_rejects_oversized_ollama_response(self):
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self, limit): return b"x" * limit
+        class Opener:
+            def open(self, request, timeout): return Response()
+        with patch.object(agent.urllib.request, "build_opener", return_value=Opener()):
+            with self.assertRaises(agent.AgentError):
+                agent.call_ollama("http://127.0.0.1:11434/api/chat", "local", "task", 5)
+
     def test_rejects_invalid_timeouts(self):
         for timeout in (0, -1, 901, True, 1.5):
             with self.subTest(timeout=timeout), self.assertRaises(agent.AgentError):
