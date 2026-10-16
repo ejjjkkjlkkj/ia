@@ -87,8 +87,8 @@ def run_task(command: list[str], task: dict[str, Any], timeout: float) -> dict[s
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--suite", default="benchmarks/complex_tasks.json")
-    parser.add_argument("--command", required=True,
-                        help="Local adapter command; receives one JSON request on stdin.")
+    parser.add_argument("--command", default="",
+                        help="Local adapter command; receives one JSON request on stdin. Required unless --list is used.")
     parser.add_argument("--timeout", type=float, default=90)
     parser.add_argument("--output", default="reports/complex-benchmark.json")
     parser.add_argument("--list", action="store_true", help="List tasks without executing a model.")
@@ -102,6 +102,8 @@ def main() -> int:
         print(f'TOTAL_TASKS={len(suite["tasks"])}')
         return 0
 
+    if not args.command.strip():
+        parser.error("--command is required unless --list is used")
     command = shlex.split(args.command)
     if not command:
         parser.error("--command must name an executable")
