@@ -329,8 +329,9 @@ def main() -> None:
     sample.add_argument("--max-bytes", type=int, default=64)
     args = parser.parse_args()
     if args.command == "train":
+        training_text = args.input.read_bytes().decode("utf-8", errors="strict")
         model = train_text(
-            args.input.read_text(encoding="utf-8"), epochs=args.epochs, seed=args.seed,
+            training_text, epochs=args.epochs, seed=args.seed,
             learning_rate=args.learning_rate, embedding_dim=args.embedding_dim,
         )
         print(json.dumps({
