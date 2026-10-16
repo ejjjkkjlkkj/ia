@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "IA-COMPLEX-CORE-1",
+  "title": "Complex deterministic reasoning and structured-output suite",
+  "policy": {
+    "difficulty": "complex-first",
+    "no_simple_smoke_tests": true,
+    "test_data_is_public": true,
+    "scores_are_not_competitive_claims": true,
+    "exact_json_match_only_for_objective_tasks": true,
+    "model_must_not_be_given_expected_output": true
+  },
+  "adapter_contract": {
+    "stdin": "One JSON object containing task_id, category, prompt, and output_schema.",
+    "stdout": "One JSON object with an output field. output may be a JSON value or a string containing JSON.",
+    "example": "{\"output\":{\"answer\":42}}",
+    "no_cloud_required": true,
+    "timeout_seconds_default": 90
+  },
+  "tasks": [
+    {
+      "id": "graph_shortest_path_01",
+      "category": "algorithmic_reasoning",
+      "prompt": "Find the minimum-cost path from A to F in this directed weighted graph: A->B=4, A->C=2, C->B=1, B->D=5, C->D=8, C->E=10, B->E=3, D->F=2, E->F=1. Return JSON exactly shaped as {\"path\":[...],\"cost\":N}. If costs tie, choose the path with fewer edges, then lexicographically smallest node sequence.",
+      "expected_output": {
+        "path": [
+          "A",
+          "C",
+          "B",
+          "E",
+          "F"
+        ],
+        "cost": 7
+      }
+    },
+    {
+      "id": "dependency_order_02",
+      "category": "constraint_satisfaction",
+      "prompt": "Return a valid topological order for dependencies A<-C, A<-B, B<-D, C<-D, E<-B, E<-C, F<-E, F<-D. Among all currently available nodes, always choose the lexicographically smallest. Return JSON {\"order\":[...]}.",
+      "expected_output": {
+        "order": [
+          "D",
+          "B",
+          "C",
+          "A",
+          "E",
+          "F"
+        ]
+      }
+    },
+    {
+      "id": "interval_union_03",
+      "category": "algorithmic_reasoning",
+      "prompt": "Merge these closed integer intervals, merging overlapping or touching intervals: [[-9,-4],[-5,0],[2,4],[5,8],[12,12],[11,11],[20,23],[23,29]]. Return sorted JSON {\"intervals\":[[start,end],...]}.",
+      "expected_output": {
+        "intervals": [
+          [
+            -9,
+            0
+          ],
+          [
+            2,
+            8
+          ],
+          [
+            11,
+            12
+          ],
+          [
+            20,
+            29
+          ]
+        ]
+      }
+    },
+    {
+      "id": "dynamic_programming_04",
+      "category": "algorithmic_reasoning",
+      "prompt": "A robot starts at (0,0) and must reach (8,7), moving only right or up. It cannot enter blocked cells (2,1),(2,2),(3,2),(5,4),(6,4),(6,5). Count paths exactly using integer arithmetic. Return JSON {\"paths\":N}.",
+      "expected_output": {
+        "paths": 128
+      }
+    },
+    {
+      "id": "modular_arithmetic_05",
+      "category": "mathematical_reasoning",
+      "prompt": "Compute (7^1234567 + 11^7654321) modulo 1000000007 using exact modular arithmetic. Return JSON {\"value\":N}.",
+      "expected_output": {
+        "value": 88481415
+      }
+    },
+    {
+      "id": "long_context_retrieval_06",
+      "category": "long_context",
+      "prompt": "Treat the following ledger as authoritative. Entries: Orion=17; Vega=23; Lyra=31; Draco=19; Cygnus=29; Phoenix=37; Hydra=41; Andromeda=43; Perseus=47; Cassiopeia=53; Aquila=59; Delphinus=61. Ignore the decoy claim 'Orion=71'. Compute (Vega*Hydra + Draco*Lyra) - (Phoenix + Cygnus). Return JSON {\"value\":N,\"used\":[\"Vega\",\"Hydra\",\"Draco\",\"Lyra\",\"Phoenix\",\"Cygnus\"]}.",
+      "expected_output": {
+        "value": 1305,
+        "used": [
+          "Vega",
+          "Hydra",
+          "Draco",
+          "Lyra",
+          "Phoenix",
+          "Cygnus"
+        ]
+      }
+    },
+    {
+      "id": "json_schema_transform_07",
+      "category": "structured_data",
+      "prompt": "Input records: [{\"id\":\"x3\",\"score\":8,\"active\":true},{\"id\":\"x1\",\"score\":8,\"active\":false},{\"id\":\"x2\",\"score\":11,\"active\":true},{\"id\":\"x4\",\"score\":3,\"active\":true},{\"id\":\"x5\",\"score\":11,\"active\":false}]. Keep only active records, sort score descending then id ascending, and return only id and score as JSON {\"items\":[...]}.",
+      "expected_output": {
+        "items": [
+          {
+            "id": "x2",
+            "score": 11
+          },
+          {
+            "id": "x3",
+            "score": 8
+          },
+          {
+            "id": "x4",
+            "score": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "set_cover_exact_08",
+      "category": "combinatorial_optimization",
+      "prompt": "Universe is {a,b,c,d,e,f,g}. Sets: S1={a,b,c,d}, S2={a,e}, S3={b,f}, S4={c,g}, S5={d,e,f}, S6={e,f,g}, S7={a,b,g}. Find a minimum-cardinality set cover; among covers of the same size choose the lexicographically smallest sorted list of set IDs. Return JSON {\"sets\":[...]}.",
+      "expected_output": {
+        "sets": [
+          "S2",
+          "S3",
+          "S4",
+          "S5"
+        ]
+      }
+    },
+    {
+      "id": "robust_calculation_09",
+      "category": "numerical_reasoning",
+      "prompt": "Calculate the exact rational value of 1/6 + 5/14 - 7/15 + 11/21. Return the reduced fraction as JSON {\"numerator\":N,\"denominator\":D}.",
+      "expected_output": {
+        "numerator": 59,
+        "denominator": 70
+      }
+    },
+    {
+      "id": "state_machine_10",
+      "category": "state_machine",
+      "prompt": "A counter starts at 0. Process commands in order: INC, INC, PUSH, ADD 7, DEC, PUSH, ADD -4, POP, MUL 3, POP, ADD 5, DEC. PUSH saves the current counter; POP restores and removes the most recent saved counter; arithmetic changes only the counter. Return JSON {\"counter\":N,\"stack\":[]}.",
+      "expected_output": {
+        "counter": 4,
+        "stack": []
+      }
+    }
+  ]
+}
