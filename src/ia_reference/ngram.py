@@ -187,12 +187,17 @@ def _validate_model_payload(model: Any) -> None:
 
 def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
     """Validate and atomically write an integrity-checked JSON checkpoint."""
+    if not isinstance(model, dict):
+        raise ValueError("checkpoint must be an object")
     payload = dict(model)
     payload.pop("checkpoint_sha256", None)
     _validate_model_payload(payload)
     digest = _sha256(_canonical_json(payload))
     checkpoint = dict(payload)
     checkpoint["checkpoint_sha256"] = digest
+    serialized = json.dumps(checkpoint, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+    if len(serialized.encode("utf-8")) > MAX_CHECKPOINT_BYTES:
+        raise ValueError(f"checkpoint exceeds {MAX_CHECKPOINT_BYTES}-byte limit")
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary_path: Path | None = None
@@ -202,7 +207,7 @@ def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
             prefix=f".{destination.name}.", suffix=".tmp", delete=False,
         ) as stream:
             temporary_path = Path(stream.name)
-            stream.write(json.dumps(checkpoint, ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+            stream.write(serialized)
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary_path, destination)
@@ -216,9 +221,20 @@ def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
     return digest
 
 def load_checkpoint(path: str | Path) -> dict[str, Any]:
-    """Load only a structurally valid checkpoint whose content hash matches."""
+    """Load only a bounded, structurally valid checkpoint whose content hash matches."""
+    source = Path(path)
     try:
-        checkpoint = json.loads(Path(path).read_text(encoding="utf-8"))
+        if source.stat().st_size > MAX_CHECKPOINT_BYTES:
+            raise ValueError(f"checkpoint exceeds {MAX_CHECKPOINT_BYTES}-byte limit")
+        with source.open("rb") as stream:
+            raw = stream.read(MAX_CHECKPOINT_BYTES + 1)
+        if len(raw) > MAX_CHECKPOINT_BYTES:
+            raise ValueError(f"checkpoint exceeds {MAX_CHECKPOINT_BYTES}-byte limit")
+        text = raw.decode("utf-8", errors="strict")
+        _check_json_nesting(text)
+        checkpoint = json.loads(
+            text, object_pairs_hook=_unique_json_object, parse_constant=_reject_json_constant
+        )
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError("cannot read checkpoint JSON") from exc
     if not isinstance(checkpoint, dict):
