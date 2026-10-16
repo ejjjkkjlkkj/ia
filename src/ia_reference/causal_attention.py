@@ -11,14 +11,20 @@ from typing import Sequence
 
 Vector = Sequence[float]
 Matrix = Sequence[Vector]
+MAX_SEQUENCE_LENGTH = 1024
+MAX_FEATURES = 4096
 
 
 def _matrix(name: str, values: Matrix) -> list[list[float]]:
     if not isinstance(values, (list, tuple)) or not values:
         raise ValueError(f"{name} must be a non-empty matrix")
+    if len(values) > MAX_SEQUENCE_LENGTH:
+        raise ValueError(f"{name} exceeds the {MAX_SEQUENCE_LENGTH}-position sequence limit")
     result: list[list[float]] = []
     width: int | None = None
     for row in values:
+        if len(row) > MAX_FEATURES:
+            raise ValueError(f"{name} exceeds the {MAX_FEATURES}-feature dimension limit")
         if not isinstance(row, (list, tuple)) or not row:
             raise ValueError(f"{name} rows must be non-empty vectors")
         converted: list[float] = []
