@@ -41,7 +41,7 @@ class TinyNeuralModelTests(unittest.TestCase):
             self.assertEqual(restored["checkpoint_sha256"], digest)
             self.assertGreater(evaluate_text(restored, "local")["perplexity"], 0)
             document = json.loads(path.read_text(encoding="utf-8"))
-            document["training_bytes"] = 0
+            document["bias"][0] += 0.25
             path.write_text(json.dumps(document), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
                 load_checkpoint(path)
