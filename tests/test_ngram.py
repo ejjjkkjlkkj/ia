@@ -23,6 +23,11 @@ class BigramBaselineTests(unittest.TestCase):
         with patch("ia_reference.ngram._next_token_probability", side_effect=AssertionError("generation must use observed counts")):
             self.assertEqual(generate(model, "alpha", max_tokens=1), "alpha beta")
 
+    def test_generation_zero_tokens_and_empty_prompt_are_stable(self):
+        model = train_text("alpha beta gamma")
+        self.assertEqual(generate(model, "", max_tokens=0), "")
+        self.assertEqual(generate(model, "", max_tokens=1), "alpha")
+
     def test_oov_tokens_map_to_unk_and_probabilities_normalize(self):
         model = train_text("alpha beta alpha gamma")
         self.assertIn(UNK, model["vocabulary"])
