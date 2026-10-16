@@ -77,7 +77,7 @@ def run_cycle() -> dict[str, Any]:
 
     json_files = sorted(
         p for p in ROOT.rglob("*.json")
-        if not any(part in {".git", ".venv", "__pycache__", "build", "dist"} for part in p.parts)
+        if not any(part in EXCLUDED_SCAN_DIRS for part in p.parts)
     )
     json_errors = []
     for path in json_files:
