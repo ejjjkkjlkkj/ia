@@ -3,6 +3,9 @@ name: No-key hourly repository audit
 on:
   schedule:
     - cron: "17 * * * *"
+  push:
+    branches: ["**"]
+  pull_request:
   workflow_dispatch:
 
 permissions:
