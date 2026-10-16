@@ -64,6 +64,12 @@ jobs:
             echo "JSON: $file" | tee -a "$report"
             if ! python -m json.tool "$file" >/dev/null 2>>"$report"; then failed=1; fi
           done < <(find . -path './.git' -prune -o -path './.venv' -prune -o -name '*.json' -print0)
+          if [ -f tools/validate_benchmark_truth.py ] && [ -f benchmarks/complex_tasks.json ]; then
+            echo "Independent complex benchmark oracle" | tee -a "$report"
+            if ! python tools/validate_benchmark_truth.py >>"$report" 2>&1; then failed=1; fi
+          else
+            echo "PARTIAL: benchmark oracle or suite missing" | tee -a "$report"
+          fi
           if [ -f Cargo.toml ]; then
             echo "Rust tests" | tee -a "$report"
             if ! cargo test --workspace --all-targets >>"$report" 2>&1; then
