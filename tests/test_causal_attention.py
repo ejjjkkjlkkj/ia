@@ -30,6 +30,16 @@ class CausalAttentionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "dimensions"):
             causal_scaled_dot_product_attention([[1.0, 2.0]], [[1.0]], [[1.0]])
 
+    def test_rejects_oversized_sequence_and_feature_dimensions(self):
+        with self.assertRaisesRegex(ValueError, "sequence limit"):
+            causal_scaled_dot_product_attention(
+                [[1.0]] * 1025, [[1.0]] * 1025, [[1.0]] * 1025
+            )
+        with self.assertRaisesRegex(ValueError, "feature dimension limit"):
+            causal_scaled_dot_product_attention(
+                [[1.0] * 4097], [[1.0] * 4097], [[1.0]]
+            )
+
     def test_rejects_integer_outside_float_range_as_value_error(self):
         with self.assertRaisesRegex(ValueError, "finite"):
             causal_scaled_dot_product_attention(
