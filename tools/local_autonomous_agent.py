@@ -100,8 +100,8 @@ def call_ollama(url: str, model: str, task: str, timeout: int) -> dict[str, Any]
         outer = json.loads(raw)
         message = outer["message"]["content"]
         result = json.loads(message)
-    except (ValueError, KeyError, TypeError) as exc:
-        raise AgentError("Ollama returned invalid response JSON.") from exc
+    except (ValueError, KeyError, TypeError, RecursionError) as exc:
+        raise AgentError("Ollama returned invalid response JSON or excessively nested JSON.") from exc
     if not isinstance(result, dict) or not isinstance(result.get("summary"), str) or not isinstance(result.get("patch"), str):
         raise AgentError("Model response must contain string fields 'summary' and 'patch'.")
     if len(result["patch"].encode("utf-8")) > MAX_PATCH_BYTES:
