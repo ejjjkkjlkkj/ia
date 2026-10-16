@@ -113,6 +113,29 @@ class CITriageTests(unittest.TestCase):
 
     @patch("tools.ci_triage.shutil.which", return_value="gh")
     @patch("tools.ci_triage.subprocess.run")
+    def test_malformed_workflow_row_is_blocked_instead_of_silently_dropped(self, run_mock, _which):
+        run_mock.return_value = Mock(
+            returncode=0,
+            stdout=json.dumps([
+                {"headSha": "a" * 40, "name": "valid run"},
+                {"name": "missing SHA"},
+            ]),
+            stderr="",
+        )
+        with self.assertRaisesRegex(RuntimeError, "invalid headSha at workflow row 1"):
+            ci_triage.fetch_runs("owner/repo", "a" * 40)
+
+    @patch("tools.ci_triage.shutil.which", return_value="gh")
+    @patch("tools.ci_triage.subprocess.run")
+    def test_non_object_workflow_row_is_blocked(self, run_mock, _which):
+        run_mock.return_value = Mock(
+            returncode=0, stdout=json.dumps([{"headSha": "a" * 40}, None]), stderr=""
+        )
+        with self.assertRaisesRegex(RuntimeError, "non-object workflow row at index 1"):
+            ci_triage.fetch_runs("owner/repo", "a" * 40)
+
+    @patch("tools.ci_triage.shutil.which", return_value="gh")
+    @patch("tools.ci_triage.subprocess.run")
     def test_gh_failure_is_blocked(self, run_mock, _which):
         run_mock.return_value = Mock(returncode=1, stdout="", stderr="permission denied")
         with self.assertRaisesRegex(RuntimeError, "permission denied"):
