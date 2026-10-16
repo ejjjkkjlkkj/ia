@@ -55,12 +55,19 @@ def _run(command: list[str], timeout: int = 300) -> dict[str, Any]:
         return {"status": "BLOCKED", "reason": type(exc).__name__}
 
 
+def _iter_scan_files(suffix: str):
+    """Walk only relevant source directories, pruning generated/dependency trees."""
+    for directory, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = sorted(
+            name for name in dirnames if name.casefold() not in EXCLUDED_SCAN_DIRS
+        )
+        for filename in filenames:
+            if Path(filename).suffix.casefold() == suffix:
+                yield Path(directory) / filename
+
 def run_cycle() -> dict[str, Any]:
     tasks: list[dict[str, Any]] = []
-    py_files = sorted(
-        p for p in ROOT.rglob("*.py")
-        if not any(part in EXCLUDED_SCAN_DIRS for part in p.parts)
-    )
+    py_files = sorted(_iter_scan_files(".py"))
     syntax_errors = []
     for path in py_files:
         try:
@@ -75,10 +82,7 @@ def run_cycle() -> dict[str, Any]:
         "errors": syntax_errors[:100],
     })
 
-    json_files = sorted(
-        p for p in ROOT.rglob("*.json")
-        if not any(part in EXCLUDED_SCAN_DIRS for part in p.parts)
-    )
+    json_files = sorted(_iter_scan_files(".json"))
     json_errors = []
     for path in json_files:
         try:
