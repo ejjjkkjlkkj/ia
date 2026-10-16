@@ -10,6 +10,20 @@ from ia_reference.tiny_neural import (
 
 
 class TinyNeuralModelTests(unittest.TestCase):
+    def test_training_provenance_hash_is_recorded_and_validated(self):
+        import hashlib
+        text = "provenance—😊\n"
+        model = train_text(text, epochs=1)
+        self.assertEqual(model["schema_version"], 2)
+        self.assertEqual(
+            model["training_corpus_sha256"],
+            hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        )
+        tampered = dict(model)
+        tampered["training_corpus_sha256"] = "0" * 64
+        with self.assertRaisesRegex(ValueError, "training corpus SHA-256"):
+            evaluate_text(tampered, "held out")
+
     def test_training_is_deterministic_and_changes_parameters(self):
         first = train_text("hello\nbonjour\n", epochs=2, seed=11)
         second = train_text("hello\nbonjour\n", epochs=2, seed=11)
@@ -124,9 +138,20 @@ class TinyNeuralModelTests(unittest.TestCase):
             import os
             env = os.environ.copy()
             env["PYTHONPATH"] = str(Path("src").resolve())
-            subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "train", str(train), str(checkpoint), "--epochs", "1"], env=env, check=True, capture_output=True, text=True)
+            trained = subprocess.run(
+                [sys.executable, "-m", "ia_reference.tiny_neural", "train",
+                 str(train), str(checkpoint), "--epochs", "1", "--learning-rate", "0.03",
+                 "--embedding-dim", "4"],
+                env=env, check=True, capture_output=True, text=True,
+            )
+            training_report = json.loads(trained.stdout)
+            self.assertEqual(training_report["status"], "PASS")
+            self.assertEqual(training_report["embedding_dim"], 4)
+            self.assertEqual(len(training_report["training_corpus_sha256"]), 64)
             evaluated = subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "evaluate", str(checkpoint), str(heldout)], env=env, check=True, capture_output=True, text=True)
-            self.assertIn("perplexity", evaluated.stdout)
+            evaluation_report = json.loads(evaluated.stdout)
+            self.assertIn("perplexity", evaluation_report)
+            self.assertEqual(len(evaluation_report["evaluation_corpus_sha256"]), 64)
             generated = subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "generate", str(checkpoint), "--prompt", "screen", "--max-bytes", "4"], env=env, check=True, capture_output=True, text=True)
             self.assertTrue(generated.stdout.strip())
 
