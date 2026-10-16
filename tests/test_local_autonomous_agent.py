@@ -112,6 +112,11 @@ class PatchValidationTests(unittest.TestCase):
             with self.subTest(path=path), self.assertRaises(agent.AgentError):
                 agent.validate_patch(diff_for(path), self.root)
 
+    def test_rejects_env_variants_and_configuration_files(self):
+        for path in (".env.local", "config.yaml", "settings.json", "keys/private.pem"):
+            with self.subTest(path=path), self.assertRaises(agent.AgentError):
+                agent.validate_patch(diff_for(path), self.root)
+
     def test_rejects_windows_ads_and_reserved_names(self):
         for path in ("src/file.py:payload", "src/CON.txt", "src/trailing. "):
             with self.subTest(path=path), self.assertRaises(agent.AgentError):
