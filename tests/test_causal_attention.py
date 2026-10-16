@@ -12,7 +12,7 @@ class CausalAttentionTests(unittest.TestCase):
         query = [[1.0], [1.0], [1.0]]
         key = [[1.0], [1.0], [1.0]]
         first = causal_scaled_dot_product_attention(query, key, [[1.0], [2.0], [3.0]])
-        changed_future = causal_scaled_dot_product_attention(query, key, [[1.0], [200.0], [-500.0]])
+        changed_future = causal_scaled_dot_product_attention(query, key, [[1.0], [2.0], [-500.0]])
         self.assertEqual(first[0], changed_future[0])
         self.assertEqual(first[1], changed_future[1])
         self.assertNotEqual(first[2], changed_future[2])
