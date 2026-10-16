@@ -173,6 +173,8 @@ def next_byte_probability(model: dict[str, Any], previous: int, token: int) -> f
     return (int(row.get(str(token), 0)) + alpha) / (total + alpha * VOCAB_SIZE)
 
 def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
+    if not isinstance(model, dict):
+        raise ValueError("model must be a checkpoint object")
     _validate_checkpoint_payload({key: value for key, value in model.items() if key != "checkpoint_sha256"})
     if not isinstance(text, str):
         raise ValueError("evaluation text must be text")
@@ -195,6 +197,8 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
 
 def generate(model: dict[str, Any], prompt: str = "", max_bytes: int = 64) -> str:
     """Greedy byte generation with bounded output; incomplete UTF-8 is replaced."""
+    if not isinstance(model, dict):
+        raise ValueError("model must be a checkpoint object")
     _validate_checkpoint_payload({key: value for key, value in model.items() if key != "checkpoint_sha256"})
     if not isinstance(prompt, str):
         raise ValueError("prompt must be text")
