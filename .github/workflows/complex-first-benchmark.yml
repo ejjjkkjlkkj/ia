@@ -1,6 +1,27 @@
 name: Complex-first model benchmark
 
 on:
+  push:
+    branches: [main, master, "feature/**"]
+    paths:
+      - "benchmarks/complex_tasks.json"
+      - "tools/run_complex_benchmarks.py"
+      - "tools/run_tool_comparison.py"
+      - "tools/validate_benchmark_truth.py"
+      - "tests/test_complex_benchmarks.py"
+      - "tests/test_tool_comparison.py"
+      - "tests/test_validate_benchmark_truth.py"
+      - ".github/workflows/complex-first-benchmark.yml"
+  pull_request:
+    paths:
+      - "benchmarks/complex_tasks.json"
+      - "tools/run_complex_benchmarks.py"
+      - "tools/run_tool_comparison.py"
+      - "tools/validate_benchmark_truth.py"
+      - "tests/test_complex_benchmarks.py"
+      - "tests/test_tool_comparison.py"
+      - "tests/test_validate_benchmark_truth.py"
+      - ".github/workflows/complex-first-benchmark.yml"
   workflow_dispatch:
     inputs:
       adapter_command:
