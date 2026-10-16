@@ -23,6 +23,8 @@ class EvaluateTinyNeuralTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.training = "training corpus alpha"
         self.checkpoint = self.root / "model.json"
+        self.training_path = self.root / "training.txt"
+        self.training_path.write_text(self.training, encoding="utf-8")
         save_checkpoint(
             train_text(self.training, epochs=1, learning_rate=0.05, seed=3, embedding_dim=1),
             self.checkpoint,
@@ -34,7 +36,7 @@ class EvaluateTinyNeuralTests(unittest.TestCase):
 
     def test_reports_reproducible_hashes_and_metrics(self) -> None:
         self.heldout.write_text("separate validation corpus", encoding="utf-8")
-        report = MODULE.evaluate(self.checkpoint, self.heldout)
+        report = MODULE.evaluate(self.checkpoint, self.heldout, self.training_path)
         self.assertEqual(report["status"], "PASS")
         self.assertEqual(len(report["checkpoint_sha256"]), 64)
         self.assertEqual(len(report["training_corpus_sha256"]), 64)
