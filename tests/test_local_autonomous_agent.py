@@ -41,7 +41,13 @@ class PatchValidationTests(unittest.TestCase):
         self.assertEqual(report["changed_files"], ["src/a.py"])
         self.assertEqual(len(report["task_sha256"]), 64)
         self.assertEqual(len(report["patch_sha256"]), 64)
-        self.assertNotIn("private task text", report_file.read_text(encoding="utf-8"))
+        report_text = report_file.read_text(encoding="utf-8")
+        self.assertNotIn("private task text", report_text)
+        self.assertNotIn("proposal", report_text)
+        self.assertNotIn(str(self.root), report_text)
+        self.assertEqual(report["repository_name"], self.root.name)
+        self.assertEqual(len(report["summary_sha256"]), 64)
+        self.assertEqual(report["summary_chars"], len("proposal"))
 
     def test_verify_requires_apply(self):
         with self.assertRaises(SystemExit) as ctx:
