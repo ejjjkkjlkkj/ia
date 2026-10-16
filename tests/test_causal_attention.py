@@ -56,7 +56,7 @@ class CausalAttentionTests(unittest.TestCase):
 
     def test_rejects_infinite_and_extreme_numeric_inputs(self):
         for bad in (float("inf"), float("-inf"), 10 ** 10000):
-            with self.subTest(value=str(bad)[:20]):
+            with self.subTest(value=type(bad).__name__):
                 with self.assertRaisesRegex(ValueError, "finite"):
                     causal_scaled_dot_product_attention([[bad]], [[1.0]], [[1.0]])
 
