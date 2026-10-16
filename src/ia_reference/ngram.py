@@ -275,9 +275,17 @@ def load_checkpoint(path: str | Path) -> dict[str, Any]:
     checkpoint["checkpoint_sha256"] = supplied_hash
     return checkpoint
 
-def _next_token_probability(model: dict[str, Any], previous: str, token: str) -> float:
+def _next_token_probability(
+    model: dict[str, Any],
+    previous: str,
+    token: str,
+    vocabulary_set: set[str] | None = None,
+) -> float:
     vocabulary = model["vocabulary"]
-    vocabulary_set = set(vocabulary)
+    # Evaluation and generation pass a cached set; constructing it per token
+    # would make inference quadratic in sequence length and vocabulary size.
+    if vocabulary_set is None:
+        vocabulary_set = set(vocabulary)
     if token not in vocabulary_set:
         token = UNK
     if previous != BOS and previous not in vocabulary_set:
@@ -312,8 +320,9 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
         raise ValueError("evaluation text must contain at least one token")
     previous = BOS
     total_nll = 0.0
+    vocabulary_set = set(model["vocabulary"])
     for token in tokens + [EOS]:
-        probability = _next_token_probability(model, previous, token)
+        probability = _next_token_probability(model, previous, token, vocabulary_set)
         total_nll -= math.log(max(probability, 1e-300))
         previous = token
     token_count = len(tokens) + 1
@@ -344,6 +353,7 @@ def generate(model: dict[str, Any], prompt: str = "", max_tokens: int = 20) -> s
     if previous != BOS and previous not in model["vocabulary"]:
         previous = UNK
     counts = model["counts"]
+    vocabulary_set = set(model["vocabulary"])
     for _ in range(max_tokens):
         choices = counts.get(previous, {})
         if not choices:
@@ -352,7 +362,7 @@ def generate(model: dict[str, Any], prompt: str = "", max_tokens: int = 20) -> s
         if token == EOS:
             break
         output.append(token)
-        previous = token
+        previous = token if token in vocabulary_set else UNK
     return " ".join(output)
 
 
