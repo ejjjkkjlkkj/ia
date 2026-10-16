@@ -59,6 +59,45 @@ class BigramBaselineTests(unittest.TestCase):
                 save_checkpoint(model, path)
             self.assertFalse(path.exists())
 
+    def test_rejects_non_text_and_invalid_unicode_training_inputs(self):
+        with self.assertRaisesRegex(ValueError, "training text must be text"):
+            train_text(None)
+        with self.assertRaisesRegex(ValueError, "invalid Unicode"):
+            train_text(chr(0xD800))
+
+    def test_training_and_evaluation_inputs_are_bounded(self):
+        from ia_reference.ngram import MAX_TRAINING_BYTES, MAX_EVALUATION_BYTES
+        with self.assertRaisesRegex(ValueError, "training data exceeds"):
+            train_text("x" * (MAX_TRAINING_BYTES + 1))
+        model = train_text("small corpus")
+        with self.assertRaisesRegex(ValueError, "evaluation data exceeds"):
+            evaluate_text(model, "x" * (MAX_EVALUATION_BYTES + 1))
+
+    def test_alpha_overflow_and_invalid_runtime_types_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "alpha"):
+            train_text("valid", alpha=10 ** 1000)
+        model = train_text("alpha beta")
+        with self.assertRaisesRegex(ValueError, "must be text"):
+            next_token_probability(model, [], "alpha")
+        with self.assertRaisesRegex(ValueError, "max_tokens"):
+            generate(model, "alpha", True)
+        with self.assertRaisesRegex(ValueError, "max_tokens"):
+            generate(model, "alpha", 4097)
+
+    def test_checkpoint_rejects_duplicate_keys_oversize_and_deep_json(self):
+        from ia_reference.ngram import MAX_CHECKPOINT_BYTES
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "checkpoint.json"
+            path.write_text('{"schema_version":2,"schema_version":2}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "duplicate checkpoint JSON key"):
+                load_checkpoint(path)
+            path.write_text(" " * (MAX_CHECKPOINT_BYTES + 1), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "byte limit"):
+                load_checkpoint(path)
+            path.write_text("[" * 100 + "0" + "]" * 100, encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "nesting"):
+                load_checkpoint(path)
+
     def test_invalid_training_inputs_are_rejected(self):
         with self.assertRaises(ValueError):
             train_text("  ")
