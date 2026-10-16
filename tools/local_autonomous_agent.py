@@ -9,12 +9,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import ipaddress
 import os
 import re
 import subprocess
 import sys
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 from pathlib import Path
 from typing import Any
 
@@ -55,7 +57,35 @@ def clean_worktree(root: Path) -> None:
         raise AgentError("Not a Git worktree.")
 
 
+def validate_local_url(url: str) -> None:
+    """Reject non-loopback Ollama endpoints so task/code cannot be sent to a remote host."""
+    try:
+        parsed = urlsplit(url)
+        host = parsed.hostname
+        port = parsed.port
+        if parsed.scheme != "http" or not host or parsed.username or parsed.password:
+            raise ValueError
+        if parsed.path not in {"/api/chat", ""} or parsed.query or parsed.fragment:
+            raise ValueError
+        if host.lower() == "localhost":
+            pass
+        elif not ipaddress.ip_address(host).is_loopback:
+            raise ValueError
+        if port is None or not 1 <= port <= 65535:
+            raise ValueError
+    except (ValueError, TypeError) as exc:
+        raise AgentError("Ollama URL must be an HTTP loopback endpoint (localhost/127.0.0.1/::1) on an explicit port, with no credentials, query, or fragment.") from exc
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def call_ollama(url: str, model: str, task: str, timeout: int) -> dict[str, Any]:
+    validate_local_url(url)
+    if not isinstance(timeout, int) or isinstance(timeout, bool) or not 1 <= timeout <= 900:
+        raise AgentError("Timeout must be an integer from 1 to 900 seconds.")
     payload = json.dumps({
         "model": model,
         "stream": False,
@@ -70,7 +100,7 @@ def call_ollama(url: str, model: str, task: str, timeout: int) -> dict[str, Any]
         url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
     )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with urllib.request.build_opener(_NoRedirect()).open(request, timeout=timeout) as response:
             raw = response.read(MAX_RESPONSE_BYTES + 1)
     except (urllib.error.URLError, TimeoutError) as exc:
         raise AgentError(f"Ollama local endpoint unavailable or timed out: {exc}") from exc
@@ -143,7 +173,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--task-file", type=Path, required=True)
     parser.add_argument("--model", default=os.environ.get("OLLAMA_MODEL", "qwen3-coder:30b"))
     parser.add_argument("--url", default=os.environ.get("OLLAMA_URL", DEFAULT_URL))
-    parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--timeout", type=int, default=180, help="Ollama request timeout in seconds (1..900)")
     parser.add_argument("--apply", action="store_true", help="apply validated patch; otherwise dry-run")
     args = parser.parse_args(argv)
     root = args.repo.resolve()
