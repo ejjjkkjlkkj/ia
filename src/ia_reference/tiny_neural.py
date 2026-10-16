@@ -19,6 +19,7 @@ BOS, EOS, VOCAB_SIZE = 256, 257, 258
 EMBED_DIM = 8
 MAX_TRAINING_BYTES = 10_000
 MAX_EPOCHS = 20
+MAX_CHECKPOINT_BYTES = 2_000_000
 
 
 def _canonical(value: Any) -> bytes:
@@ -27,6 +28,19 @@ def _canonical(value: Any) -> bytes:
 
 def _digest(value: Any) -> str:
     return hashlib.sha256(_canonical(value)).hexdigest()
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate checkpoint JSON key")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"non-standard JSON constant: {value}")
 
 
 def _finite_number(value: Any, label: str) -> float:
@@ -203,7 +217,15 @@ def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
 
 def load_checkpoint(path: str | Path) -> dict[str, Any]:
     try:
-        document = json.loads(Path(path).read_text(encoding="utf-8"))
+        raw = Path(path).read_bytes()
+        if len(raw) > MAX_CHECKPOINT_BYTES:
+            raise ValueError("checkpoint byte limit exceeded")
+        text = raw.decode("utf-8")
+        document = json.loads(text, object_pairs_hook=_unique_json_object, parse_constant=_reject_json_constant)
+    except ValueError as exc:
+        if str(exc) == "checkpoint byte limit exceeded" or str(exc).startswith("duplicate checkpoint") or str(exc).startswith("non-standard JSON"):
+            raise
+        raise ValueError("unable to read checkpoint JSON") from exc
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         raise ValueError("unable to read checkpoint JSON") from exc
     return _validate_model(document, require_hash=True)
