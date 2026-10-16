@@ -9,7 +9,9 @@ import argparse
 import hashlib
 import json
 import math
+import os
 import random
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +24,7 @@ MAX_EPOCHS = 20
 MAX_CHECKPOINT_BYTES = 2_000_000
 MAX_TRAINING_WORK = 40_000_000
 MAX_EVALUATION_BYTES = 100_000
+MAX_PROMPT_BYTES = 100_000
 MAX_SEED = (1 << 63) - 1
 
 
