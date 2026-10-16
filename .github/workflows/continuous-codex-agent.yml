@@ -1,0 +1,153 @@
+name: Continuous AI Engineering Agent
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Hosted GitHub runner; runs hourly without depending on a personal PC.
+    - cron: "17 * * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: continuous-agent-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  agent:
+    name: Inspect, implement, test, and propose one verified improvement
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Resume agent branch when it exists
+        shell: bash
+        env:
+          AGENT_BRANCH: automation/codex-continuous-agent
+        run: |
+          set -euo pipefail
+          if git fetch --no-tags origin "$AGENT_BRANCH"; then
+            git checkout -B "$AGENT_BRANCH" FETCH_HEAD
+          else
+            git checkout -b "$AGENT_BRANCH"
+          fi
+
+      - name: Set up Python for no-key repository validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Python syntax and JSON manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          excluded = {".git", ".venv", "venv", "node_modules", "__pycache__"}
+          py_files = [p for p in Path(".").rglob("*.py") if not any(part in excluded for part in p.parts)]
+          json_files = [p for p in Path(".").rglob("*.json") if not any(part in excluded for part in p.parts)]
+          errors = []
+          for path in py_files:
+              try:
+                  compile(path.read_text(encoding="utf-8"), str(path), "exec")
+              except Exception as exc:
+                  errors.append(f"{path}: {exc}")
+          for path in json_files:
+              try:
+                  json.loads(path.read_text(encoding="utf-8"))
+              except Exception as exc:
+                  errors.append(f"{path}: {exc}")
+          print(f"Checked {len(py_files)} Python files and {len(json_files)} JSON files.")
+          if errors:
+              raise SystemExit("\\n".join(errors))
+          PY
+
+      - name: Validate complex benchmark expected outputs
+        run: python tools/validate_benchmark_truth.py
+
+      - name: Install test runner and run regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest -q tests
+
+      - name: Detect optional hosted model credential
+        id: credential
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "$OPENAI_API_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "PASS: optional hosted model credential is configured."
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "PARTIAL: no API key configured; continue with local-independent repository checks."
+          fi
+
+      - name: Write no-key execution report
+        if: steps.credential.outputs.available != 'true'
+        shell: bash
+        run: |
+          {
+            echo "# Continuous agent report"
+            echo
+            echo "- Status: PARTIAL"
+            echo "- Hosted model: skipped; no API key is required for repository validation."
+            echo "- Mode: no-cloud, deterministic repository checks only."
+            echo "- Limitation: this GitHub-hosted runner cannot access Ollama on a private local PC."
+            echo "- Next: use the bounded local Ollama agent on a machine with Ollama installed for model-generated patches."
+          } > agent-report.md
+
+      - name: Run Codex engineering cycle
+        id: codex
+        if: steps.credential.outputs.available == 'true'
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          permission-profile: ":workspace"
+          safety-strategy: drop-sudo
+          output-file: agent-report.md
+          prompt: |
+            You are the autonomous engineering agent for this repository. Work only in this checkout and on branch automation/codex-continuous-agent.
+            Read AGENTS.md first and follow its release, security, and integrity gates.
+            Inspect the current implementation, tests, open TODOs, and git diff. Choose ONE highest-impact, small, independently verifiable task. Implement real code, add regression tests, and run the relevant available tests/static checks. Do not fabricate results, remove or weaken tests, claim hardware proof from simulation, publish releases, or merge pull requests.
+            If a prior change on this branch is still unverified or broken, fix that first. Avoid repeating a completed task. Keep changes focused and reviewable.
+            Write agent-report.md with: task selected, files changed, exact commands and outcomes, evidence labels PASS/FAIL/PARTIAL/BLOCKED/NOT_VALIDATED, limitations, and the next task. Never include secrets.
+            If no safe useful code change can be verified, make no code changes and explain why in the report.
+
+      - name: Create or update reviewable pull request
+        if: steps.credential.outputs.available == 'true' && steps.codex.outcome == 'success'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ github.token }}
+          branch: automation/codex-continuous-agent
+          base: main
+          delete-branch: false
+          title: "chore(agent): continuous verified engineering improvements"
+          commit-message: "chore(agent): apply verified engineering improvements"
+          body: |
+            Updated by the scheduled hosted coding agent.
+            Review the diff and agent-report.md. This PR is not auto-merged; all repository release gates remain mandatory.
+          add-paths: |
+            **
+            !.github/workflows/**
+
+      - name: Upload agent execution report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: continuous-agent-report-${{ github.run_id }}
+          path: agent-report.md
+          if-no-files-found: warn
+          retention-days: 14
