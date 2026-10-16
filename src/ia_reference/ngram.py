@@ -43,7 +43,14 @@ def tokenize(text: str) -> list[str]:
 
 
 def _canonical_json(value: Any) -> bytes:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    """Serialize canonical model JSON and normalize invalid Unicode failures."""
+    try:
+        serialized = json.dumps(
+            value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
+        )
+        return serialized.encode("utf-8", errors="strict")
+    except (TypeError, ValueError, UnicodeEncodeError, RecursionError) as exc:
+        raise ValueError("model JSON cannot be canonically encoded") from exc
 
 
 def _sha256(data: bytes) -> str:
