@@ -127,12 +127,39 @@ def validate_patch(patch: str, root: Path) -> None:
     if re.search(r"(?im)^GIT binary patch$|^Binary files .* differ$", patch):
         raise AgentError("Binary patches are forbidden.")
     paths: list[str] = []
+    active_path: str | None = None
+    old_header_seen = False
+    new_header_seen = False
     for line in patch.splitlines():
         if line.startswith("diff --git "):
-            match = re.match(r"diff --git a/(.+) b/(.+)$", line)
+            if active_path is not None and not (old_header_seen and new_header_seen):
+                raise AgentError(f"Incomplete file headers for: {active_path}")
+            match = re.fullmatch(r"diff --git a/(.+) b/(.+)", line)
             if not match or match.group(1) != match.group(2):
                 raise AgentError("Rename, copy, and non-standard diff paths are forbidden.")
-            paths.append(match.group(1))
+            active_path = match.group(1)
+            paths.append(active_path)
+            old_header_seen = False
+            new_header_seen = False
+            continue
+        if line.startswith("--- "):
+            if active_path is None or old_header_seen:
+                raise AgentError("Unexpected or duplicate old-file header.")
+            header_path = line[4:].split("\\t", 1)[0]
+            if header_path != "/dev/null" and header_path != f"a/{active_path}":
+                raise AgentError("Old-file header does not match the validated diff path.")
+            old_header_seen = True
+        elif line.startswith("+++ "):
+            if active_path is None or not old_header_seen or new_header_seen:
+                raise AgentError("Unexpected or duplicate new-file header.")
+            header_path = line[4:].split("\\t", 1)[0]
+            if header_path != "/dev/null" and header_path != f"b/{active_path}":
+                raise AgentError("New-file header does not match the validated diff path.")
+            if header_path == "/dev/null" and line[4:].split("\\t", 1)[0] != "/dev/null":
+                raise AgentError("Invalid deletion header.")
+            new_header_seen = True
+    if active_path is not None and not (old_header_seen and new_header_seen):
+        raise AgentError(f"Incomplete file headers for: {active_path}")
     if not paths:
         raise AgentError("Patch contains no file changes.")
     for relative in paths:
