@@ -21,6 +21,14 @@ BOS = "<BOS>"
 EOS = "<EOS>"
 UNK = "<UNK>"
 TOKEN_PATTERN = re.compile(r"\w+|[^\w\s]", re.UNICODE)
+MAX_TRAINING_BYTES = 1_000_000
+MAX_EVALUATION_BYTES = 100_000
+MAX_PROMPT_BYTES = 100_000
+MAX_GENERATION_TOKENS = 4_096
+MAX_CHECKPOINT_BYTES = 4_000_000
+MAX_TRAINING_TOKENS = 100_000
+MAX_VOCABULARY_SIZE = 100_000
+MAX_JSON_DEPTH = 64
 
 
 def tokenize(text: str) -> list[str]:
@@ -29,11 +37,58 @@ def tokenize(text: str) -> list[str]:
 
 
 def _canonical_json(value: Any) -> bytes:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _valid_alpha(value: Any) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value) and 0 < value <= 100
+    except (OverflowError, TypeError, ValueError):
+        return False
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate checkpoint JSON key")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
+def _check_json_nesting(text: str) -> None:
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == chr(92):
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > MAX_JSON_DEPTH:
+                raise ValueError("checkpoint JSON nesting exceeds parser limit")
+        elif character in "]}":
+            depth -= 1
+            if depth < 0:
+                raise ValueError("malformed checkpoint JSON nesting")
 
 
 def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
