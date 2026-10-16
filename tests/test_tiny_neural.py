@@ -10,6 +10,21 @@ from ia_reference.tiny_neural import (
 
 
 class TinyNeuralModelTests(unittest.TestCase):
+    def test_reproducible_synthetic_proof_emits_hashes_and_heldout_metrics(self):
+        from tools.run_neural_proof import run_proof
+
+        with tempfile.TemporaryDirectory() as directory:
+            first = run_proof(Path(directory) / "first")
+            second = run_proof(Path(directory) / "second")
+            self.assertEqual(first["status"], "PASS")
+            self.assertEqual(first["checkpoint_sha256"], second["checkpoint_sha256"])
+            self.assertEqual(first["training_corpus_sha256"], second["training_corpus_sha256"])
+            self.assertEqual(first["heldout_corpus_sha256"], second["heldout_corpus_sha256"])
+            self.assertNotEqual(first["training_corpus_sha256"], first["heldout_corpus_sha256"])
+            self.assertGreater(first["heldout_metrics"]["tokens"], 0)
+            self.assertTrue((Path(directory) / "first" / "tiny-neural-proof-report.json").is_file())
+            self.assertTrue((Path(directory) / "first" / "tiny-neural-proof.json").is_file())
+
     def test_training_provenance_hash_is_recorded_and_validated(self):
         import hashlib
         text = "provenance—😊\n"
