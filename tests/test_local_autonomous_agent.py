@@ -112,6 +112,11 @@ class PatchValidationTests(unittest.TestCase):
             with self.subTest(timeout=timeout), self.assertRaises(agent.AgentError):
                 agent.call_ollama("http://127.0.0.1:11434/api/chat", "test", "task", timeout)
 
+    def test_rejects_duplicate_file_paths_in_patch(self):
+        patch = diff_for("src/a.py") + diff_for("src/a.py", old="new", new="final")
+        with self.assertRaisesRegex(agent.AgentError, "Duplicate file paths"):
+            agent.validate_patch(patch, self.root)
+
     def test_accepts_normal_source_patch(self):
         (self.root / "src").mkdir()
         (self.root / "src" / "example.py").write_text("old\n", encoding="utf-8")
