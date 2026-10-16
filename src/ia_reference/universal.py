@@ -14,6 +14,9 @@ MODEL_TYPE = "universal-utf8-byte-bigram"
 BOS, EOS, VOCAB_SIZE = 256, 257, 258
 MAX_CHECKPOINT_BYTES = 8_000_000
 MAX_JSON_DEPTH = 64
+MAX_TRAINING_BYTES = 100_000
+MAX_EVALUATION_BYTES = 100_000
+MAX_GENERATION_BYTES = 4_096
 
 def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
@@ -101,12 +104,19 @@ def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
-    """Train a smoothed byte-level model from mixed-language UTF-8 text."""
-    if not math.isfinite(alpha) or alpha <= 0:
+    """Train a smoothed byte-level model from bounded mixed-language UTF-8 text."""
+    if not isinstance(text, str):
+        raise ValueError("training text must be text")
+    if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
         raise ValueError("alpha must be a finite number greater than zero")
-    data = text.encode("utf-8")
+    try:
+        data = text.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("training text contains invalid Unicode") from exc
     if not data:
         raise ValueError("training text must contain at least one UTF-8 byte")
+    if len(data) > MAX_TRAINING_BYTES:
+        raise ValueError(f"training data exceeds {MAX_TRAINING_BYTES}-byte limit")
     counts: dict[str, dict[str, int]] = {}
     previous = BOS
     for byte in data:
@@ -163,9 +173,17 @@ def next_byte_probability(model: dict[str, Any], previous: int, token: int) -> f
     return (int(row.get(str(token), 0)) + alpha) / (total + alpha * VOCAB_SIZE)
 
 def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
-    data = text.encode("utf-8")
+    _validate_checkpoint_payload({key: value for key, value in model.items() if key != "checkpoint_sha256"})
+    if not isinstance(text, str):
+        raise ValueError("evaluation text must be text")
+    try:
+        data = text.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("evaluation text contains invalid Unicode") from exc
     if not data:
         raise ValueError("evaluation text must contain at least one UTF-8 byte")
+    if len(data) > MAX_EVALUATION_BYTES:
+        raise ValueError(f"evaluation data exceeds {MAX_EVALUATION_BYTES}-byte limit")
     previous, nll = BOS, 0.0
     for token in list(data) + [EOS]:
         nll -= math.log(max(next_byte_probability(model, previous, token), 1e-300))
@@ -176,10 +194,19 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
             "mean_negative_log_likelihood": mean, "perplexity": math.exp(min(mean, 700.0))}
 
 def generate(model: dict[str, Any], prompt: str = "", max_bytes: int = 64) -> str:
-    """Greedy byte generation; decoding replaces incomplete UTF-8 sequences."""
-    if max_bytes < 0:
-        raise ValueError("max_bytes must be non-negative")
-    output = bytearray(prompt.encode("utf-8"))
+    """Greedy byte generation with bounded output; incomplete UTF-8 is replaced."""
+    _validate_checkpoint_payload({key: value for key, value in model.items() if key != "checkpoint_sha256"})
+    if not isinstance(prompt, str):
+        raise ValueError("prompt must be text")
+    if type(max_bytes) is not int or not 0 <= max_bytes <= MAX_GENERATION_BYTES:
+        raise ValueError(f"max_bytes must be between 0 and {MAX_GENERATION_BYTES}")
+    try:
+        prompt_bytes = prompt.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("prompt contains invalid Unicode") from exc
+    if len(prompt_bytes) > MAX_EVALUATION_BYTES:
+        raise ValueError(f"prompt exceeds {MAX_EVALUATION_BYTES}-byte limit")
+    output = bytearray(prompt_bytes)
     previous = output[-1] if output else BOS
     for _ in range(max_bytes):
         row = model["counts"].get(str(previous), {})
