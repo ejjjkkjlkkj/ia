@@ -358,7 +358,7 @@ def generate(model: dict[str, Any], prompt: str = "", max_tokens: int = 20) -> s
     if previous != BOS and previous not in model["vocabulary"]:
         previous = UNK
     counts = model["counts"]
-    vocabulary_set = set(model["vocabulary"])
+    vocabulary_set = _vocabulary_index(model)
     for _ in range(max_tokens):
         choices = counts.get(previous, {})
         if not choices:
