@@ -39,6 +39,7 @@ jobs:
           mkdir -p model-evidence
           printf '%s\n' 'screen reader accessible text keyboard focus voice output' 'fn main() { println!("hello"); }' 'def accessible_name(node): return node.name' > model-evidence/train.txt
           printf '%s\n' 'keyboard navigation landmarks braille cursor' 'fn announce_focus() { speak(label); }' > model-evidence/heldout.txt
+          python tools/validate_corpus_split.py model-evidence/train.txt model-evidence/heldout.txt
           python -m ia_reference.ngram train model-evidence/train.txt model-evidence/bigram-checkpoint.json | tee model-evidence/bigram-training.json
           python -m ia_reference.ngram evaluate model-evidence/bigram-checkpoint.json model-evidence/heldout.txt | tee model-evidence/bigram-evaluation.json
           python -m ia_reference.ngram generate model-evidence/bigram-checkpoint.json --prompt "screen reader" --max-tokens 8 | tee model-evidence/bigram-generation.txt
