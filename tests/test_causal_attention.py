@@ -30,6 +30,12 @@ class CausalAttentionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "dimensions"):
             causal_scaled_dot_product_attention([[1.0, 2.0]], [[1.0]], [[1.0]])
 
+    def test_rejects_integer_outside_float_range_as_value_error(self):
+        with self.assertRaisesRegex(ValueError, "finite"):
+            causal_scaled_dot_product_attention(
+                [[10 ** 10000]], [[1.0]], [[1.0]]
+            )
+
     def test_rejects_nonfinite_and_ragged_inputs(self):
         with self.assertRaisesRegex(ValueError, "finite"):
             causal_scaled_dot_product_attention([[float("nan")]], [[1.0]], [[1.0]])
