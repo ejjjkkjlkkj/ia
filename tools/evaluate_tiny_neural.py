@@ -1,8 +1,8 @@
 """Leakage-aware, reproducible evaluation CLI for the tiny neural byte model.
 
-The training corpus is supplied separately because checkpoint schema v1 does
-not embed its source corpus hash. This tool refuses exact corpus reuse and
-emits hashes so results can be audited. It does not claim semantic quality.
+Checkpoint schema v2 binds the model to the exact training-corpus SHA-256.
+This tool verifies that binding and refuses exact train/held-out corpus reuse.
+It does not detect partial overlap or claim semantic quality.
 """
 from __future__ import annotations
 
@@ -45,6 +45,8 @@ def evaluate(checkpoint_path: Path, heldout_path: Path, training_path: Path) -> 
         raise ValueError("held-out corpus exactly matches the training corpus")
 
     model = load_checkpoint(checkpoint_path)
+    if model["training_corpus_sha256"] != training_sha256:
+        raise ValueError("supplied training corpus does not match checkpoint training corpus SHA-256")
     metrics = evaluate_text(model, heldout_text)
     return {
         "schema_version": 1,
@@ -59,10 +61,12 @@ def evaluate(checkpoint_path: Path, heldout_path: Path, training_path: Path) -> 
         "seed": model["seed"],
         "epochs": model["epochs"],
         "embedding_dim": model["embedding_dim"],
+        "learning_rate": model["learning_rate"],
+        "checkpoint_training_corpus_match": "PASS",
         "metrics": metrics,
         "limitations": [
-            "Only exact byte-for-byte corpus equality is checked; partial overlap is not detected.",
-            "The supplied training corpus must be the exact corpus used to create the checkpoint; this relationship cannot be independently proven by checkpoint schema v1.",
+            "Only exact corpus hashes are checked; partial overlap or leakage through derived data is not detected.",
+            "The embedded hash proves byte identity with the supplied corpus, not that the corpus is licensed or representative.",
             "Perplexity measures byte-level prediction, not semantic correctness.",
             "This tiny reference model is not a production LLM.",
         ],
