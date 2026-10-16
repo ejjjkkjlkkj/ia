@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0.0",
+  "product": "NEXORA IA",
+  "purpose": "Multimodal understanding and creation contract; not implementation evidence.",
+  "status": "NOT_VALIDATED",
+  "capabilities": {
+    "image_understanding": "NOT_VALIDATED",
+    "image_generation_and_editing": "NOT_VALIDATED",
+    "video_understanding": "NOT_VALIDATED",
+    "video_generation_and_editing": "NOT_VALIDATED",
+    "audio_transcription_and_generation": "NOT_VALIDATED",
+    "film_preproduction_and_postproduction": "NOT_VALIDATED",
+    "game_code_asset_and_level_generation": "NOT_VALIDATED",
+    "runnable_game_prototyping_and_testing": "NOT_VALIDATED",
+    "3d_asset_and_scene_generation": "NOT_VALIDATED",
+    "multimodal_workflow_orchestration": "NOT_VALIDATED",
+    "accessibility_for_all_disability_types": "NOT_VALIDATED",
+    "local_offline_execution": "NOT_VALIDATED"
+  },
+  "requirements": [
+    "Distinguish analysis, generation, editing, rendering, and end-to-end production.",
+    "Never report success for a pipeline that was not executed.",
+    "Record model identity/version, license, source, artifact hash, configuration, logs, resource use, and evaluation results.",
+    "Use licensed or otherwise authorized training and evaluation assets.",
+    "Respect copyright, image/personality rights, voice consent, DRM and access controls.",
+    "Sandbox untrusted media, codecs, plugins, generated code and game projects.",
+    "Provide keyboard and screen-reader support, captions/transcripts, alternatives and configurable interaction.",
+    "Offer local execution where technically supported; disclose any remote processing.",
+    "Measure temporal consistency for video, synchronization for audio/video, and actual playability for games.",
+    "Mark simulated, mocked, partial, blocked and unvalidated steps explicitly."
+  ],
+  "evidence_schema": {
+    "required": [
+      "capability_id",
+      "status",
+      "command_or_procedure",
+      "environment",
+      "model_and_version",
+      "input_provenance",
+      "artifact_path_or_uri",
+      "artifact_sha256",
+      "logs",
+      "metrics",
+      "known_limitations"
+    ],
+    "allowed_status": [
+      "NOT_IMPLEMENTED",
+      "PARTIAL",
+      "BLOCKED",
+      "NOT_VALIDATED",
+      "PASS",
+      "FAIL"
+    ],
+    "pass_requires": "A reproducible real execution, verifiable output artifact, logs, hashes, acceptance tests and capability-specific quality checks."
+  }
+}
