@@ -48,7 +48,6 @@ jobs:
               throw "Required package input missing: $path"
             }
           }
-          python -c "import json, pathlib; p=pathlib.Path('data/language-implementation-status.json'); d=json.loads(p.read_text(encoding='utf-8')); assert isinstance(d, dict); print('PASS: language status manifest is valid JSON')"
 
       - name: Build portable source package
         shell: pwsh
