@@ -1,0 +1,116 @@
+import importlib.util
+import tempfile
+import unittest
+from pathlib import Path
+
+MODULE_PATH = Path(__file__).resolve().parents[1] / "tools" / "local_autonomous_agent.py"
+SPEC = importlib.util.spec_from_file_location("local_autonomous_agent", MODULE_PATH)
+agent = importlib.util.module_from_spec(SPEC)
+assert SPEC.loader is not None
+SPEC.loader.exec_module(agent)
+
+
+def diff_for(path, old="old", new="new"):
+    return (
+        f"diff --git a/{path} b/{path}\n"
+        f"--- a/{path}\n+++ b/{path}\n"
+        "@@ -1 +1 @@\n"
+        f"-{old}\n+{new}\n"
+    )
+
+
+class PatchValidationTests(unittest.TestCase):
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp())
+
+    def test_accepts_local_ollama_urls(self):
+        for url in (
+            "http://127.0.0.1:11434/api/chat",
+            "http://localhost:11434/api/chat",
+            "http://[::1]:11434/api/chat",
+        ):
+            agent.validate_local_url(url)
+
+    def test_rejects_remote_ollama_urls(self):
+        for url in (
+            "https://example.com/api/chat",
+            "http://192.0.2.10:11434/api/chat",
+            "http://127.0.0.1:11434/api/chat?forward=1",
+            "http://user:pass@127.0.0.1:11434/api/chat",
+            "http://127.0.0.1:11434/api/chat#fragment",
+        ):
+            with self.subTest(url=url), self.assertRaises(agent.AgentError):
+                agent.validate_local_url(url)
+
+    def test_rejects_invalid_timeouts(self):
+        for timeout in (0, -1, 901, True, 1.5):
+            with self.subTest(timeout=timeout), self.assertRaises(agent.AgentError):
+                agent.call_ollama("http://127.0.0.1:11434/api/chat", "test", "task", timeout)
+
+    def test_accepts_normal_source_patch(self):
+        (self.root / "src").mkdir()
+        (self.root / "src" / "example.py").write_text("old\n", encoding="utf-8")
+        agent.validate_patch(diff_for("src/example.py"), self.root)
+
+    def test_rejects_empty_patch(self):
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch("", self.root)
+
+    def test_rejects_path_traversal(self):
+        for path in ("../outside.py", r"..\\outside.py", r"C:\\outside.py", "/outside.py"):
+            with self.subTest(path=path), self.assertRaises(agent.AgentError):
+                agent.validate_patch(diff_for(path), self.root)
+
+    def test_rejects_symlink_escape(self):
+        outside = Path(tempfile.mkdtemp())
+        link = self.root / "escape"
+        try:
+            link.symlink_to(outside, target_is_directory=True)
+        except (OSError, NotImplementedError):
+            self.skipTest("directory symlink unavailable on this platform")
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(diff_for("escape/payload.py"), self.root)
+
+    def test_rejects_workflow_changes(self):
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(diff_for(".github/workflows/ci.yml"), self.root)
+
+    def test_rejects_symbolic_link_patch(self):
+        patch = diff_for("src/link.py").replace(
+            "diff --git a/src/link.py b/src/link.py\nnew file mode 120000",
+            "diff --git a/src/link.py b/src/link.py\nnew file mode 120000",
+        )
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(patch, self.root)
+
+    def test_rejects_binary_artifact(self):
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(diff_for("models/weights.safetensors"), self.root)
+
+    def test_rejects_mismatched_diff_paths(self):
+        patch = diff_for("src/a.py").replace("b/src/a.py", "b/src/b.py")
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(patch, self.root)
+
+    def test_rejects_mismatched_old_file_header(self):
+        patch = diff_for("src/a.py").replace("--- a/src/a.py", "--- a/src/other.py")
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(patch, self.root)
+
+    def test_rejects_mismatched_new_file_header(self):
+        patch = diff_for("src/a.py").replace("+++ b/src/a.py", "+++ b/src/other.py")
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(patch, self.root)
+
+    def test_rejects_missing_file_headers(self):
+        patch = "diff --git a/src/a.py b/src/a.py\n@@ -1 +1 @@\n-old\n+new\n"
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch(patch, self.root)
+
+    def test_rejects_non_standard_patch(self):
+        with self.assertRaises(agent.AgentError):
+            agent.validate_patch("Here is your patch:\n" + diff_for("src/a.py"), self.root)
+
+
+if __name__ == "__main__":
+    unittest.main()
