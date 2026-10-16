@@ -145,8 +145,16 @@ class Parser:
             import json
             try:
                 value = json.loads(token.value)
-            except json.JSONDecodeError as exc:
+            except (json.JSONDecodeError, RecursionError) as exc:
                 raise NEXORASyntaxError(f"invalid string at offset {token.offset}") from exc
+            if not isinstance(value, str):
+                raise NEXORASyntaxError(f"invalid string at offset {token.offset}")
+            try:
+                value.encode("utf-8", errors="strict")
+            except UnicodeEncodeError as exc:
+                raise NEXORASyntaxError(
+                    f"string contains invalid Unicode scalar values at offset {token.offset}"
+                ) from exc
             return Node("string", value)
         if token.kind == "IDENT":
             self.i += 1
