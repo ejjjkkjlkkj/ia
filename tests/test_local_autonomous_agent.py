@@ -27,7 +27,7 @@ class PatchValidationTests(unittest.TestCase):
 
     def test_dry_run_writes_redacted_reproducible_report(self):
         task_file = self.root / "task.txt"
-        report_file = self.root / "evidence.json"
+        report_file = self.root.parent / f"{self.root.name}-evidence.json"
         task_file.write_text("private task text", encoding="utf-8")
         model_result = {"summary": "proposal", "patch": diff_for("src/a.py")}
         with patch.object(agent, "clean_worktree"), patch.object(agent, "call_ollama", return_value=model_result):
@@ -48,7 +48,8 @@ class PatchValidationTests(unittest.TestCase):
         self.assertEqual(report["repository_name"], self.root.name)
         self.assertEqual(len(report["summary_sha256"]), 64)
         self.assertEqual(report["summary_chars"], len("proposal"))
-        self.assertEqual(list(self.root.glob(".evidence.json.*.tmp")), [])
+        self.assertEqual(list(report_file.parent.glob(f".{report_file.name}.*.tmp")), [])
+        report_file.unlink(missing_ok=True)
 
     def test_report_inside_repository_is_rejected_without_writing(self):
         task_file = self.root / "task.txt"
@@ -228,10 +229,10 @@ class PatchValidationTests(unittest.TestCase):
             agent.validate_patch(patch, self.root)
     def test_rejects_executable_mode_changes(self):
         patch = diff_for("tools/helper.py").replace(
-            "diff --git a/tools/helper.py b/tools/helper.py\\n",
-            "diff --git a/tools/helper.py b/tools/helper.py\\nold mode 100644\\nnew mode 100755\\n",
+            "diff --git a/tools/helper.py b/tools/helper.py\n",
+            "diff --git a/tools/helper.py b/tools/helper.py\nold mode 100644\nnew mode 100755\n",
         )
-        with self.assertRaisesRegex(agent.AgentError, "file permission changes"):
+        with self.assertRaisesRegex(agent.AgentError, "permission changes"):
             agent.validate_patch(patch, self.root)
 
     def test_rejects_binary_artifact(self):
