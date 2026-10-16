@@ -147,7 +147,7 @@ def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed:
     if not 0 < lr <= 1:
         raise ValueError("learning_rate must be in (0, 1]")
 
-    estimated_work = len(data) * epochs * VOCAB_SIZE * embedding_dim
+    estimated_work = len(data) * epochs * VOCAB_SIZE * embedding_dim * 3
     if estimated_work > MAX_TRAINING_WORK:
         raise ValueError(f"estimated training work exceeds {MAX_TRAINING_WORK}-operation budget")
 
