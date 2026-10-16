@@ -39,8 +39,8 @@ def _validate_model(model: Any, require_hash: bool = False) -> dict[str, Any]:
     if not isinstance(model, dict):
         raise ValueError("checkpoint must be an object")
     required = {"schema_version", "model_type", "vocab_size", "embedding_dim", "seed", "training_bytes", "epochs", "embedding", "weights", "bias"}
-    expected = required | {"checkpoint_sha256"} if require_hash else required
-    if set(model) != expected:
+    allowed = required | {"checkpoint_sha256"}
+    if set(model) not in (required, allowed) or (require_hash and set(model) != allowed):
         raise ValueError("invalid checkpoint fields")
     if type(model["schema_version"]) is not int or model["schema_version"] != SCHEMA_VERSION:
         raise ValueError("unsupported checkpoint schema")
@@ -64,7 +64,7 @@ def _validate_model(model: Any, require_hash: bool = False) -> dict[str, Any]:
                 _finite_number(item, "parameter")
     for item in bias:
         _finite_number(item, "bias")
-    if require_hash:
+    if "checkpoint_sha256" in model:
         unsigned = {key: value for key, value in model.items() if key != "checkpoint_sha256"}
         if not isinstance(model["checkpoint_sha256"], str) or model["checkpoint_sha256"] != _digest(unsigned):
             raise ValueError("checkpoint SHA-256 mismatch")
@@ -169,11 +169,10 @@ def generate(model: dict[str, Any], prompt: str = "", max_bytes: int = 64) -> st
     for _ in range(max_bytes):
         probabilities = next_token_probabilities(model, previous)
         # Deterministic greedy decoding; token ID breaks ties deterministically.
-        token = max(range(VOCAB_SIZE), key=lambda idx: (probabilities[idx], -idx))
+        candidates = [*range(256), EOS]
+        token = max(candidates, key=lambda idx: (probabilities[idx], -idx))
         if token == EOS:
             break
-        if token >= 256:
-            token = 0
         output.append(token)
         previous = token
     return (prefix + output).decode("utf-8", errors="replace")
