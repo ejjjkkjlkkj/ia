@@ -97,6 +97,20 @@ def run_cycle() -> dict[str, Any]:
     else:
         tasks.append({"id": "python-unittest-discovery", "status": "BLOCKED", "reason": "tests_directory_missing"})
 
+    benchmark_script = ROOT / "tools" / "validate_benchmark_truth.py"
+    benchmark_suite = ROOT / "benchmarks" / "complex_tasks.json"
+    if benchmark_script.is_file() and benchmark_suite.is_file():
+        tasks.append({
+            "id": "independent-benchmark-oracle",
+            **_run([sys.executable, str(benchmark_script)], timeout=120),
+        })
+    else:
+        tasks.append({
+            "id": "independent-benchmark-oracle",
+            "status": "BLOCKED",
+            "reason": "benchmark oracle or suite missing",
+        })
+
     # Do not silently substitute a third-party model. This repository does not
     # yet expose a validated autonomous coding model/checkpoint contract.
     tasks.append({
@@ -146,6 +160,7 @@ def main() -> int:
         while True:
             report = run_cycle()
             runs.append(report)
+            runs = runs[-1000:]
             report_path.parent.mkdir(parents=True, exist_ok=True)
             report_path.write_text(json.dumps(
                 {"schema_version": 1, "runs": runs}, ensure_ascii=False, indent=2
