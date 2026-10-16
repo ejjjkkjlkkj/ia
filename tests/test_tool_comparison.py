@@ -33,6 +33,42 @@ class ToolComparisonTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "unique"):
                 load_suite(path)
 
+    def test_suite_rejects_oversized_file(self):
+        from tools.run_tool_comparison import MAX_SUITE_BYTES
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.json"
+            path.write_bytes(b" " * (MAX_SUITE_BYTES + 1))
+            with self.assertRaisesRegex(ValueError, "exceeds"):
+                load_suite(path)
+
+    def test_suite_rejects_too_many_tasks(self):
+        from tools.run_tool_comparison import MAX_TASKS
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.json"
+            path.write_text(json.dumps({
+                "schema_version": 1,
+                "tasks": [
+                    {"id": str(i), "prompt": "x", "expected_output": i}
+                    for i in range(MAX_TASKS + 1)
+                ],
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "tasks"):
+                load_suite(path)
+
+    def test_suite_rejects_oversized_prompt(self):
+        from tools.run_tool_comparison import MAX_PROMPT_CHARS
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "suite.json"
+            path.write_text(json.dumps({
+                "schema_version": 1,
+                "tasks": [{
+                    "id": "large", "prompt": "x" * (MAX_PROMPT_CHARS + 1),
+                    "expected_output": "x",
+                }],
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "prompt exceeds"):
+                load_suite(path)
+
     def test_suite_root_must_be_object(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "suite.json"
