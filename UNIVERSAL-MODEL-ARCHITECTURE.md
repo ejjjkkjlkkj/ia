@@ -1,12 +1,16 @@
 # Architecture du modèle universel — contrat commun
 
-**Statut : architecture et baseline statistique partiellement implémentées ; modèle neuronal universel NOT_IMPLEMENTED.**
+**Statut : baselines statistiques et prototype neuronal minuscule implémentés ; modèle neuronal universel de type Transformer NOT_IMPLEMENTED. Le prototype neuronal n'a pas encore de preuve CI réussie ni de benchmark de qualité publié.**
 
 ## Objectif produit
 
 Construire un modèle commun capable de traiter les langues naturelles et les langages de programmation dans un même espace de représentation, avec un checkpoint partagé. Le modèle ne doit pas être remplacé par un ensemble obligatoire de modèles indépendants par langage. Les dossiers `models/<id>/` sont des ports d'implémentation, kernels, benchmarks ou adaptateurs runtime du même contrat mathématique, pas une affirmation qu'il faut entraîner un modèle distinct par langage.
 
 « Universel » est un objectif à démontrer par des benchmarks, pas une propriété acquise parce que l'entrée accepte du texte.
+
+## Prototype neuronal minimal présent
+
+`src/ia_reference/tiny_neural.py` entraîne un prédicteur neuronal du prochain octet avec embeddings, couche linéaire, softmax/cross-entropy et SGD, en Python standard library. Il possède des limites de taille/époques, un checkpoint JSON canonique avec SHA-256, une évaluation perplexité et une génération gloutonne. Les tests dédiés sont dans `tests/test_tiny_neural.py`. Ce prototype valide un chemin d'entraînement/inférence réduit seulement; il ne contient ni attention causale, ni blocs Transformer, ni corpus de qualité, ni benchmark multilingue/code, et ne satisfait pas le critère de release du modèle universel.
 
 ## Architecture cible
 
