@@ -39,6 +39,27 @@ class AutonomousAgentTests(unittest.TestCase):
         self.assertIn(task["status"], {"PASS", "FAIL"})
         self.assertGreaterEqual(task["files_checked"], 0)
 
+    def test_cycle_reports_deeply_nested_python_and_json_without_crashing(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "deep.py").write_text(
+                "value = " + "[" * 2000 + "0" + "]" * 2000, encoding="utf-8"
+            )
+            (root / "deep.json").write_text(
+                "[" * 10000 + "0" + "]" * 10000, encoding="utf-8"
+            )
+            with patch.object(autonomous_agent, "ROOT", root), patch.object(
+                autonomous_agent, "_run",
+                return_value={"status": "PASS", "returncode": 0, "output_tail": ""},
+            ):
+                report = autonomous_agent.run_cycle()
+        syntax = next(t for t in report["tasks"] if t["id"] == "python-syntax")
+        json_syntax = next(t for t in report["tasks"] if t["id"] == "json-syntax")
+        self.assertEqual(syntax["status"], "FAIL")
+        self.assertEqual(json_syntax["status"], "FAIL")
+        self.assertEqual(syntax["files_checked"], 1)
+        self.assertEqual(json_syntax["files_checked"], 1)
+
     def test_cycle_report_does_not_expose_absolute_repository_path(self):
         with patch.object(autonomous_agent, "_run", return_value={
             "status": "PASS", "returncode": 0, "output_tail": ""
