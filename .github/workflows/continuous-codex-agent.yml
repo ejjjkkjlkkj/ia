@@ -39,6 +39,47 @@ jobs:
             git checkout -b "$AGENT_BRANCH"
           fi
 
+      - name: Set up Python for no-key repository validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate Python syntax and JSON manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          excluded = {".git", ".venv", "venv", "node_modules", "__pycache__"}
+          py_files = [p for p in Path(".").rglob("*.py") if not any(part in excluded for part in p.parts)]
+          json_files = [p for p in Path(".").rglob("*.json") if not any(part in excluded for part in p.parts)]
+          errors = []
+          for path in py_files:
+              try:
+                  compile(path.read_text(encoding="utf-8"), str(path), "exec")
+              except Exception as exc:
+                  errors.append(f"{path}: {exc}")
+          for path in json_files:
+              try:
+                  json.loads(path.read_text(encoding="utf-8"))
+              except Exception as exc:
+                  errors.append(f"{path}: {exc}")
+          print(f"Checked {len(py_files)} Python files and {len(json_files)} JSON files.")
+          if errors:
+              raise SystemExit("\\n".join(errors))
+          PY
+
+      - name: Validate complex benchmark expected outputs
+        run: python tools/validate_benchmark_truth.py
+
+      - name: Install test runner and run regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest -q tests
+
       - name: Detect optional hosted model credential
         id: credential
         shell: bash
