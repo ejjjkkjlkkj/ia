@@ -43,6 +43,8 @@ class NumericReferenceTests(unittest.TestCase):
             softmax([True, 0.0])
         with self.assertRaisesRegex(ValueError, "finite numbers"):
             matvec([[float("inf")]], [1.0])
+        with self.assertRaisesRegex(ValueError, "finite numbers"):
+            softmax([10 ** 1000])
         with self.assertRaisesRegex(ValueError, "magnitude bound"):
             softmax([1_000_001.0])
         with self.assertRaisesRegex(ValueError, "integer"):
