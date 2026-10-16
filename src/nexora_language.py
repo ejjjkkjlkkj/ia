@@ -33,6 +33,8 @@ class NEXORARuntimeError(ValueError):
 
 def tokenize(source: str) -> list[Token]:
     """Tokenize bounded UTF-8/Unicode source text; reject unknown characters."""
+    if not isinstance(source, str):
+        raise NEXORASyntaxError("source must be text")
     try:
         if len(source.encode("utf-8")) > 1_000_000:
             raise NEXORASyntaxError("source byte limit exceeded")
