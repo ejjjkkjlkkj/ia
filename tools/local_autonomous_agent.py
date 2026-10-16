@@ -176,6 +176,38 @@ def validate_patch(patch: str, root: Path) -> None:
         resolved = (root / path).resolve()
         if root.resolve() not in resolved.parents:
             raise AgentError(f"Path escapes repository: {relative}")
+def run_validation_checks(root: Path) -> list[dict[str, Any]]:
+    """Run fixed repository checks; never execute commands returned by the model."""
+    checks = [
+        ("python-source-syntax", [
+            sys.executable, "-c",
+            "from pathlib import Path; import sys; excluded={'.git','.venv','venv','node_modules','__pycache__'}; files=[p for p in Path('.').rglob('*.py') if not any(part in excluded for part in p.parts)]; errors=[]; "
+            "exec('for p in files:\\n try: compile(p.read_text(encoding=\\'utf-8\\'), str(p), \\'exec\\')\\n except Exception as e: errors.append(f\\'{p}: {e}\\')'); "
+            "print('checked',len(files),'Python files'); [print(e) for e in errors]; sys.exit(bool(errors))"
+        ]),
+        ("json-manifests", [
+            sys.executable, "-c",
+            "from pathlib import Path; import json,sys; excluded={'.git','.venv','venv','node_modules'}; files=[p for p in Path('.').rglob('*.json') if not any(part in excluded for part in p.parts)]; errors=[]; "
+            "exec('for p in files:\\n try: json.loads(p.read_text(encoding=\\'utf-8\\'))\\n except Exception as e: errors.append(f\\'{p}: {e}\\')'); "
+            "print('checked',len(files),'JSON files'); [print(e) for e in errors]; sys.exit(bool(errors))"
+        ]),
+        ("pytest", [sys.executable, "-m", "pytest", "-q", "tests"]),
+    ]
+    results: list[dict[str, Any]] = []
+    for name, command in checks:
+        try:
+            proc = subprocess.run(
+                command, cwd=root, text=True, stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT, timeout=900, check=False,
+            )
+            results.append({"check": name, "exit_code": proc.returncode, "output": proc.stdout[-12000:]})
+            if proc.returncode:
+                break
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            results.append({"check": name, "exit_code": 124, "output": str(exc)})
+            break
+    return results
+
 def apply_patch(root: Path, patch: str) -> None:
     validate_patch(patch, root)
     check = subprocess.run(
@@ -198,7 +230,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--url", default=os.environ.get("OLLAMA_URL", DEFAULT_URL))
     parser.add_argument("--timeout", type=int, default=180, help="Ollama request timeout in seconds (1..900)")
     parser.add_argument("--apply", action="store_true", help="apply validated patch; otherwise dry-run")
+    parser.add_argument("--verify", action="store_true", help="run fixed syntax, JSON, and pytest checks after --apply; revert patch if checks fail")
     args = parser.parse_args(argv)
+    if args.verify and not args.apply:
+        parser.error("--verify requires --apply")
     root = args.repo.resolve()
     task_path = args.task_file.resolve()
     try:
@@ -222,6 +257,24 @@ def main(argv: list[str] | None = None) -> int:
             print("MODE: DRY_RUN — no repository files changed")
             return 0
         apply_patch(root, result["patch"])
+        if args.verify:
+            checks = run_validation_checks(root)
+            for check in checks:
+                print(f"CHECK {check['check']}: {'PASS' if check['exit_code'] == 0 else 'FAIL'} (exit {check['exit_code']})")
+                if check["output"]:
+                    print(check["output"])
+            if any(check["exit_code"] != 0 for check in checks):
+                rollback = subprocess.run(
+                    ["git", "-C", str(root), "apply", "-R", "--"],
+                    input=result["patch"], text=True, stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE, timeout=30, check=False,
+                )
+                if rollback.returncode:
+                    raise AgentError("Validation failed and automatic patch rollback failed: " + rollback.stderr.strip())
+                print("STATUS: FAIL — patch reverted after failed validation")
+                return 1
+            print("STATUS: PASS — patch applied and fixed validation checks passed; no commit/push/merge performed")
+            return 0
         print("STATUS: PATCH_APPLIED — no commit, push, merge, or model-supplied commands executed")
         print("NEXT: run the project's documented test suite and review git diff before committing")
         return 0
