@@ -1,10 +1,50 @@
+import json
 import math
 import unittest
+from pathlib import Path
 
 from ia_reference.numeric import cross_entropy, matmul, matvec, softmax
+from ia_reference.causal_attention import causal_scaled_dot_product_attention
 
 
 class NumericReferenceTests(unittest.TestCase):
+    def test_versioned_shared_reference_vectors(self):
+        vector_file = Path(__file__).resolve().parents[1] / "data" / "reference-vectors-v1.json"
+        document = json.loads(vector_file.read_text(encoding="utf-8"))
+        self.assertEqual(document["schema_version"], 1)
+        self.assertEqual(document["contract"], "ia-numeric-reference-v1")
+        tolerance = document["absolute_tolerance"]
+        self.assertGreaterEqual(len(document["vectors"]), 5)
+
+        def assert_nested_close(actual, expected):
+            if isinstance(expected, list):
+                self.assertIsInstance(actual, list)
+                self.assertEqual(len(actual), len(expected))
+                for actual_item, expected_item in zip(actual, expected):
+                    assert_nested_close(actual_item, expected_item)
+            else:
+                self.assertAlmostEqual(actual, expected, delta=tolerance)
+
+        for vector in document["vectors"]:
+            with self.subTest(vector=vector["id"]):
+                inputs = vector["input"]
+                operation = vector["operation"]
+                if operation == "matvec":
+                    actual = matvec(inputs["matrix"], inputs["vector"])
+                elif operation == "matmul":
+                    actual = matmul(inputs["left"], inputs["right"])
+                elif operation == "softmax":
+                    actual = softmax(inputs["logits"])
+                elif operation == "cross_entropy":
+                    actual = cross_entropy(inputs["logits"], inputs["target_index"])
+                elif operation == "causal_attention":
+                    actual = causal_scaled_dot_product_attention(
+                        inputs["query"], inputs["key"], inputs["value"]
+                    )
+                else:
+                    self.fail(f"Unknown reference-vector operation: {operation}")
+                assert_nested_close(actual, vector["expected"])
+
     def test_matvec_reference_result(self):
         self.assertEqual(matvec([[1, 2], [3, 4]], [5, 6]), [17.0, 39.0])
 
