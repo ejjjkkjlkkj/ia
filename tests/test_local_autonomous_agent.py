@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -23,6 +24,24 @@ def diff_for(path, old="old", new="new"):
 class PatchValidationTests(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp())
+
+    def test_dry_run_writes_redacted_reproducible_report(self):
+        task_file = self.root / "task.txt"
+        report_file = self.root / "evidence.json"
+        task_file.write_text("private task text", encoding="utf-8")
+        model_result = {"summary": "proposal", "patch": diff_for("src/a.py")}
+        with patch.object(agent, "clean_worktree"), patch.object(agent, "call_ollama", return_value=model_result):
+            code = agent.main([
+                "--repo", str(self.root), "--task-file", str(task_file),
+                "--report-file", str(report_file),
+            ])
+        self.assertEqual(code, 0)
+        report = json.loads(report_file.read_text(encoding="utf-8"))
+        self.assertEqual(report["status"], "PATCH_VALIDATED")
+        self.assertEqual(report["changed_files"], ["src/a.py"])
+        self.assertEqual(len(report["task_sha256"]), 64)
+        self.assertEqual(len(report["patch_sha256"]), 64)
+        self.assertNotIn("private task text", report_file.read_text(encoding="utf-8"))
 
     def test_verify_requires_apply(self):
         with self.assertRaises(SystemExit) as ctx:
