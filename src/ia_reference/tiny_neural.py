@@ -139,7 +139,7 @@ def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed:
                     row[k] = max(-100.0, min(100.0, row[k] - lr * grad * x[k]))
             for k in range(embedding_dim):
                 grad = max(-1.0, min(1.0, embedding_gradient[k]))
-                embedding[previous][k] = max(-5.0, min(5.0, embedding[previous][k] - lr * grad)
+                embedding[previous][k] = max(-5.0, min(5.0, embedding[previous][k] - lr * grad))
 
     model = {
         "schema_version": SCHEMA_VERSION, "model_type": MODEL_TYPE, "vocab_size": VOCAB_SIZE,
