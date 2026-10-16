@@ -280,10 +280,14 @@ def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
 
 def load_checkpoint(path: str | Path) -> dict[str, Any]:
     try:
-        raw = Path(path).read_bytes()
+        source = Path(path)
+        if source.stat().st_size > MAX_CHECKPOINT_BYTES:
+            raise ValueError("checkpoint byte limit exceeded")
+        with source.open("rb") as stream:
+            raw = stream.read(MAX_CHECKPOINT_BYTES + 1)
         if len(raw) > MAX_CHECKPOINT_BYTES:
             raise ValueError("checkpoint byte limit exceeded")
-        text = raw.decode("utf-8")
+        text = raw.decode("utf-8", errors="strict")
         _check_json_nesting(text)
         document = json.loads(text, object_pairs_hook=_unique_json_object, parse_constant=_reject_json_constant)
     except ValueError as exc:
