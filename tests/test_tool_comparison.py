@@ -1,9 +1,10 @@
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from tools.run_tool_comparison import load_suite, parse_output, percentile, summarize
+from tools.run_tool_comparison import load_suite, parse_output, percentile, run_one, summarize
 
 
 class ToolComparisonTests(unittest.TestCase):
@@ -49,6 +50,38 @@ class ToolComparisonTests(unittest.TestCase):
         self.assertEqual(summary["blocked"], 1)
         self.assertEqual(summary["latency_seconds"]["median"], 1.5)
         self.assertEqual(percentile([1, 2, 3, 4], 0.95), 4.0)
+
+    def test_run_one_executes_adapter_and_hashes_output(self):
+        command = [
+            sys.executable, "-c",
+            "import json,sys; json.load(sys.stdin); print(json.dumps({'output': 42}))",
+        ]
+        result = run_one(command, {"id": "integration", "category": "logic",
+                                   "prompt": "Return 42", "expected_output": 42}, 5)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["reason"], "exact_match")
+        self.assertEqual(len(result["output_sha256"]), 64)
+        self.assertNotIn("output", result)
+
+    def test_run_one_reports_nonzero_exit_without_leaking_stderr(self):
+        command = [sys.executable, "-c", "import sys; print('secret diagnostic', file=sys.stderr); sys.exit(7)"]
+        result = run_one(command, {"id": "exit", "prompt": "x", "expected_output": "x"}, 5)
+        self.assertEqual(result["status"], "FAIL")
+        self.assertEqual(result["reason"], "nonzero_exit")
+        self.assertNotIn("secret diagnostic", json.dumps(result))
+
+    def test_run_one_reports_invalid_json(self):
+        command = [sys.executable, "-c", "print('not json')"]
+        result = run_one(command, {"id": "invalid", "prompt": "x", "expected_output": "x"}, 5)
+        self.assertEqual(result["status"], "FAIL")
+        self.assertEqual(result["reason"], "invalid_json_output")
+
+    def test_run_one_classifies_timeout_as_blocked(self):
+        command = [sys.executable, "-c", "import time; time.sleep(2)"]
+        result = run_one(command, {"id": "timeout", "prompt": "x", "expected_output": "x"}, 0.05)
+        self.assertEqual(result["status"], "BLOCKED")
+        self.assertEqual(result["reason"], "timeout")
+        self.assertIsNone(result["latency_seconds"])
 
 
 if __name__ == "__main__":
