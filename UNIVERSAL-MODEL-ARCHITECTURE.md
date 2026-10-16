@@ -10,7 +10,7 @@ Construire un modèle commun capable de traiter les langues naturelles et les la
 
 ## Prototype neuronal minimal présent
 
-`src/ia_reference/tiny_neural.py` entraîne un prédicteur neuronal du prochain octet avec embeddings, couche linéaire, softmax/cross-entropy et SGD, en Python standard library. Il possède des limites de taille/époques, un checkpoint JSON canonique avec SHA-256, une évaluation perplexité et une génération gloutonne. Les tests dédiés sont dans `tests/test_tiny_neural.py`. Ce prototype valide un chemin d'entraînement/inférence réduit seulement; il ne contient ni attention causale, ni blocs Transformer, ni corpus de qualité, ni benchmark multilingue/code, et ne satisfait pas le critère de release du modèle universel.
+`src/ia_reference/tiny_neural.py` entraîne un prédicteur neuronal du prochain octet avec embeddings, couche linéaire, softmax/cross-entropy et SGD, en Python standard library. Il borne la taille des corpus, les époques et le coût de calcul estimé, rejette les checkpoints JSON trop volumineux ou excessivement imbriqués, détecte les clés dupliquées et vérifie un SHA-256 canonique; il fournit une évaluation perplexité et une génération gloutonne. Les tests dédiés sont dans `tests/test_tiny_neural.py`. Ce prototype valide un chemin d'entraînement/inférence réduit seulement; il ne contient ni attention causale, ni blocs Transformer, ni corpus de qualité, ni benchmark multilingue/code, et ne satisfait pas le critère de release du modèle universel.
 
 ## Architecture cible
 
