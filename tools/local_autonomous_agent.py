@@ -295,6 +295,8 @@ def main(argv: list[str] | None = None) -> int:
             report["error"] = error
         try:
             destination = args.report_file.expanduser().resolve()
+            if destination == root or root in destination.parents:
+                raise OSError("Report file must be outside the repository to preserve dry-run and clean-worktree guarantees.")
             destination.parent.mkdir(parents=True, exist_ok=True)
             temporary: Path | None = None
             try:
@@ -319,6 +321,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"REPORT_NOT_SAVED: {report_error}", file=sys.stderr)
 
     try:
+        report_destination = args.report_file.expanduser().resolve()
+        if report_destination == root or root in report_destination.parents:
+            raise AgentError("Report file must be outside the repository to preserve dry-run and clean-worktree guarantees.")
         if not task_path.is_file():
             raise AgentError(f"Task file not found: {task_path}")
         task = task_path.read_text(encoding="utf-8")
