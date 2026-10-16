@@ -6,9 +6,17 @@ on:
     paths:
       - ".github/workflows/**"
       - "tools/validate_benchmark_truth.py"
-      - "benchmarks/complex_tasks.json"
+      - "benchmarks/**"
+      - "data/**"
       - "src/**"
       - "tests/**"
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - "**/rust-toolchain*"
+      - "pyproject.toml"
+      - "setup.cfg"
+      - "tox.ini"
+      - "requirements*.txt"
   pull_request:
     paths:
       - ".github/workflows/**"
@@ -44,7 +52,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          go install github.com/rhysd/actionlint/cmd/actionlint@latest
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
           echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
       - name: Lint every workflow
         shell: bash
