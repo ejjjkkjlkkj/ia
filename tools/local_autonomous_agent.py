@@ -107,6 +107,12 @@ def call_ollama(url: str, model: str, task: str, timeout: int) -> dict[str, Any]
         raise AgentError("Proposed patch exceeds 500 KiB.")
     return result
 def validate_patch(patch: str, root: Path) -> None:
+    try:
+        patch_size = len(patch.encode("utf-8"))
+    except UnicodeEncodeError as exc:
+        raise AgentError("Patch contains invalid Unicode scalar values.") from exc
+    if patch_size > MAX_PATCH_BYTES:
+        raise AgentError("Proposed patch exceeds 500 KiB.")
     if not patch.strip():
         raise AgentError("Model proposed no patch.")
     if "\x00" in patch or not patch.startswith("diff --git "):
