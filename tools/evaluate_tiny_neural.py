@@ -95,13 +95,13 @@ def main() -> int:
     args = parser.parse_args()
     try:
         report = evaluate(args.checkpoint, args.heldout_corpus, args.training_corpus)
-        rendered = json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\\n"
+        rendered = json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
         if args.report:
             args.report.parent.mkdir(parents=True, exist_ok=True)
             temporary_path: Path | None = None
             try:
                 with tempfile.NamedTemporaryFile(
-                    mode="w", encoding="utf-8", newline="\\n",
+                    mode="w", encoding="utf-8", newline="\n",
                     dir=args.report.parent, prefix=f".{args.report.name}.", suffix=".tmp", delete=False,
                 ) as stream:
                     temporary_path = Path(stream.name)
