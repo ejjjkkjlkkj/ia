@@ -117,15 +117,14 @@ def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed:
             total = sum(exps)
             probs = [value / total for value in exps]
             probs[target] -= 1.0
-            old_target_weights = weights[target][:]
+            embedding_gradient = [sum(probs[j] * weights[j][k] for j in range(VOCAB_SIZE)) for k in range(embedding_dim)]
             for j, grad in enumerate(probs):
                 bias[j] = max(-100.0, min(100.0, bias[j] - lr * grad))
                 row = weights[j]
                 for k in range(embedding_dim):
                     row[k] = max(-100.0, min(100.0, row[k] - lr * grad * x[k]))
             for k in range(embedding_dim):
-                grad = sum(probs[j] * old_target_weights[k] for j in range(VOCAB_SIZE))
-                grad = max(-1.0, min(1.0, grad))
+                grad = max(-1.0, min(1.0, embedding_gradient[k]))
                 embedding[previous][k] = max(-5.0, min(5.0, embedding[previous][k] - lr * grad))
 
     model = {
