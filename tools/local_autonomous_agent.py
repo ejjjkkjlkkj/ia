@@ -22,7 +22,6 @@ DEFAULT_URL = "http://127.0.0.1:11434/api/chat"
 MAX_TASK_CHARS = 12_000
 MAX_RESPONSE_BYTES = 2_000_000
 MAX_PATCH_BYTES = 500_000
-MAX_ROUNDS = 3
 FORBIDDEN_PATH_PARTS = {".git", ".env", "secrets", "credentials", "id_rsa"}
 FORBIDDEN_SUFFIXES = {".exe", ".dll", ".so", ".dylib", ".bin", ".pt", ".pth", ".safetensors"}
 SYSTEM_PROMPT = """You are a repository coding assistant working locally. Return ONLY one JSON object:
@@ -145,7 +144,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--model", default=os.environ.get("OLLAMA_MODEL", "qwen3-coder:30b"))
     parser.add_argument("--url", default=os.environ.get("OLLAMA_URL", DEFAULT_URL))
     parser.add_argument("--timeout", type=int, default=180)
-    parser.add_argument("--rounds", type=int, default=1, choices=range(1, MAX_ROUNDS + 1))
     parser.add_argument("--apply", action="store_true", help="apply validated patch; otherwise dry-run")
     args = parser.parse_args(argv)
     root = args.repo.resolve()
