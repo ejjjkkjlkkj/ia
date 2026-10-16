@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "purpose": "Track rights and provenance for project-owned and third-party assets before import, training, integration, or distribution.",
+  "default_status": "NOT_VALIDATED",
+  "required_fields": [
+    "asset_id",
+    "asset_type",
+    "origin_url",
+    "creator_or_rightsholder_if_known",
+    "retrieved_at_utc",
+    "exact_version_or_revision",
+    "license_name_and_version",
+    "license_url_or_rights_evidence",
+    "attribution_and_notice_requirements",
+    "redistribution_allowed",
+    "commercial_use_allowed",
+    "modification_allowed",
+    "training_use_allowed_if_relevant",
+    "review_status",
+    "reviewer_or_automated_rule",
+    "sha256_if_a_local_artifact_exists"
+  ],
+  "status_values": [
+    "ORIGINAL_PROJECT_CREATED",
+    "PUBLIC_DOMAIN_VERIFIED",
+    "LICENSE_APPROVED",
+    "PERMISSION_REQUIRED",
+    "LICENSE_REVIEW_REQUIRED",
+    "REJECTED",
+    "NOT_VALIDATED"
+  ],
+  "assets": [],
+  "rules": [
+    "Empty ledger means no asset has been cleared by this ledger; it does not prove that the repository contains no third-party material.",
+    "Never infer permission from public accessibility or source-hosting platform.",
+    "Third-party content must not be imported or shipped while rights review is pending.",
+    "Keep source links, exact revisions, checksums and license evidence for audit."
+  ]
+}

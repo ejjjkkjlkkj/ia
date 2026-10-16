@@ -10,6 +10,36 @@ from ia_reference.tiny_neural import (
 
 
 class TinyNeuralModelTests(unittest.TestCase):
+    def test_reproducible_synthetic_proof_emits_hashes_and_heldout_metrics(self):
+        from tools.run_neural_proof import run_proof
+
+        with tempfile.TemporaryDirectory() as directory:
+            first = run_proof(Path(directory) / "first")
+            second = run_proof(Path(directory) / "second")
+            self.assertEqual(first["status"], "PASS")
+            self.assertEqual(first["checkpoint_sha256"], second["checkpoint_sha256"])
+            self.assertEqual(first["training_corpus_sha256"], second["training_corpus_sha256"])
+            self.assertEqual(first["heldout_corpus_sha256"], second["heldout_corpus_sha256"])
+            self.assertNotEqual(first["training_corpus_sha256"], first["heldout_corpus_sha256"])
+            self.assertGreater(first["heldout_metrics"]["tokens"], 0)
+            self.assertTrue((Path(directory) / "first" / "tiny-neural-proof-report.json").is_file())
+            self.assertTrue((Path(directory) / "first" / "tiny-neural-proof.json").is_file())
+
+    def test_training_provenance_hash_is_recorded_and_validated(self):
+        import hashlib
+        text = "provenance—😊\n"
+        model = train_text(text, epochs=1)
+        self.assertEqual(model["schema_version"], 2)
+        self.assertEqual(model["learning_rate"], 0.05)
+        self.assertEqual(
+            model["training_corpus_sha256"],
+            hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        )
+        tampered = dict(model)
+        tampered["training_corpus_sha256"] = "not-a-hash"
+        with self.assertRaisesRegex(ValueError, "training corpus SHA-256"):
+            evaluate_text(tampered, "held out")
+
     def test_training_is_deterministic_and_changes_parameters(self):
         first = train_text("hello\nbonjour\n", epochs=2, seed=11)
         second = train_text("hello\nbonjour\n", epochs=2, seed=11)
@@ -23,6 +53,38 @@ class TinyNeuralModelTests(unittest.TestCase):
         self.assertEqual(len(probabilities), 258)
         self.assertAlmostEqual(sum(probabilities), 1.0, places=12)
         self.assertTrue(all(0.0 <= value <= 1.0 for value in probabilities))
+
+    def test_evaluation_and_generation_validate_model_only_once(self):
+        from unittest.mock import patch
+        import ia_reference.tiny_neural as implementation
+
+        model = train_text("abcabcabc\n", epochs=1)
+        with patch.object(implementation, "_validate_model", wraps=implementation._validate_model) as validate:
+            report = evaluate_text(model, "abcabc\n")
+            self.assertGreater(report["perplexity"], 1)
+            validate.assert_called_once()
+        with patch.object(implementation, "_validate_model", wraps=implementation._validate_model) as validate:
+            generated = generate(model, "abc", max_bytes=8)
+            self.assertIsInstance(generated, str)
+            validate.assert_called_once()
+
+    def test_evaluation_caches_each_previous_byte_distribution(self):
+        from unittest.mock import patch
+        import ia_reference.tiny_neural as implementation
+
+        model = train_text("abcabc", epochs=1)
+        with patch.object(
+            implementation, "_next_token_probabilities_validated",
+            wraps=implementation._next_token_probabilities_validated,
+        ) as predict:
+            evaluate_text(model, "abcabc" * 20)
+            # BOS plus byte states a, b, and c: repeated contexts reuse cached logits.
+            self.assertEqual(predict.call_count, 4)
+
+    def test_evaluation_rejects_invalid_unicode_with_value_error(self):
+        model = train_text("valid corpus", epochs=1)
+        with self.assertRaisesRegex(ValueError, "invalid Unicode"):
+            evaluate_text(model, "\ud800")
 
     def test_evaluation_and_generation(self):
         model = train_text("screen reader speaks text\n", epochs=2)
@@ -110,9 +172,21 @@ class TinyNeuralModelTests(unittest.TestCase):
             import os
             env = os.environ.copy()
             env["PYTHONPATH"] = str(Path("src").resolve())
-            subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "train", str(train), str(checkpoint), "--epochs", "1"], env=env, check=True, capture_output=True, text=True)
+            trained = subprocess.run(
+                [sys.executable, "-m", "ia_reference.tiny_neural", "train",
+                 str(train), str(checkpoint), "--epochs", "1", "--learning-rate", "0.03",
+                 "--embedding-dim", "4"],
+                env=env, check=True, capture_output=True, text=True,
+            )
+            training_report = json.loads(trained.stdout)
+            self.assertEqual(training_report["status"], "PASS")
+            self.assertEqual(training_report["embedding_dim"], 4)
+            self.assertEqual(training_report["learning_rate"], 0.03)
+            self.assertEqual(len(training_report["training_corpus_sha256"]), 64)
             evaluated = subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "evaluate", str(checkpoint), str(heldout)], env=env, check=True, capture_output=True, text=True)
-            self.assertIn("perplexity", evaluated.stdout)
+            evaluation_report = json.loads(evaluated.stdout)
+            self.assertIn("perplexity", evaluation_report)
+            self.assertEqual(len(evaluation_report["evaluation_corpus_sha256"]), 64)
             generated = subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "generate", str(checkpoint), "--prompt", "screen", "--max-bytes", "4"], env=env, check=True, capture_output=True, text=True)
             self.assertTrue(generated.stdout.strip())
 

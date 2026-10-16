@@ -11,21 +11,31 @@ from typing import Sequence
 
 Vector = Sequence[float]
 Matrix = Sequence[Vector]
+MAX_SEQUENCE_LENGTH = 1024
+MAX_FEATURES = 4096
+MAX_ATTENTION_WORK = 2_000_000
 
 
 def _matrix(name: str, values: Matrix) -> list[list[float]]:
     if not isinstance(values, (list, tuple)) or not values:
         raise ValueError(f"{name} must be a non-empty matrix")
+    if len(values) > MAX_SEQUENCE_LENGTH:
+        raise ValueError(f"{name} exceeds the {MAX_SEQUENCE_LENGTH}-position sequence limit")
     result: list[list[float]] = []
     width: int | None = None
     for row in values:
         if not isinstance(row, (list, tuple)) or not row:
             raise ValueError(f"{name} rows must be non-empty vectors")
+        if len(row) > MAX_FEATURES:
+            raise ValueError(f"{name} exceeds the {MAX_FEATURES}-feature dimension limit")
         converted: list[float] = []
         for item in row:
             if isinstance(item, bool) or not isinstance(item, (int, float)):
                 raise ValueError(f"{name} values must be finite numbers")
-            value = float(item)
+            try:
+                value = float(item)
+            except (OverflowError, TypeError, ValueError) as exc:
+                raise ValueError(f"{name} values must be finite numbers") from exc
             if not math.isfinite(value):
                 raise ValueError(f"{name} values must be finite numbers")
             if abs(value) > 1_000_000:
@@ -56,6 +66,12 @@ def causal_scaled_dot_product_attention(
     key_dim = len(q[0])
     if len(k[0]) != key_dim:
         raise ValueError("query and key dimensions must match")
+    value_dim = len(v[0])
+    estimated_work = length * length * (key_dim + value_dim)
+    if estimated_work > MAX_ATTENTION_WORK:
+        raise ValueError(
+            f"attention workload exceeds the {MAX_ATTENTION_WORK}-operation safety budget"
+        )
     scale = math.sqrt(key_dim)
     outputs: list[list[float]] = []
     for i, q_row in enumerate(q):

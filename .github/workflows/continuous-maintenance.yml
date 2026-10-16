@@ -81,6 +81,19 @@ jobs:
           echo "RESULT=$([ "$failed" -eq 0 ] && echo PASS || echo FAIL)" | tee -a "$report"
           exit "$failed"
 
+      - name: Run repository-owned autonomous maintenance agent
+        if: always() && hashFiles('tools/autonomous_agent.py') != ''
+        shell: bash
+        run: |
+          set +e
+          python tools/autonomous_agent.py --report .maintenance-report/autonomous-agent.json
+          result=$?
+          if [ "$result" -eq 2 ]; then
+            echo "Agent completed deterministic checks; generative coding is explicitly BLOCKED until the owned model gate exists."
+            exit 0
+          fi
+          exit "$result"
+
       - name: Preserve audit report
         if: always()
         uses: actions/upload-artifact@v4

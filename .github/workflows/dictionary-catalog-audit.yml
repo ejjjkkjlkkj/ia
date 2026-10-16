@@ -1,0 +1,107 @@
+name: Global dictionaries and language-resource audit
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "data/dictionary-sources.json"
+      - "docs/GLOBAL-DICTIONARY-AND-LEXICON-ROADMAP.md"
+      - ".github/workflows/dictionary-catalog-audit.yml"
+  pull_request:
+    paths:
+      - "data/dictionary-sources.json"
+      - "docs/GLOBAL-DICTIONARY-AND-LEXICON-ROADMAP.md"
+      - ".github/workflows/dictionary-catalog-audit.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dictionary-catalog-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-manifest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Validate dictionary source manifest
+        shell: python {0}
+        run: |
+          import json
+          import pathlib
+          import sys
+          from urllib.parse import urlparse
+
+          path = pathlib.Path("data/dictionary-sources.json")
+          if not path.is_file():
+              print("FAIL: manifest missing")
+              sys.exit(1)
+
+          try:
+              data = json.loads(path.read_text(encoding="utf-8"))
+          except Exception as exc:
+              print(f"FAIL: invalid JSON: {exc}")
+              sys.exit(1)
+
+          statuses = set(data.get("status_values", []))
+          resources = data.get("resources", [])
+          required = {"id", "name", "domain", "coverage", "url", "license_review", "status", "import_policy"}
+          errors = []
+          seen = set()
+
+          if data.get("schema_version") != 1:
+              errors.append("schema_version must be 1")
+          if not isinstance(resources, list) or not resources:
+              errors.append("resources must be a non-empty list")
+
+          for i, item in enumerate(resources):
+              prefix = f"resources[{i}]"
+              if not isinstance(item, dict):
+                  errors.append(f"{prefix}: expected object")
+                  continue
+              missing = sorted(required - item.keys())
+              if missing:
+                  errors.append(f"{prefix}: missing fields: {', '.join(missing)}")
+                  continue
+              rid = item["id"]
+              if not isinstance(rid, str) or not rid.strip():
+                  errors.append(f"{prefix}: id must be a non-empty string")
+              elif rid in seen:
+                  errors.append(f"{prefix}: duplicate id {rid}")
+              else:
+                  seen.add(rid)
+              if item["status"] not in statuses:
+                  errors.append(f"{prefix}: unknown status {item['status']!r}")
+              if not isinstance(item["domain"], list) or not item["domain"]:
+                  errors.append(f"{prefix}: domain must be a non-empty list")
+              parsed = urlparse(item["url"])
+              if parsed.scheme != "https" or not parsed.netloc:
+                  errors.append(f"{prefix}: URL must be absolute HTTPS")
+              for field in ("name", "coverage", "license_review", "import_policy"):
+                  if not isinstance(item[field], str) or not item[field].strip():
+                      errors.append(f"{prefix}: {field} must be non-empty text")
+              if item["status"] in {"IMPORTED", "TESTED"}:
+                  if not item.get("checksum") or not item.get("validation_report"):
+                      errors.append(f"{prefix}: {item['status']} requires checksum and validation_report")
+
+          print(f"Resources: {len(resources)}")
+          print(f"Unique IDs: {len(seen)}")
+          print(f"Known statuses: {', '.join(sorted(statuses))}")
+          if errors:
+              print("FAIL: manifest validation errors:")
+              print("\n".join(f"- {e}" for e in errors))
+              sys.exit(1)
+          print("PASS: manifest structure and evidence gates")
+      - name: Publish manifest as workflow artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: dictionary-source-manifest
+          path: data/dictionary-sources.json
+          if-no-files-found: error
+          retention-days: 14

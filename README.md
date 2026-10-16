@@ -21,6 +21,17 @@ Le contrat commun versionné est maintenu dans [ACCESSIBILITY — AI integration
 
 Le dépôt contient aussi le prototype initial du langage **NEXORA**, distinct du langage existant U : [spécification NEXORA](NEXORA-LANGUAGE-SPEC.md), lexer/parseur/interpréteur de référence dans `src/nexora_language.py`, et tests dans `tests/test_nexora_language.py`. Le prototype gère un sous-ensemble syntaxique avec identifiants Unicode et arithmétique; il n'est pas encore un compilateur ni un langage prêt pour l'OS/UEFI. Les backends et la représentation intermédiaire seront ajoutés après stabilisation de la grammaire et des tests de conformité.
 
+## État réel par langage
+
+Le manifeste versionné [data/language-implementation-status.json](data/language-implementation-status.json) couvre chaque ID du catalogue. Il distingue le prototype de référence Python des pistes non implémentées; aucune piste n'est déclarée PASS sans preuves. Pour le régénérer après modification du catalogue :
+
+```bash
+python tools/generate_language_status_manifest.py
+python -m unittest tests.test_language_status_manifest -v
+```
+
+Le statut PARTIAL de Python signifie uniquement kernels numériques de référence et petit modèle neuronal expérimental. Il ne signifie pas qu'un Transformer complet ou un modèle de production est disponible.
+
 ## Règles de vérité
 
 - Aucun modèle n'est déclaré entraîné tant que les poids produits, la configuration, les données, la commande, les journaux, le hash et les résultats sur un jeu de test tenu à l'écart ne sont pas disponibles.
@@ -80,7 +91,7 @@ Exécuter les tests et le code généré dans un environnement isolé avec limit
 
 L'objectif est **un modèle commun**, pas une collection obligatoire de modèles séparés. `models/<id>/` décrit les ports, kernels, runtimes, benchmarks et limites par langage. Une spécialisation ou un expert ne sera ajouté que si des mesures montrent un gain réel. La première implémentation exécutable byte-level est documentée dans [UNIVERSAL-MODEL-ARCHITECTURE.md](UNIVERSAL-MODEL-ARCHITECTURE.md); elle accepte l'UTF-8 de langues et de code, mais reste une baseline statistique et ne prouve pas encore une compréhension universelle.
 
-Un prototype neuronal minuscule entraînable depuis zéro est disponible dans `src/ia_reference/tiny_neural.py` (stdlib Python uniquement). Il utilise des embeddings d'octets, une couche linéaire de prédiction du prochain octet, une perte cross-entropy et une descente de gradient SGD; il fournit entraînement déterministe, checkpoint JSON haché, évaluation et génération gloutonne. Commandes depuis la racine : `PYTHONPATH=src python -m ia_reference.tiny_neural train train.txt model.json --epochs 3`, puis `PYTHONPATH=src python -m ia_reference.tiny_neural evaluate model.json heldout.txt` et `PYTHONPATH=src python -m ia_reference.tiny_neural generate model.json --prompt "hello"`. Ce prototype est une preuve de pipeline neuronal minimal, **pas** un Transformer, pas un LLM de production et pas une preuve d'universalité; les données et les résultats de qualité doivent encore être évalués.
+Un prototype neuronal minuscule entraînable depuis zéro est disponible dans src/ia_reference/tiny_neural.py (stdlib Python uniquement). Il utilise des embeddings d'octets, une couche linéaire de prédiction du prochain octet, une perte cross-entropy et une descente de gradient SGD; il fournit entraînement déterministe, checkpoint JSON haché, évaluation et génération gloutonne. Le checkpoint de schéma v2 enregistre le SHA-256 du corpus d'entraînement, le seed et les paramètres du modèle; le CLI émet un rapport JSON reproductible incluant les empreintes du checkpoint et du corpus. Commandes depuis la racine : PYTHONPATH=src python -m ia_reference.tiny_neural train train.txt model.json --epochs 3 --seed 7 --learning-rate 0.05 --embedding-dim 8, puis PYTHONPATH=src python -m ia_reference.tiny_neural evaluate model.json heldout.txt et PYTHONPATH=src python -m ia_reference.tiny_neural generate model.json --prompt 'hello'. Le corpus heldout.txt doit être séparé du corpus d'entraînement pour que l'évaluation soit pertinente. Ce prototype est une preuve de pipeline neuronal minimal, pas un Transformer, pas un LLM de production et pas une preuve d'universalité; les données et les résultats de qualité doivent encore être évalués.
 
 Voir [MODELS-INDEX.md](MODELS-INDEX.md) pour la cartographie des pistes d'implémentation.
 
@@ -90,3 +101,8 @@ NEXORA IR v1 contract: [NEXORA-IR-V1.md](NEXORA-IR-V1.md). The IR is a bounded J
 ## Séparation obligatoire des pistes
 
 - [Implémentations indépendantes par langage et rôle distinct de NEXORA](docs/INDEPENDENT-LANGUAGE-IMPLEMENTATIONS-AND-NEXORA.md)
+
+
+## Agent de programmation local
+
+Le prototype borné d'agent de programmation utilisant Ollama est documenté dans [docs/LOCAL-AUTONOMOUS-AGENT.md](docs/LOCAL-AUTONOMOUS-AGENT.md) et implémenté dans `tools/local_autonomous_agent.py`. Il fonctionne en aperçu par défaut; l'application du patch exige `--apply`. Il ne pousse pas, ne fusionne pas, n'exécute pas de commandes proposées par le modèle et ne prouve pas une autonomie permanente.

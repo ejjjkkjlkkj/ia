@@ -12,6 +12,90 @@ from typing import Any
 SCHEMA_VERSION = 1
 MODEL_TYPE = "universal-utf8-byte-bigram"
 BOS, EOS, VOCAB_SIZE = 256, 257, 258
+MAX_CHECKPOINT_BYTES = 8_000_000
+MAX_JSON_DEPTH = 64
+MAX_TRAINING_BYTES = 100_000
+MAX_EVALUATION_BYTES = 100_000
+MAX_GENERATION_BYTES = 4_096
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate checkpoint JSON key")
+        result[key] = value
+    return result
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+def _check_json_nesting(text: str) -> None:
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == chr(92):
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > MAX_JSON_DEPTH:
+                raise ValueError("checkpoint JSON nesting exceeds parser limit")
+        elif character in "]}":
+            depth -= 1
+            if depth < 0:
+                raise ValueError("malformed checkpoint JSON nesting")
+
+def _validate_checkpoint_payload(checkpoint: Any) -> dict[str, Any]:
+    required = {
+        "schema_version", "model_type", "tokenization", "alpha", "vocab_size",
+        "counts", "training_bytes", "training_corpus_sha256",
+    }
+    if not isinstance(checkpoint, dict) or set(checkpoint) != required:
+        raise ValueError("checkpoint has invalid fields")
+    if type(checkpoint["schema_version"]) is not int or checkpoint["schema_version"] != SCHEMA_VERSION:
+        raise ValueError("unsupported or malformed checkpoint schema")
+    if checkpoint["model_type"] != MODEL_TYPE or checkpoint["vocab_size"] != VOCAB_SIZE:
+        raise ValueError("unsupported universal model format")
+    if checkpoint["tokenization"] != "raw UTF-8 bytes; reserved BOS=256 EOS=257":
+        raise ValueError("unsupported tokenization format")
+    alpha = checkpoint["alpha"]
+    if not _valid_alpha(alpha):
+        raise ValueError("checkpoint alpha must be finite and greater than zero")
+    training_bytes = checkpoint["training_bytes"]
+    if type(training_bytes) is not int or training_bytes < 1:
+        raise ValueError("checkpoint training_bytes must be a positive integer")
+    corpus_hash = checkpoint["training_corpus_sha256"]
+    if not isinstance(corpus_hash, str) or len(corpus_hash) != 64 or any(c not in "0123456789abcdef" for c in corpus_hash):
+        raise ValueError("checkpoint corpus SHA-256 is malformed")
+    counts = checkpoint["counts"]
+    if not isinstance(counts, dict) or not counts or len(counts) > 257:
+        raise ValueError("checkpoint transition counts are malformed")
+    observed_total = 0
+    for previous, row in counts.items():
+        if not isinstance(previous, str) or not previous.isdigit() or not 0 <= int(previous) <= BOS:
+            raise ValueError("checkpoint has an invalid previous-token ID")
+        if not isinstance(row, dict) or not row or len(row) > VOCAB_SIZE:
+            raise ValueError("checkpoint has an invalid transition row")
+        for token, count in row.items():
+            if not isinstance(token, str) or not token.isdigit() or not 0 <= int(token) < VOCAB_SIZE:
+                raise ValueError("checkpoint has an invalid next-token ID")
+            if type(count) is not int or count <= 0:
+                raise ValueError("checkpoint transition counts must be positive integers")
+            observed_total += count
+    if observed_total != training_bytes + 1:
+        raise ValueError("checkpoint transition counts do not match training_bytes")
+    eos_transitions = sum(row.get(str(EOS), 0) for row in counts.values())
+    if counts.get(str(BOS), {}).get(str(EOS), 0) or eos_transitions != 1:
+        raise ValueError("checkpoint must contain exactly one valid EOS transition")
+    return checkpoint
 
 def _canonical_json(value: Any) -> bytes:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -19,13 +103,29 @@ def _canonical_json(value: Any) -> bytes:
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
+def _valid_alpha(value: Any) -> bool:
+    """Validate smoothing values without leaking OverflowError for huge integers."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value) and value > 0
+    except (OverflowError, TypeError, ValueError):
+        return False
+
 def train_text(text: str, alpha: float = 0.5) -> dict[str, Any]:
-    """Train a smoothed byte-level model from mixed-language UTF-8 text."""
-    if not math.isfinite(alpha) or alpha <= 0:
+    """Train a smoothed byte-level model from bounded mixed-language UTF-8 text."""
+    if not isinstance(text, str):
+        raise ValueError("training text must be text")
+    if not _valid_alpha(alpha):
         raise ValueError("alpha must be a finite number greater than zero")
-    data = text.encode("utf-8")
+    try:
+        data = text.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("training text contains invalid Unicode") from exc
     if not data:
         raise ValueError("training text must contain at least one UTF-8 byte")
+    if len(data) > MAX_TRAINING_BYTES:
+        raise ValueError(f"training data exceeds {MAX_TRAINING_BYTES}-byte limit")
     counts: dict[str, dict[str, int]] = {}
     previous = BOS
     for byte in data:
@@ -53,17 +153,25 @@ def save_checkpoint(model: dict[str, Any], path: str | Path) -> str:
     return digest
 
 def load_checkpoint(path: str | Path) -> dict[str, Any]:
-    """Load only supported, integrity-checked checkpoints."""
-    checkpoint = json.loads(Path(path).read_text(encoding="utf-8"))
-    if not isinstance(checkpoint, dict) or checkpoint.get("schema_version") != SCHEMA_VERSION:
+    """Load only bounded, supported, integrity-checked checkpoints."""
+    source = Path(path)
+    if source.stat().st_size > MAX_CHECKPOINT_BYTES:
+        raise ValueError(f"checkpoint exceeds {MAX_CHECKPOINT_BYTES}-byte limit")
+    raw = source.read_text(encoding="utf-8")
+    _check_json_nesting(raw)
+    checkpoint = json.loads(
+        raw,
+        object_pairs_hook=_unique_json_object,
+        parse_constant=_reject_json_constant,
+    )
+    if not isinstance(checkpoint, dict):
         raise ValueError("unsupported or malformed checkpoint schema")
     supplied_hash = checkpoint.pop("checkpoint_sha256", None)
-    if not isinstance(supplied_hash, str) or supplied_hash != _sha256(_canonical_json(checkpoint)):
+    if not isinstance(supplied_hash, str) or len(supplied_hash) != 64 or any(c not in "0123456789abcdef" for c in supplied_hash):
+        raise ValueError("checkpoint SHA-256 is malformed")
+    if supplied_hash != _sha256(_canonical_json(checkpoint)):
         raise ValueError("checkpoint SHA-256 mismatch")
-    if checkpoint.get("model_type") != MODEL_TYPE or checkpoint.get("vocab_size") != VOCAB_SIZE:
-        raise ValueError("unsupported universal model format")
-    if not isinstance(checkpoint.get("counts"), dict):
-        raise ValueError("checkpoint is missing transition counts")
+    _validate_checkpoint_payload(checkpoint)
     checkpoint["checkpoint_sha256"] = supplied_hash
     return checkpoint
 
@@ -74,9 +182,19 @@ def next_byte_probability(model: dict[str, Any], previous: int, token: int) -> f
     return (int(row.get(str(token), 0)) + alpha) / (total + alpha * VOCAB_SIZE)
 
 def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
-    data = text.encode("utf-8")
+    if not isinstance(model, dict):
+        raise ValueError("model must be a checkpoint object")
+    _validate_checkpoint_payload({key: value for key, value in model.items() if key != "checkpoint_sha256"})
+    if not isinstance(text, str):
+        raise ValueError("evaluation text must be text")
+    try:
+        data = text.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("evaluation text contains invalid Unicode") from exc
     if not data:
         raise ValueError("evaluation text must contain at least one UTF-8 byte")
+    if len(data) > MAX_EVALUATION_BYTES:
+        raise ValueError(f"evaluation data exceeds {MAX_EVALUATION_BYTES}-byte limit")
     previous, nll = BOS, 0.0
     for token in list(data) + [EOS]:
         nll -= math.log(max(next_byte_probability(model, previous, token), 1e-300))
@@ -87,10 +205,21 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
             "mean_negative_log_likelihood": mean, "perplexity": math.exp(min(mean, 700.0))}
 
 def generate(model: dict[str, Any], prompt: str = "", max_bytes: int = 64) -> str:
-    """Greedy byte generation; decoding replaces incomplete UTF-8 sequences."""
-    if max_bytes < 0:
-        raise ValueError("max_bytes must be non-negative")
-    output = bytearray(prompt.encode("utf-8"))
+    """Greedy byte generation with bounded output; incomplete UTF-8 is replaced."""
+    if not isinstance(model, dict):
+        raise ValueError("model must be a checkpoint object")
+    _validate_checkpoint_payload({key: value for key, value in model.items() if key != "checkpoint_sha256"})
+    if not isinstance(prompt, str):
+        raise ValueError("prompt must be text")
+    if type(max_bytes) is not int or not 0 <= max_bytes <= MAX_GENERATION_BYTES:
+        raise ValueError(f"max_bytes must be between 0 and {MAX_GENERATION_BYTES}")
+    try:
+        prompt_bytes = prompt.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("prompt contains invalid Unicode") from exc
+    if len(prompt_bytes) > MAX_EVALUATION_BYTES:
+        raise ValueError(f"prompt exceeds {MAX_EVALUATION_BYTES}-byte limit")
+    output = bytearray(prompt_bytes)
     previous = output[-1] if output else BOS
     for _ in range(max_bytes):
         row = model["counts"].get(str(previous), {})

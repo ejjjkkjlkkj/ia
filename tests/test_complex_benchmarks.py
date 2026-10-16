@@ -15,7 +15,7 @@ class ComplexBenchmarkHarnessTests(unittest.TestCase):
 
     def test_adapter_accepts_json_value_and_json_encoded_string(self):
         self.assertEqual(parse_adapter_output('{"output":{"answer":42}}'), {"answer": 42})
-        self.assertEqual(parse_adapter_output('{"output":"{\"answer\":42}"}'), {"answer": 42})
+        self.assertEqual(parse_adapter_output(json.dumps({"output": json.dumps({"answer": 42})})), {"answer": 42})
 
     def test_adapter_rejects_non_object_and_missing_output(self):
         for payload in ('[]', '{"answer":42}', 'not-json'):

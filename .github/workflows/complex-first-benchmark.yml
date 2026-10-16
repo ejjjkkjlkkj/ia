@@ -1,35 +1,124 @@
 name: Complex-first model benchmark
 
 on:
+  push:
+    branches: [main, master, "feature/**"]
+    paths:
+      - "benchmarks/complex_tasks.json"
+      - "tools/run_complex_benchmarks.py"
+      - "tools/run_tool_comparison.py"
+      - "tools/validate_benchmark_truth.py"
+      - "tests/test_complex_benchmarks.py"
+      - "tests/test_tool_comparison.py"
+      - "tests/test_validate_benchmark_truth.py"
+      - ".github/workflows/complex-first-benchmark.yml"
+  pull_request:
+    paths:
+      - "benchmarks/complex_tasks.json"
+      - "tools/run_complex_benchmarks.py"
+      - "tools/run_tool_comparison.py"
+      - "tools/validate_benchmark_truth.py"
+      - "tests/test_complex_benchmarks.py"
+      - "tests/test_tool_comparison.py"
+      - "tests/test_validate_benchmark_truth.py"
+      - ".github/workflows/complex-first-benchmark.yml"
   workflow_dispatch:
     inputs:
       adapter_command:
-        description: "Local model adapter executable (runner will execute this command)"
+        description: "Adapter command to execute on the GitHub runner; no hosted model is called automatically"
         required: true
         type: string
       timeout_seconds:
-        description: "Per-task timeout"
+        description: "Per-task timeout in seconds"
         required: true
         default: "90"
+        type: string
+      repeats:
+        description: "Runs per task (1-100)"
+        required: true
+        default: "1"
         type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: complex-first-benchmark-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  validate-suite:
+  benchmark:
     runs-on: ubuntu-latest
+    timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
-      - name: Validate complex benchmark suite and harness
+
+      - name: Validate benchmark suite and harness
         run: |
-          python -m unittest tests.test_complex_benchmarks -v
+          python -m unittest tests.test_complex_benchmarks tests.test_tool_comparison tests.test_validate_benchmark_truth -v
+          python tools/validate_benchmark_truth.py
           python tools/run_complex_benchmarks.py --list
-      - name: Explain execution boundary
+
+      - name: Execute explicitly supplied adapter against project-authored tasks
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          OUR_ADAPTER_COMMAND: ${{ inputs.adapter_command }}
+          TIMEOUT_SECONDS: ${{ inputs.timeout_seconds }}
+          REPEATS: ${{ inputs.repeats }}
+        shell: bash
         run: |
-          echo "A benchmark run against a model must use an explicitly supplied adapter command."
-          echo "This workflow does not download model weights or call a hosted model."
-          echo "No superiority claim is inferred from suite validation."
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          import math
+          import subprocess
+          import sys
+
+          timeout = float(os.environ["TIMEOUT_SECONDS"])
+          repeats = int(os.environ["REPEATS"])
+          if not math.isfinite(timeout) or timeout <= 0:
+              raise SystemExit("FAIL: timeout must be finite and greater than zero")
+          if repeats < 1 or repeats > 100:
+              raise SystemExit("FAIL: repeats must be between 1 and 100")
+          command = os.environ["OUR_ADAPTER_COMMAND"]
+          if not command.strip():
+              raise SystemExit("FAIL: adapter command is empty")
+          result = subprocess.run(
+              [
+                  sys.executable, "tools/run_tool_comparison.py",
+                  "--our-command", command,
+                  "--our-label", "project-owned-adapter",
+                  "--repeats", str(repeats),
+                  "--timeout", str(timeout),
+                  "--output", "reports/tool-comparison.json",
+              ],
+              check=False,
+          )
+          raise SystemExit(result.returncode)
+          PY
+
+      - name: Explain validation-only pull request run
+        if: github.event_name != 'workflow_dispatch'
+        run: echo "PASS: suite and harness validated; external adapter benchmark is skipped because no adapter command was explicitly supplied."
+
+      - name: Upload benchmark report
+        if: always() && hashFiles('reports/tool-comparison.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: complex-first-benchmark-report
+          path: reports/tool-comparison.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: State benchmark limits
+        if: always()
+        run: |
+          echo "This workflow runs only the adapter command explicitly supplied by the workflow dispatcher."
+          echo "It does not download model weights or call a hosted model automatically."
+          echo "Results describe the declared task suite only and do not establish general superiority."

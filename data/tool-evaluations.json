@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "purpose": "Project-authored black-box evaluation records for comparing our own tools against external systems without importing their protected assets.",
+  "rules": {
+    "test_cases_project_authored_by_default": true,
+    "compare_only_under_permitted_access_and_terms": true,
+    "external_code_weights_datasets_and_media_imported": false,
+    "require_exact_version_and_environment": true,
+    "require_acceptance_criteria_before_execution": true,
+    "claims_require_reproducible_evidence": true
+  },
+  "status_values": [
+    "PLANNED",
+    "READY",
+    "RUN",
+    "PASS",
+    "FAIL",
+    "PARTIAL",
+    "BLOCKED",
+    "NOT_VALIDATED"
+  ],
+  "evaluation_record_schema": {
+    "evaluation_id": "stable unique identifier",
+    "our_tool": "name and version/commit of our implementation",
+    "comparison_target": "name of external system or baseline",
+    "official_source_url": "HTTPS URL",
+    "target_version_or_revision": "exact version/revision, or NOT_DISCLOSED",
+    "recorded_at_utc": "ISO-8601 UTC timestamp",
+    "objective": "specific question being tested",
+    "acceptance_criteria": [
+      "measurable criterion"
+    ],
+    "test_method": "project-authored procedure",
+    "test_set_provenance": "project-authored synthetic set or documented permitted public benchmark",
+    "environment": {
+      "hardware": "CPU/GPU/RAM or NOT_RECORDED",
+      "operating_system": "version or NOT_RECORDED",
+      "runtime_versions": [
+        "runtime and version"
+      ],
+      "configuration": "reproducible settings"
+    },
+    "metrics": [
+      {
+        "name": "metric name",
+        "unit": "unit",
+        "our_result": "value or NOT_RUN",
+        "target_result": "value or NOT_RUN",
+        "repetitions": 0,
+        "summary_method": "median/p95/accuracy/etc.",
+        "evidence": "log, artifact, or commit reference"
+      }
+    ],
+    "result_status": "one status_values entry",
+    "limitations": [
+      "known caveat"
+    ],
+    "rights_review_status": "NOT_VALIDATED",
+    "imported_external_assets": [],
+    "notes": "factual observations only"
+  },
+  "evaluations": [],
+  "notes": [
+    "This file defines a schema/template; it does not claim any comparison has been run.",
+    "Never fabricate measurements, test runs, or target versions.",
+    "Do not store copied third-party assets in evaluation records."
+  ]
+}

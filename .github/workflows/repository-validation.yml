@@ -34,6 +34,8 @@ jobs:
               raise SystemExit("FAIL: missing required files: " + ", ".join(missing))
           print("PASS: required project files exist")
           PY
+      - name: Independently validate complex benchmark expected outputs
+        run: python tools/validate_benchmark_truth.py
       - name: Check local Markdown links
         run: |
           python - <<'PY'
