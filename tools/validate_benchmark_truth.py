@@ -6,6 +6,7 @@ It does not execute or score any model adapter.
 """
 from __future__ import annotations
 
+import argparse
 import heapq
 import itertools
 import json
@@ -154,23 +155,105 @@ ORACLES = {
 }
 
 
-def main():
-    path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("benchmarks/complex_tasks.json")
-    suite = json.loads(path.read_text(encoding="utf-8"))
+MAX_BENCHMARK_BYTES = 2_000_000
+MAX_JSON_DEPTH = 64
+
+
+def _unique_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value):
+    raise ValueError(f"non-standard JSON constant: {value}")
+
+
+def _check_json_nesting(text):
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == chr(92):
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > MAX_JSON_DEPTH:
+                raise ValueError("JSON nesting exceeds parser limit")
+        elif character in "]}":
+            depth -= 1
+            if depth < 0:
+                raise ValueError("malformed JSON nesting")
+
+
+def load_suite(path):
+    with Path(path).open("rb") as stream:
+        raw = stream.read(MAX_BENCHMARK_BYTES + 1)
+    if len(raw) > MAX_BENCHMARK_BYTES:
+        raise ValueError(f"benchmark suite exceeds {MAX_BENCHMARK_BYTES}-byte limit")
+    try:
+        text = raw.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise ValueError("benchmark suite must be valid UTF-8") from exc
+    _check_json_nesting(text)
+    suite = json.loads(
+        text, object_pairs_hook=_unique_json_object, parse_constant=_reject_json_constant
+    )
+    if not isinstance(suite, dict) or type(suite.get("schema_version")) is not int or suite["schema_version"] != 1:
+        raise ValueError("unsupported benchmark suite schema")
     tasks = suite.get("tasks")
-    if not isinstance(tasks, list):
-        raise SystemExit("FAIL: tasks must be a list")
-    by_id = {task.get("id"): task for task in tasks}
-    if len(by_id) != len(tasks):
-        raise SystemExit("FAIL: duplicate task IDs")
+    if not isinstance(tasks, list) or not tasks:
+        raise ValueError("benchmark tasks must be a non-empty list")
+    identifiers = []
+    for index, task in enumerate(tasks):
+        if not isinstance(task, dict):
+            raise ValueError(f"task at index {index} must be an object")
+        task_id = task.get("id")
+        if not isinstance(task_id, str) or not task_id:
+            raise ValueError(f"task at index {index} must have a non-empty string id")
+        if not isinstance(task.get("category"), str) or not task["category"]:
+            raise ValueError(f"task {task_id} must have a non-empty category")
+        if not isinstance(task.get("prompt"), str) or not task["prompt"]:
+            raise ValueError(f"task {task_id} must have a non-empty prompt")
+        if "expected_output" not in task:
+            raise ValueError(f"task {task_id} is missing expected_output")
+        identifiers.append(task_id)
+    if len(set(identifiers)) != len(identifiers):
+        raise ValueError("benchmark task IDs must be unique")
+    return suite
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("suite", nargs="?", default="benchmarks/complex_tasks.json")
+    args = parser.parse_args(argv)
+    try:
+        suite = load_suite(args.suite)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"FAIL: invalid benchmark suite: {exc}")
+        return 1
+
+    by_id = {task["id"]: task for task in suite["tasks"]}
     failures = []
     for task_id, oracle in ORACLES.items():
         task = by_id.get(task_id)
         if task is None:
             failures.append(f"{task_id}: missing task")
+            print(f"FAIL {task_id}: missing task")
             continue
         actual = oracle()
-        expected = task.get("expected_output")
+        expected = task["expected_output"]
         if actual != expected:
             failures.append(f"{task_id}: expected={expected!r}; independently_computed={actual!r}")
             print(f"FAIL {task_id}: expected={expected!r}; independently_computed={actual!r}")
@@ -182,8 +265,9 @@ def main():
         failures.extend(f"{task_id}: no independent oracle registered" for task_id in unknown)
     if failures:
         print(f"FAIL: {len(failures)} oracle mismatch(es)")
-        raise SystemExit(1)
+        return 1
     print(f"PASS: {len(ORACLES)} independent oracle checks; adapter/model performance NOT_VALIDATED")
+    return 0
 
 
 if __name__ == "__main__":
