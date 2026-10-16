@@ -136,7 +136,10 @@ class Parser:
             self.i += 1
             if len(token.value) > 1234:
                 raise NEXORASyntaxError(f"integer literal exceeds 4096-bit limit at offset {token.offset}")
-            return Node("number", int(token.value))
+            value = int(token.value)
+            if value.bit_length() > 4096:
+                raise NEXORASyntaxError(f"integer literal exceeds 4096-bit limit at offset {token.offset}")
+            return Node("number", value)
         if token.kind == "STRING":
             self.i += 1
             import json
