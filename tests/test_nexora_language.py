@@ -58,7 +58,7 @@ class NEXORALanguageTests(unittest.TestCase):
 
     def test_invalid_json_string_escape_fails(self):
         with self.assertRaises(NEXORASyntaxError):
-            run(r'print("\\q");')
+            run('print("' + chr(92) + 'q");')
 
     def test_unterminated_string_fails(self):
         with self.assertRaises(NEXORASyntaxError):
