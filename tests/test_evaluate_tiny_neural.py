@@ -49,17 +49,17 @@ class EvaluateTinyNeuralTests(unittest.TestCase):
     def test_refuses_exact_training_corpus_reuse(self) -> None:
         self.heldout.write_text(self.training, encoding="utf-8")
         with self.assertRaisesRegex(ValueError, "matches the training corpus"):
-            MODULE.evaluate(self.checkpoint, self.heldout)
+            MODULE.evaluate(self.checkpoint, self.heldout, self.training_path)
 
     def test_refuses_empty_heldout_corpus(self) -> None:
         self.heldout.write_bytes(b"")
         with self.assertRaisesRegex(ValueError, "must not be empty"):
-            MODULE.evaluate(self.checkpoint, self.heldout)
+            MODULE.evaluate(self.checkpoint, self.heldout, self.training_path)
 
     def test_refuses_non_utf8_heldout_corpus(self) -> None:
         self.heldout.write_bytes(b"\xff\xfe")
         with self.assertRaisesRegex(ValueError, "valid UTF-8"):
-            MODULE.evaluate(self.checkpoint, self.heldout)
+            MODULE.evaluate(self.checkpoint, self.heldout, self.training_path)
 
 
 if __name__ == "__main__":
