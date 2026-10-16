@@ -15,7 +15,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 MODEL_TYPE = "tiny-neural-utf8-byte"
 BOS, EOS, VOCAB_SIZE = 256, 257, 258
 EMBED_DIM = 8
@@ -89,7 +89,7 @@ def _finite_number(value: Any, label: str) -> float:
 def _validate_model(model: Any, require_hash: bool = False) -> dict[str, Any]:
     if not isinstance(model, dict):
         raise ValueError("checkpoint must be an object")
-    required = {"schema_version", "model_type", "vocab_size", "embedding_dim", "seed", "training_bytes", "epochs", "embedding", "weights", "bias"}
+    required = {"schema_version", "model_type", "vocab_size", "embedding_dim", "seed", "training_bytes", "training_corpus_sha256", "epochs", "learning_rate", "embedding", "weights", "bias"}
     allowed = required | {"checkpoint_sha256"}
     if set(model) not in (required, allowed) or (require_hash and set(model) != allowed):
         raise ValueError("invalid checkpoint fields")
@@ -106,6 +106,13 @@ def _validate_model(model: Any, require_hash: bool = False) -> dict[str, Any]:
         raise ValueError("invalid training metadata")
     if type(model["epochs"]) is not int or not 1 <= model["epochs"] <= MAX_EPOCHS:
         raise ValueError("invalid epoch metadata")
+    corpus_hash = model["training_corpus_sha256"]
+    if (not isinstance(corpus_hash, str) or len(corpus_hash) != 64
+            or any(character not in "0123456789abcdef" for character in corpus_hash)):
+        raise ValueError("invalid training corpus SHA-256")
+    checkpoint_lr = _finite_number(model["learning_rate"], "learning_rate")
+    if not 0 < checkpoint_lr <= 1:
+        raise ValueError("invalid learning-rate metadata")
     embedding, weights, bias = model["embedding"], model["weights"], model["bias"]
     if not isinstance(embedding, list) or len(embedding) != VOCAB_SIZE or not isinstance(weights, list) or len(weights) != VOCAB_SIZE or not isinstance(bias, list) or len(bias) != VOCAB_SIZE:
         raise ValueError("invalid parameter shapes")
@@ -180,7 +187,9 @@ def train_text(text: str, *, epochs: int = 3, learning_rate: float = 0.05, seed:
 
     model = {
         "schema_version": SCHEMA_VERSION, "model_type": MODEL_TYPE, "vocab_size": VOCAB_SIZE,
-        "embedding_dim": embedding_dim, "seed": seed, "training_bytes": len(data), "epochs": epochs,
+        "embedding_dim": embedding_dim, "seed": seed, "training_bytes": len(data),
+        "training_corpus_sha256": hashlib.sha256(data).hexdigest(),
+        "epochs": epochs, "learning_rate": lr,
         "embedding": embedding, "weights": weights, "bias": bias,
     }
     _validate_model(model)
@@ -318,6 +327,8 @@ def main() -> None:
     train.add_argument("checkpoint", type=Path)
     train.add_argument("--epochs", type=int, default=3)
     train.add_argument("--seed", type=int, default=7)
+    train.add_argument("--learning-rate", type=float, default=0.05)
+    train.add_argument("--embedding-dim", type=int, default=EMBED_DIM)
     evaluate = sub.add_parser("evaluate")
     evaluate.add_argument("checkpoint", type=Path)
     evaluate.add_argument("input", type=Path)
@@ -327,8 +338,20 @@ def main() -> None:
     sample.add_argument("--max-bytes", type=int, default=64)
     args = parser.parse_args()
     if args.command == "train":
-        model = train_text(args.input.read_text(encoding="utf-8"), epochs=args.epochs, seed=args.seed)
-        print(json.dumps({"checkpoint_sha256": save_checkpoint(model, args.checkpoint), "training_bytes": model["training_bytes"], "epochs": model["epochs"]}, sort_keys=True))
+        training_text = args.input.read_bytes().decode("utf-8", errors="strict")
+        model = train_text(
+            training_text, epochs=args.epochs, seed=args.seed,
+            learning_rate=args.learning_rate, embedding_dim=args.embedding_dim,
+        )
+        print(json.dumps({
+            "checkpoint_sha256": save_checkpoint(model, args.checkpoint),
+            "training_bytes": model["training_bytes"],
+            "training_corpus_sha256": model["training_corpus_sha256"],
+            "epochs": model["epochs"],
+            "seed": model["seed"],
+            "learning_rate": model["learning_rate"],
+            "embedding_dim": model["embedding_dim"],
+        }, sort_keys=True))
     elif args.command == "evaluate":
         print(json.dumps(evaluate_text(load_checkpoint(args.checkpoint), args.input.read_text(encoding="utf-8")), sort_keys=True))
     else:
