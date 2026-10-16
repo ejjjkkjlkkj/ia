@@ -19,17 +19,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      - name: Install test runner
+        run: python -m pip install --disable-pip-version-check pytest
+
       - name: Run deterministic audit and available tests
         shell: bash
         run: |
-          set -uo pipefail
+          set +e
           mkdir -p audit-report
+          report=audit-report/report.md
+          failed=0
           {
             echo "# Hourly repository audit"
             echo
@@ -39,56 +46,80 @@ jobs:
             echo
             echo "## Repository inventory"
             find . -maxdepth 4 -type f \( -name 'pyproject.toml' -o -name 'pytest.ini' -o -name 'tox.ini' -o -name 'setup.cfg' -o -name 'Cargo.toml' -o -name 'package.json' -o -name 'go.mod' -o -name 'CMakeLists.txt' \) -not -path './.git/*' | sort
-            echo
-            echo "## Python syntax check"
-          } | tee audit-report/report.md
+          } > "$report"
 
-          python -m compileall -q . >>audit-report/report.md 2>&1
+          echo >> "$report"
+          echo "## Python syntax" | tee -a "$report"
+          python -m compileall -q . >>"$report" 2>&1
           py_rc=$?
-          echo "- Python compileall exit code: ${py_rc}" | tee -a audit-report/report.md
+          echo "- compileall exit code: $py_rc" | tee -a "$report"
+          [ "$py_rc" -eq 0 ] || failed=1
 
-          echo >> audit-report/report.md
-          echo "## Whitespace / conflict-marker check" | tee -a audit-report/report.md
-          git diff --check >>audit-report/report.md 2>&1
+          echo >> "$report"
+          echo "## JSON manifests" | tee -a "$report"
+          json_rc=0
+          while IFS= read -r -d '' file; do
+            if ! python -m json.tool "$file" >/dev/null 2>>"$report"; then
+              echo "- FAIL: $file" | tee -a "$report"
+              json_rc=1
+            fi
+          done < <(find . -path './.git' -prune -o -path './.venv' -prune -o -name '*.json' -print0)
+          echo "- JSON validation exit code: $json_rc" | tee -a "$report"
+          [ "$json_rc" -eq 0 ] || failed=1
+
+          echo >> "$report"
+          echo "## Last commit whitespace check" | tee -a "$report"
+          git show --check --oneline HEAD >>"$report" 2>&1
           diff_rc=$?
-          echo "- git diff --check exit code: ${diff_rc}" | tee -a audit-report/report.md
+          echo "- git show --check exit code: $diff_rc" | tee -a "$report"
+          [ "$diff_rc" -eq 0 ] || failed=1
 
-          echo >> audit-report/report.md
-          test_rc=0
-          echo "## Available test runners" | tee -a audit-report/report.md
-          if find . -maxdepth 4 -type f -name 'Cargo.toml' -not -path './.git/*' -print -quit | grep -q .; then
-            if ! command -v cargo >/dev/null 2>&1; then
-              echo "- Rust manifests found but cargo unavailable: BLOCKED" | tee -a audit-report/report.md
-            else
+          echo >> "$report"
+          echo "## Python regression suite" | tee -a "$report"
+          PYTHONPATH=src python -m pytest -q tests >>"$report" 2>&1
+          test_rc=$?
+          echo "- pytest exit code: $test_rc" | tee -a "$report"
+          [ "$test_rc" -eq 0 ] || failed=1
+
+          echo >> "$report"
+          echo "## Independent complex benchmark oracle" | tee -a "$report"
+          if [ -f tools/validate_benchmark_truth.py ] && [ -f benchmarks/complex_tasks.json ]; then
+            python tools/validate_benchmark_truth.py >>"$report" 2>&1
+            oracle_rc=$?
+            echo "- oracle exit code: $oracle_rc" | tee -a "$report"
+            [ "$oracle_rc" -eq 0 ] || failed=1
+          else
+            echo "- BLOCKED: benchmark oracle or suite missing" | tee -a "$report"
+            failed=1
+          fi
+
+          echo >> "$report"
+          echo "## Rust workspace tests" | tee -a "$report"
+          if find . -maxdepth 4 -type f -name Cargo.toml -not -path './.git/*' -print -quit | grep -q .; then
+            if command -v cargo >/dev/null 2>&1; then
               while IFS= read -r manifest; do
-                echo "- Running cargo test --manifest-path ${manifest}" | tee -a audit-report/report.md
-                cargo test --manifest-path "${manifest}" >>audit-report/report.md 2>&1 || echo "- FAIL: ${manifest}" | tee -a audit-report/report.md
-              done < <(find . -maxdepth 4 -type f -name 'Cargo.toml' -not -path './.git/*' | sort)
+                echo "- cargo test --manifest-path $manifest" | tee -a "$report"
+                cargo test --manifest-path "$manifest" >>"$report" 2>&1 || failed=1
+              done < <(find . -maxdepth 4 -type f -name Cargo.toml -not -path './.git/*' | sort)
+            else
+              echo "- BLOCKED: Cargo.toml found but cargo is unavailable" | tee -a "$report"
+              failed=1
             fi
           else
-            echo "- No Cargo.toml found within depth 4: NOT APPLICABLE" | tee -a audit-report/report.md
+            echo "- NOT_APPLICABLE: no Cargo.toml found" | tee -a "$report"
           fi
 
-          if [ -d tests ] || find . -maxdepth 3 -type f -name 'test_*.py' -not -path './.git/*' -print -quit | grep -q .; then
-            echo "- Running unittest discovery" | tee -a audit-report/report.md
-            python -m unittest discover -v >>audit-report/report.md 2>&1 || { echo "- unittest discovery: FAIL (see log)" | tee -a audit-report/report.md; test_rc=1; }
-          else
-            echo "- No obvious Python tests found: NOT APPLICABLE" | tee -a audit-report/report.md
-          fi
-
-          echo >> audit-report/report.md
-          echo "## Scope limitation" | tee -a audit-report/report.md
-          echo "This workflow does not call an LLM, modify source files, open PRs, or prove runtime/physical-device behavior. It is a scheduled deterministic audit, not an autonomous coding agent." | tee -a audit-report/report.md
-
-          if [ "${py_rc}" -ne 0 ] || [ "${diff_rc}" -ne 0 ]; then
-            exit 1
-          fi
+          echo >> "$report"
+          echo "## Scope limitation" | tee -a "$report"
+          echo "No API key or LLM is used. This is a deterministic audit, not an autonomous code-generation run; model training, production inference, and physical-device behavior are not claimed." | tee -a "$report"
+          echo "- Overall result: $([ "$failed" -eq 0 ] && echo PASS || echo FAIL)" | tee -a "$report"
+          exit "$failed"
 
       - name: Upload audit report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hourly-audit-report
+          name: hourly-audit-report-${{ github.run_id }}
           path: audit-report/report.md
           if-no-files-found: warn
           retention-days: 14
