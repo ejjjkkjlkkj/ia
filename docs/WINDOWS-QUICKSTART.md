@@ -11,6 +11,23 @@ Cette version fournit un paquet source portable et les outils Python de référe
 - PowerShell 7 recommandé, Windows PowerShell compatible pour les commandes ci-dessous.
 - Aucun compte cloud, clé API ou service distant n'est requis pour exécuter les outils Python de référence.
 
+## Démarrage rapide guidé
+
+Depuis PowerShell, dans le dossier extrait, lancez la démonstration locale :
+
+```powershell
+.\windows\Start-IA.ps1 -Mode Demo
+```
+
+Pour lancer les tests complets, installez pytest une seule fois, puis exécutez :
+
+```powershell
+py -3 -m pip install pytest
+.\windows\Start-IA.ps1 -Mode Verify
+```
+
+Le lanceur utilise Python localement, sans clé API ni envoi du corpus vers un service distant. Le mode Demo crée ses fichiers temporaires dans le répertoire temporaire Windows puis les supprime.
+
 ## Vérifier Python
 
 Dans PowerShell, depuis le dossier extrait :
@@ -52,7 +69,7 @@ Le checkpoint est un modèle expérimental de prédiction d'octets, pas un Trans
 
 ## Paquet Windows CI
 
-Le workflow GitHub Actions **Windows validation and portable package** exécute les tests sur un runner Windows et construit un ZIP source nommé `nexora-ia-windows-source`. Après la réussite du workflow, récupérez-le dans la section **Artifacts** de l'exécution. L'artefact est temporaire (rétention configurée à 30 jours) ; il ne s'agit pas d'une GitHub Release versionnée.
+Le workflow GitHub Actions **Windows validation and portable package** exécute les tests et la démonstration sur un runner Windows, puis construit un ZIP source nommé `nexora-ia-windows-source` avec un fichier de somme SHA-256. Sur les exécutions de branche, récupérez l'artefact dans la section **Artifacts** (rétention de 30 jours). La poussée d'un tag versionné `v*` publie également une GitHub Release avec le ZIP et sa somme SHA-256.
 
 ## Limites connues
 

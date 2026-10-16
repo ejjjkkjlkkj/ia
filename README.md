@@ -124,4 +124,4 @@ NEXORA IR v1 contract: [NEXORA-IR-V1.md](NEXORA-IR-V1.md). The IR is a bounded J
 
 ## Utilisation sous Windows
 
-Guide de démarrage Windows : [docs/WINDOWS-QUICKSTART.md](docs/WINDOWS-QUICKSTART.md). Le workflow [Windows validation and portable package](.github/workflows/windows-package.yml) exécute les tests sur Windows et publie un artefact ZIP de sources après succès. Cet artefact n'est ni un exécutable autonome ni une release GitHub versionnée.
+Guide de démarrage Windows : [docs/WINDOWS-QUICKSTART.md](docs/WINDOWS-QUICKSTART.md). Le lanceur [windows/Start-IA.ps1](windows/Start-IA.ps1) propose les modes `Demo`, `Verify`, `Train`, `Evaluate` et `Generate`. Le workflow [Windows validation and portable package](.github/workflows/windows-package.yml) exécute les tests sur un runner Windows, construit un ZIP source et calcule sa somme SHA-256. Un tag versionné `v*` déclenche la publication du ZIP et de la somme dans une GitHub Release. Le paquet reste un paquet source portable, pas un exécutable autonome ni un installateur Windows.
