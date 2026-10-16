@@ -223,16 +223,20 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
 
 def generate(model: dict[str, Any], prompt: str = "", max_bytes: int = 64) -> str:
     _validate_model(model)
+    if not isinstance(prompt, str):
+        raise ValueError("prompt must be text")
     if type(max_bytes) is not int or not 0 <= max_bytes <= 4096:
         raise ValueError("max_bytes must be between 0 and 4096")
     try:
-        prefix = prompt.encode("utf-8")
-    except (AttributeError, UnicodeEncodeError) as exc:
+        prefix = prompt.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
         raise ValueError("prompt must be valid Unicode text") from exc
+    if len(prefix) > MAX_PROMPT_BYTES:
+        raise ValueError(f"prompt exceeds {MAX_PROMPT_BYTES}-byte limit")
     previous = prefix[-1] if prefix else BOS
     output = bytearray()
     for _ in range(max_bytes):
-        probabilities = next_token_probabilities(model, previous)
+        probabilities = _next_token_probabilities_validated(model, previous)
         candidates = [*range(256), EOS]
         token = max(candidates, key=lambda idx: (probabilities[idx], -idx))
         if token == EOS:
