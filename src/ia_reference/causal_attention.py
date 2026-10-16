@@ -11,16 +11,28 @@ from typing import Sequence
 
 Vector = Sequence[float]
 Matrix = Sequence[Vector]
+MAX_MATRIX_ROWS = 4_096
+MAX_MATRIX_COLUMNS = 4_096
+MAX_MATRIX_ELEMENTS = 1_000_000
+MAX_ATTENTION_WORK = 10_000_000
 
 
 def _matrix(name: str, values: Matrix) -> list[list[float]]:
     if not isinstance(values, (list, tuple)) or not values:
         raise ValueError(f"{name} must be a non-empty matrix")
+    if len(values) > MAX_MATRIX_ROWS:
+        raise ValueError(f"{name} exceeds the matrix row limit")
     result: list[list[float]] = []
     width: int | None = None
+    elements = 0
     for row in values:
         if not isinstance(row, (list, tuple)) or not row:
             raise ValueError(f"{name} rows must be non-empty vectors")
+        if len(row) > MAX_MATRIX_COLUMNS:
+            raise ValueError(f"{name} exceeds the matrix column limit")
+        elements += len(row)
+        if elements > MAX_MATRIX_ELEMENTS:
+            raise ValueError(f"{name} exceeds the matrix element limit")
         converted: list[float] = []
         for item in row:
             if isinstance(item, bool) or not isinstance(item, (int, float)):
@@ -56,6 +68,10 @@ def causal_scaled_dot_product_attention(
     key_dim = len(q[0])
     if len(k[0]) != key_dim:
         raise ValueError("query and key dimensions must match")
+    value_dim = len(v[0])
+    estimated_work = (length * (length + 1) // 2) * (key_dim + value_dim)
+    if estimated_work > MAX_ATTENTION_WORK:
+        raise ValueError(f"attention work exceeds {MAX_ATTENTION_WORK}-operation budget")
     scale = math.sqrt(key_dim)
     outputs: list[list[float]] = []
     for i, q_row in enumerate(q):
