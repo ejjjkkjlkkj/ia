@@ -43,6 +43,7 @@ jobs:
           python -m pip install pytest
 
       - name: Use repository-owned model only
+        id: agent
         shell: bash
         run: |
           set -euo pipefail
@@ -52,9 +53,15 @@ jobs:
           done
           if [ -n "$AGENT" ]; then
             "$AGENT" --task-file .github/agent-task.md
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
           else
-            echo 'BLOCKED: repository-owned model CLI not implemented; no third-party model fallback.'
-            printf '%s\n' 'BLOCKED: own-model CLI/checkpoint unavailable; third-party model fallback prohibited.' > agent-status.md
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            {
+              echo '## Autonomous coding agent: BLOCKED'
+              echo 'No validated repository-owned coding-agent executable/checkpoint exists yet.'
+              echo 'No third-party LLM fallback was used. Deterministic repository tests still run; source changes and proposal publication are skipped.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo 'BLOCKED: own-model coding CLI/checkpoint is not implemented and validated; no third-party fallback.'
           fi
 
       - name: Run repository tests
@@ -66,7 +73,7 @@ jobs:
           git diff --check
 
       - name: Publish proposal for review
-        if: success()
+        if: success() && steps.agent.outputs.ready == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: bash
