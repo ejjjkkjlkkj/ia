@@ -315,8 +315,17 @@ def evaluate_text(model: dict[str, Any], text: str) -> dict[str, float | int]:
 
 def generate(model: dict[str, Any], prompt: str = "", max_tokens: int = 20) -> str:
     """Generate deterministically using the most frequent observed next token."""
-    if max_tokens < 0:
-        raise ValueError("max_tokens must be non-negative")
+    _validate_model(model)
+    if not isinstance(prompt, str):
+        raise ValueError("prompt must be text")
+    if type(max_tokens) is not int or not 0 <= max_tokens <= MAX_GENERATION_TOKENS:
+        raise ValueError(f"max_tokens must be between 0 and {MAX_GENERATION_TOKENS}")
+    try:
+        prompt_bytes = prompt.encode("utf-8", errors="strict")
+    except UnicodeEncodeError as exc:
+        raise ValueError("prompt contains invalid Unicode") from exc
+    if len(prompt_bytes) > MAX_PROMPT_BYTES:
+        raise ValueError(f"prompt exceeds {MAX_PROMPT_BYTES}-byte limit")
     output = tokenize(prompt)
     previous = output[-1] if output else BOS
     if previous != BOS and previous not in model["vocabulary"]:
