@@ -17,6 +17,18 @@ Les langages partagent une **spécification mathématique, un tokenizer versionn
 
 Le contrat commun versionné est maintenu dans [ACCESSIBILITY — AI integration contract](https://github.com/ejjjkkjlkkj/accessibility/blob/feature/dark-redteam-from-scratch-20261015/docs/AI-ACCESSIBILITY-INTEGRATION-CONTRACT-V1.md). Il fixe la séparation des preuves, le mode sans IA, la confidentialité et les critères d'interopérabilité. La présence du contrat ne signifie pas que le modèle est entraîné ni que l'intégration est exécutée.
 
+## Inclusion universelle de tous les handicaps
+
+NEXORA IA est conçue pour être accessible aux personnes ayant **tout type de handicap**, y compris les handicaps multiples, fluctuants, invisibles ou temporaires. L'objectif est de prévenir la discrimination par la conception, sans demander de diagnostic, sans imposer une modalité unique (voix, vision, audition, souris) et en laissant à chaque personne le contrôle de ses réglages.
+
+- Politique et exigences produit : [docs/UNIVERSAL-DISABILITY-INCLUSION-POLICY.md](docs/UNIVERSAL-DISABILITY-INCLUSION-POLICY.md)
+- Contrat machine-readable : [data/universal-disability-inclusion-contract-v1.json](data/universal-disability-inclusion-contract-v1.json)
+- Tests de régression du contrat : [tests/test_universal_disability_inclusion_contract.py](tests/test_universal_disability_inclusion_contract.py)
+
+Le périmètre couvre notamment vision, audition, mobilité/motricité, parole et communication, cognition/apprentissage/neurodivergence, fatigue/douleur/santé chronique, ainsi que handicaps combinés et fluctuants. L'accessibilité doit aussi couvrir l'installation, la configuration, le support, les mises à jour, la confidentialité et la récupération après erreur.
+
+**Statut honnête : PARTIAL / NOT_VALIDATED.** Le contrat et les tests de structure sont ajoutés ; cela ne prouve pas que toutes ces fonctions sont implémentées, compatibles avec toutes les aides techniques ou validées avec des personnes handicapées. Les déclarations PASS exigent des résultats reproductibles et des essais réels adaptés à chaque parcours.
+
 ## Accessibilité visuelle et lecteur d'écran
 
 L'objectif produit inclut une IA de référence pour les personnes aveugles et malvoyantes, avec un lecteur d'écran clavier-first, des adaptateurs natifs par plateforme, une voix locale, le braille, une aide IA facultative et une piste UEFI distincte. Les fonctions essentielles doivent rester utilisables sans modèle ni réseau. Les propriétés d'accessibilité doivent provenir des API de la plateforme ; OCR et vision sont complémentaires, jamais une preuve équivalente à l'arbre d'accessibilité.
