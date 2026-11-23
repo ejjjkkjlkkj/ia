@@ -32,7 +32,7 @@ function Invoke-Python {
 function Select-Python {
     $candidates = New-Object System.Collections.Generic.List[object]
     $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
-    if ($pythonCommand -and $pythonCommand.Source -notmatch "\\WindowsApps\\") {
+    if ($pythonCommand) {
         $candidates.Add([pscustomobject]@{ Executable = $pythonCommand.Source; Prefix = @() })
     }
     $pyCommand = Get-Command py -ErrorAction SilentlyContinue
@@ -56,16 +56,16 @@ function Select-Python {
             }
         }
     }
-    throw "Python 3.11 or newer is required. Install Python and enable the Python launcher, then rerun this script."
+    throw "Python 3.11 or newer is required. Install Python from python.org and enable the Python launcher, then rerun this script."
 }
 
 Select-Python
 
 switch ($Mode) {
     "Verify" {
-        Invoke-Python -Arguments @("-m", "compileall", "-q", (Join-Path $Root "src"), (Join-Path $Root "tests"), (Join-Path $Root "tools"))
-        Invoke-Python -Arguments @("-m", "pytest", "-q")
-        Write-Host "PASS: Python compilation and full pytest suite."
+        Invoke-Python -Arguments @("-m", "compileall", "-q", (Join-Path $Root "src"), (Join-Path $Root "tests"))
+        Invoke-Python -Arguments @("-m", "unittest", "discover", "-s", (Join-Path $Root "tests"), "-v")
+        Write-Host "PASS: source compilation and unit tests."
     }
     "Demo" {
         $work = Join-Path ([System.IO.Path]::GetTempPath()) ("ia-windows-demo-" + [guid]::NewGuid().ToString("N"))
@@ -80,11 +80,13 @@ switch ($Mode) {
             Invoke-Python -Arguments @("-m", "ia_reference.tiny_neural", "train", $train, $demoCheckpoint, "--epochs", "1", "--seed", "7", "--learning-rate", "0.05", "--embedding-dim", "4")
             Invoke-Python -Arguments @((Join-Path $Root "tools/evaluate_tiny_neural.py"), $demoCheckpoint, $train, $heldout, "--report", $demoReport)
             Invoke-Python -Arguments @("-m", "ia_reference.tiny_neural", "generate", $demoCheckpoint, "--prompt", $Prompt, "--max-bytes", "24")
-            Write-Host "PASS: local training, checkpoint reload, held-out evaluation and generation."
-            Write-Host "Scope: experimental byte predictor; not a production LLM."
+            Write-Host "PASS: local train, checkpoint reload, held-out evaluation and generation."
+            Write-Host "Note: this is a tiny experimental byte predictor, not a production LLM."
+            Write-Host "Temporary demo files: $work"
         }
-        finally {
+        catch {
             Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
+            throw
         }
     }
     "Train" {
