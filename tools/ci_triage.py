@@ -21,6 +21,31 @@ MAX_INTERVAL_SECONDS = 60
 FAILED_CONCLUSIONS = {"failure", "timed_out", "action_required", "startup_failure"}
 
 
+def _json_nesting_exceeds(text: str, max_depth: int = 64) -> bool:
+    """True when the JSON text nests deeper than max_depth, regardless of Python's recursion limit."""
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == chr(92):
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > max_depth:
+                return True
+        elif character in "]}":
+            depth -= 1
+    return False
+
+
 def fetch_runs(repo: str, sha: str, limit: int = 100) -> list[dict[str, Any]]:
     if not isinstance(repo, str) or repo.count("/") != 1 or any(part.strip() == "" for part in repo.split("/", 1)):
         raise ValueError("repo must use owner/name format")
@@ -46,6 +71,8 @@ def fetch_runs(repo: str, sha: str, limit: int = 100) -> list[dict[str, Any]]:
     if result.returncode:
         detail = result.stderr.strip()[-1000:] or f"gh exited with {result.returncode}"
         raise RuntimeError(detail)
+    if _json_nesting_exceeds(result.stdout):
+        raise RuntimeError("gh returned excessively nested JSON")
     try:
         payload = json.loads(result.stdout)
     except (json.JSONDecodeError, RecursionError) as exc:
