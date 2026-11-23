@@ -1,0 +1,102 @@
+name: Intellectual property provenance gate
+
+on:
+  push:
+    branches: [main, master, "feature/**"]
+    paths:
+      - "docs/ORIGINAL-INTELLECTUAL-PROPERTY-POLICY.md"
+      - "data/ip-provenance-ledger.json"
+      - ".github/workflows/ip-provenance-gate.yml"
+  pull_request:
+    paths:
+      - "docs/ORIGINAL-INTELLECTUAL-PROPERTY-POLICY.md"
+      - "data/ip-provenance-ledger.json"
+      - ".github/workflows/ip-provenance-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ip-provenance-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-ledger:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate provenance ledger schema and review states
+        shell: python {0}
+        run: |
+          import json
+          import pathlib
+          import sys
+
+          path = pathlib.Path("data/ip-provenance-ledger.json")
+          errors = []
+          try:
+              data = json.loads(path.read_text(encoding="utf-8"))
+          except Exception as exc:
+              print(f"FAIL: cannot parse provenance ledger: {exc}")
+              sys.exit(1)
+
+          required = set(data.get("required_fields", []))
+          statuses = set(data.get("status_values", []))
+          assets = data.get("assets", [])
+          seen = set()
+          if data.get("schema_version") != 1:
+              errors.append("schema_version must equal 1")
+          if not required or not statuses:
+              errors.append("required_fields and status_values must be populated")
+          if not isinstance(assets, list):
+              errors.append("assets must be a list")
+              assets = []
+
+          for i, asset in enumerate(assets):
+              if not isinstance(asset, dict):
+                  errors.append(f"assets[{i}] must be an object")
+                  continue
+              missing = sorted(required - asset.keys())
+              if missing:
+                  errors.append(f"assets[{i}] missing required fields: {', '.join(missing)}")
+                  continue
+              asset_id = asset.get("asset_id")
+              if not isinstance(asset_id, str) or not asset_id.strip():
+                  errors.append(f"assets[{i}] asset_id must be non-empty")
+              elif asset_id in seen:
+                  errors.append(f"duplicate asset_id: {asset_id}")
+              else:
+                  seen.add(asset_id)
+              if asset.get("review_status") not in statuses:
+                  errors.append(f"assets[{i}] has unknown review_status")
+              for field in ("origin_url", "exact_version_or_revision", "license_name_and_version", "license_url_or_rights_evidence"):
+                  value = asset.get(field)
+                  if not isinstance(value, str) or not value.strip():
+                      errors.append(f"assets[{i}] {field} must be explicit; use 'UNKNOWN' if unresolved")
+              for field in ("redistribution_allowed", "commercial_use_allowed", "modification_allowed", "training_use_allowed_if_relevant"):
+                  if asset.get(field) not in (True, False, None, "UNKNOWN", "NOT_APPLICABLE"):
+                      errors.append(f"assets[{i}] {field} must be boolean or explicit unknown/not-applicable")
+              if asset.get("review_status") in {"PUBLIC_DOMAIN_VERIFIED", "LICENSE_APPROVED"}:
+                  evidence = asset.get("license_url_or_rights_evidence", "")
+                  if not evidence or evidence in {"UNKNOWN", "NOT_VALIDATED"}:
+                      errors.append(f"assets[{i}] approved status requires rights evidence")
+
+          print(f"Assets in ledger: {len(assets)}")
+          print(f"Unique asset IDs: {len(seen)}")
+          if errors:
+              print("FAIL: provenance ledger validation errors:")
+              print("\\n".join("- " + error for error in errors))
+              sys.exit(1)
+          print("PASS: ledger schema and explicit review states")
+          print("NOTICE: structural validation is not legal clearance.")
+      - name: Upload provenance ledger and policy
+        uses: actions/upload-artifact@v6
+        with:
+          name: ip-provenance-audit
+          path: |
+            data/ip-provenance-ledger.json
+            docs/ORIGINAL-INTELLECTUAL-PROPERTY-POLICY.md
+          if-no-files-found: error
+          retention-days: 30

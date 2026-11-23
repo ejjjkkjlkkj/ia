@@ -1,0 +1,128 @@
+name: Global web resource map audit
+
+on:
+  push:
+    branches: [main, master, "feature/**"]
+    paths:
+      - "data/global-web-resource-map.json"
+      - "docs/GLOBAL-WEB-RESOURCE-MAP.md"
+      - ".github/workflows/global-web-resource-map.yml"
+  pull_request:
+    paths:
+      - "data/global-web-resource-map.json"
+      - "docs/GLOBAL-WEB-RESOURCE-MAP.md"
+      - ".github/workflows/global-web-resource-map.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "41 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: global-web-resource-map-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-map:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Validate global web resource map
+        shell: python {0}
+        run: |
+          import json
+          import pathlib
+          import sys
+          from urllib.parse import urlparse
+
+          path = pathlib.Path("data/global-web-resource-map.json")
+          errors = []
+          if not path.is_file():
+              print("FAIL: resource map missing")
+              sys.exit(1)
+
+          try:
+              data = json.loads(path.read_text(encoding="utf-8"))
+          except Exception as exc:
+              print(f"FAIL: invalid JSON: {exc}")
+              sys.exit(1)
+
+          statuses = set(data.get("status_values", []))
+          categories = data.get("categories", [])
+          required = {"id", "name", "url", "use", "status", "license_policy"}
+          ids = set()
+          urls = set()
+          count = 0
+
+          if data.get("schema_version") != 1:
+              errors.append("schema_version must equal 1")
+          if not isinstance(categories, list) or not categories:
+              errors.append("categories must be a non-empty list")
+
+          for ci, category in enumerate(categories):
+              if not isinstance(category, dict):
+                  errors.append(f"categories[{ci}] must be an object")
+                  continue
+              if not category.get("id") or not category.get("resources"):
+                  errors.append(f"categories[{ci}] requires id and non-empty resources")
+                  continue
+              for ri, item in enumerate(category["resources"]):
+                  count += 1
+                  prefix = f"categories[{ci}].resources[{ri}]"
+                  if not isinstance(item, dict):
+                      errors.append(f"{prefix} must be an object")
+                      continue
+                  missing = sorted(required - item.keys())
+                  if missing:
+                      errors.append(f"{prefix} missing fields: {', '.join(missing)}")
+                      continue
+                  rid = item["id"]
+                  if not isinstance(rid, str) or not rid.strip():
+                      errors.append(f"{prefix} id must be non-empty text")
+                  elif rid in ids:
+                      errors.append(f"{prefix} duplicate resource id: {rid}")
+                  else:
+                      ids.add(rid)
+                  url = item["url"]
+                  parsed = urlparse(url if isinstance(url, str) else "")
+                  if parsed.scheme != "https" or not parsed.netloc:
+                      errors.append(f"{prefix} URL must be absolute HTTPS")
+                  elif url in urls:
+                      errors.append(f"{prefix} duplicate URL: {url}")
+                  else:
+                      urls.add(url)
+                  if item["status"] not in statuses:
+                      errors.append(f"{prefix} unknown status: {item['status']!r}")
+                  if not isinstance(item["use"], list) or not item["use"]:
+                      errors.append(f"{prefix} use must be a non-empty list")
+                  for field in ("name", "license_policy"):
+                      if not isinstance(item[field], str) or not item[field].strip():
+                          errors.append(f"{prefix} {field} must be non-empty text")
+
+          if not isinstance(data.get("harvest_plan"), list) or not data["harvest_plan"]:
+              errors.append("harvest_plan must be a non-empty list")
+          if not isinstance(data.get("notes"), list) or not data["notes"]:
+              errors.append("notes must be a non-empty list")
+
+          print(f"Categories: {len(categories) if isinstance(categories, list) else 0}")
+          print(f"Resources: {count}")
+          print(f"Unique IDs: {len(ids)}")
+          if errors:
+              print("FAIL: map validation errors:")
+              print("\n".join(f"- {e}" for e in errors))
+              sys.exit(1)
+          print("PASS: map structure, identifiers, HTTPS URLs and evidence fields")
+
+      - name: Upload source map and documentation
+        uses: actions/upload-artifact@v6
+        with:
+          name: global-web-resource-map
+          path: |
+            data/global-web-resource-map.json
+            docs/GLOBAL-WEB-RESOURCE-MAP.md
+          if-no-files-found: error
+          retention-days: 30

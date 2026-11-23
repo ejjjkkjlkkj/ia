@@ -1,0 +1,489 @@
+{
+  "schema_version": 1,
+  "purpose": "Capability registry for an auditable multimodal AI research and evaluation pipeline. Entries are capability targets, not claims of implemented support.",
+  "status_values": [
+    "PLANNED",
+    "DISCOVERED",
+    "LICENSE_REVIEW",
+    "READY_FOR_TEST",
+    "IMPLEMENTED",
+    "TESTED",
+    "BLOCKED",
+    "NOT_VALIDATED"
+  ],
+  "modalities": [
+    {
+      "id": "text",
+      "name": "Natural language text",
+      "inputs": [
+        "plain_text",
+        "unicode",
+        "multilingual_text"
+      ],
+      "outputs": [
+        "text",
+        "structured_text"
+      ],
+      "tasks": [
+        "generation",
+        "summarization",
+        "translation",
+        "classification",
+        "question_answering",
+        "reasoning",
+        "editing",
+        "grammar",
+        "retrieval"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "exact_match",
+        "f1",
+        "bleu_or_chrf_when_appropriate",
+        "human_review",
+        "factuality_checks"
+      ]
+    },
+    {
+      "id": "code",
+      "name": "Programming and markup languages",
+      "inputs": [
+        "source_code",
+        "patches",
+        "repository_context",
+        "compiler_diagnostics"
+      ],
+      "outputs": [
+        "source_code",
+        "patches",
+        "tests",
+        "build_scripts"
+      ],
+      "tasks": [
+        "generation",
+        "completion",
+        "debugging",
+        "refactoring",
+        "code_review",
+        "test_generation",
+        "secure_coding",
+        "documentation",
+        "cross_language_porting",
+        "algorithm_design"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "compile_rate",
+        "unit_test_pass_rate",
+        "hidden_test_pass_rate",
+        "static_analysis_findings",
+        "regression_rate",
+        "latency"
+      ]
+    },
+    {
+      "id": "files_documents",
+      "name": "Files and documents",
+      "inputs": [
+        "txt",
+        "md",
+        "pdf",
+        "docx",
+        "odt",
+        "rtf",
+        "csv",
+        "tsv",
+        "json",
+        "jsonl",
+        "xml",
+        "yaml",
+        "toml",
+        "ini",
+        "html",
+        "epub"
+      ],
+      "outputs": [
+        "extracted_text",
+        "structured_data",
+        "summaries",
+        "transformed_files"
+      ],
+      "tasks": [
+        "parsing",
+        "extraction",
+        "classification",
+        "summarization",
+        "conversion",
+        "table_extraction",
+        "document_qa",
+        "metadata_audit"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "field_accuracy",
+        "structure_validity",
+        "round_trip_fidelity",
+        "page_coverage"
+      ]
+    },
+    {
+      "id": "images",
+      "name": "Images and visual understanding",
+      "inputs": [
+        "png",
+        "jpeg",
+        "webp",
+        "tiff",
+        "bmp"
+      ],
+      "outputs": [
+        "captions",
+        "answers",
+        "labels",
+        "masks",
+        "bounding_boxes",
+        "generated_images"
+      ],
+      "tasks": [
+        "captioning",
+        "visual_qa",
+        "ocr_assist",
+        "classification",
+        "detection",
+        "segmentation",
+        "editing",
+        "generation",
+        "chart_understanding"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "task_accuracy",
+        "ocr_cer_wer",
+        "iou_map_when_appropriate",
+        "human_review",
+        "safety_review"
+      ]
+    },
+    {
+      "id": "audio",
+      "name": "Audio and music",
+      "inputs": [
+        "wav",
+        "flac",
+        "mp3",
+        "ogg",
+        "m4a"
+      ],
+      "outputs": [
+        "transcripts",
+        "speech",
+        "audio_descriptions",
+        "audio_generation"
+      ],
+      "tasks": [
+        "speech_recognition",
+        "speech_synthesis",
+        "speaker_diarization",
+        "sound_event_detection",
+        "audio_captioning",
+        "translation",
+        "music_understanding",
+        "noise_robustness"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "wer",
+        "cer",
+        "mos_with_human_study",
+        "event_f1",
+        "latency"
+      ]
+    },
+    {
+      "id": "video",
+      "name": "Video and temporal media",
+      "inputs": [
+        "mp4",
+        "webm",
+        "mov",
+        "frame_sequences"
+      ],
+      "outputs": [
+        "summaries",
+        "timestamps",
+        "captions",
+        "scene_descriptions"
+      ],
+      "tasks": [
+        "video_qa",
+        "temporal_localization",
+        "scene_detection",
+        "subtitle_generation",
+        "action_recognition",
+        "clip_summarization"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "temporal_iou",
+        "caption_quality",
+        "timestamp_error",
+        "question_accuracy"
+      ]
+    },
+    {
+      "id": "agents_tools",
+      "name": "Agents and tool use",
+      "inputs": [
+        "task_specs",
+        "repository_snapshots",
+        "tool_schemas",
+        "event_streams"
+      ],
+      "outputs": [
+        "plans",
+        "tool_calls",
+        "patches",
+        "reports"
+      ],
+      "tasks": [
+        "planning",
+        "tool_selection",
+        "multi_step_execution",
+        "repository_maintenance",
+        "test_triage",
+        "research",
+        "recovery",
+        "handoff"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "task_completion",
+        "tool_call_validity",
+        "recovery_rate",
+        "policy_violations",
+        "cost",
+        "reproducibility"
+      ]
+    },
+    {
+      "id": "search_retrieval",
+      "name": "Search, retrieval and knowledge bases",
+      "inputs": [
+        "documents",
+        "indexes",
+        "queries",
+        "metadata"
+      ],
+      "outputs": [
+        "ranked_results",
+        "citations",
+        "answers"
+      ],
+      "tasks": [
+        "semantic_search",
+        "reranking",
+        "retrieval_augmented_generation",
+        "deduplication",
+        "entity_linking"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "recall_at_k",
+        "mrr",
+        "ndcg",
+        "citation_support_rate"
+      ]
+    },
+    {
+      "id": "speech_accessibility",
+      "name": "Accessibility and assistive interaction",
+      "inputs": [
+        "ui_accessibility_tree",
+        "keyboard_events",
+        "screen_reader_events",
+        "text_and_audio"
+      ],
+      "outputs": [
+        "spoken_guidance",
+        "navigation_actions",
+        "accessible_summaries"
+      ],
+      "tasks": [
+        "ui_description",
+        "keyboard_navigation",
+        "dialogue_control",
+        "screen_reader_compatibility",
+        "captioning",
+        "alt_text"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "task_success",
+        "focus_order_errors",
+        "keyboard_only_success",
+        "speech_latency",
+        "user_study"
+      ]
+    },
+    {
+      "id": "tabular_data",
+      "name": "Tables, spreadsheets and structured data",
+      "inputs": [
+        "csv",
+        "xlsx",
+        "ods",
+        "parquet",
+        "sql_results"
+      ],
+      "outputs": [
+        "validated_tables",
+        "queries",
+        "charts",
+        "summaries"
+      ],
+      "tasks": [
+        "data_cleaning",
+        "formula_generation",
+        "sql_generation",
+        "anomaly_detection",
+        "analysis"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "schema_validity",
+        "query_execution_rate",
+        "numeric_error",
+        "data_leakage_checks"
+      ]
+    },
+    {
+      "id": "math_science",
+      "name": "Mathematics and scientific computing",
+      "inputs": [
+        "equations",
+        "datasets",
+        "units",
+        "scientific_text"
+      ],
+      "outputs": [
+        "derivations",
+        "calculations",
+        "reproducible_scripts"
+      ],
+      "tasks": [
+        "symbolic_reasoning",
+        "numerical_analysis",
+        "proof_assistance",
+        "unit_conversion",
+        "simulation"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "exact_result_rate",
+        "tolerance_based_error",
+        "proof_check_rate",
+        "reproducibility"
+      ]
+    },
+    {
+      "id": "3d_spatial",
+      "name": "3D, spatial and motion data",
+      "inputs": [
+        "point_clouds",
+        "meshes",
+        "poses",
+        "trajectories"
+      ],
+      "outputs": [
+        "spatial_descriptions",
+        "transforms",
+        "trajectories"
+      ],
+      "tasks": [
+        "scene_understanding",
+        "geometry",
+        "pose_estimation",
+        "motion_planning"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "geometric_error",
+        "collision_rate",
+        "task_success"
+      ]
+    },
+    {
+      "id": "multimodal_fusion",
+      "name": "Cross-modal and any-to-any fusion",
+      "inputs": [
+        "text_image",
+        "text_audio",
+        "text_video",
+        "image_audio",
+        "mixed_streams"
+      ],
+      "outputs": [
+        "text",
+        "image",
+        "audio",
+        "video_descriptions",
+        "structured_actions"
+      ],
+      "tasks": [
+        "cross_modal_qa",
+        "image_to_text",
+        "audio_to_text",
+        "text_to_speech",
+        "video_summarization",
+        "modality_routing"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "per_modality_score",
+        "cross_modal_consistency",
+        "grounding_error",
+        "fallback_success"
+      ]
+    },
+    {
+      "id": "safety_security",
+      "name": "Safety, privacy and security evaluation",
+      "inputs": [
+        "prompts",
+        "files",
+        "code",
+        "tool_requests"
+      ],
+      "outputs": [
+        "risk_labels",
+        "safe_responses",
+        "audit_reports"
+      ],
+      "tasks": [
+        "prompt_injection_resistance",
+        "secret_redaction",
+        "sandbox_policy",
+        "malware_classification",
+        "dependency_audit",
+        "privacy_checks"
+      ],
+      "status": "PLANNED",
+      "metrics": [
+        "false_positive_rate",
+        "false_negative_rate",
+        "policy_violation_rate",
+        "secret_leak_rate"
+      ]
+    }
+  ],
+  "cross_cutting_requirements": [
+    "Track dataset license, attribution, source revision, checksum and permitted uses before acquisition or training.",
+    "Keep train, validation and test sets separate; record contamination and deduplication checks.",
+    "Never mark a capability TESTED based only on catalog presence, model-card claims, a successful download or an emulator.",
+    "Run untrusted code and tools in least-privilege sandboxes with time, memory, disk and network limits.",
+    "Do not require a paid API key; local adapters are optional and provider-specific.",
+    "Record model/checkpoint hash, quantization, runtime version, hardware, seed, exact command and raw results.",
+    "Distinguish model capability from tools, retrieval, deterministic software and human review.",
+    "Agent workflows must not auto-merge, publish releases, access secrets or perform destructive actions without explicit policy and approval."
+  ]
+}
