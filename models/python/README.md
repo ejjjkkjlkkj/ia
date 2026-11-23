@@ -6,7 +6,7 @@ Cette baseline n'est **ni un réseau neuronal ni un Transformer**. Elle valide u
 
 ## Exécuter
 
-Voir [la documentation de la baseline](../../docs/REFERENCE_MODEL_BASELINE.md).
+Voir [la documentation de la baseline](../../docs/REFERENCE-MODEL-BASELINE.md).
 
 Depuis la racine du dépôt :
 
