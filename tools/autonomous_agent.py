@@ -29,6 +29,31 @@ EXCLUDED_SCAN_DIRS = frozenset({
 })
 
 
+def _json_nesting_exceeds(text: str, max_depth: int = 64) -> bool:
+    """True when the JSON text nests deeper than max_depth, regardless of Python's recursion limit."""
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == chr(92):
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > max_depth:
+                return True
+        elif character in "]}":
+            depth -= 1
+    return False
+
+
 def _run(command: list[str], timeout: int = 300) -> dict[str, Any]:
     try:
         result = subprocess.run(
@@ -87,8 +112,11 @@ def run_cycle() -> dict[str, Any]:
     json_errors = []
     for path in json_files:
         try:
-            json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeError, json.JSONDecodeError, RecursionError) as exc:
+            text = path.read_text(encoding="utf-8")
+            if _json_nesting_exceeds(text):
+                raise ValueError("excessively nested JSON")
+            json.loads(text)
+        except (OSError, UnicodeError, ValueError, RecursionError) as exc:
             json_errors.append({"path": str(path.relative_to(ROOT)), "error": type(exc).__name__})
     tasks.append({
         "id": "json-syntax",
