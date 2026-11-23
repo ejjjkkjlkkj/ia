@@ -71,3 +71,15 @@ jobs:
               subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "train", str(train), str(neural_checkpoint), "--epochs", "1"], env=env, check=True)
               subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "evaluate", str(neural_checkpoint), str(heldout)], env=env, check=True)
               subprocess.run([sys.executable, "-m", "ia_reference.tiny_neural", "generate", str(neural_checkpoint), "--prompt", "the screen reader", "--max-bytes", "5"], env=env, check=True)
+      - name: Reproducible synthetic neural proof
+        env:
+          PYTHONPATH: src
+        run: python tools/run_neural_proof.py --output-dir artifacts/neural-proof
+
+      - name: Upload neural proof evidence
+        uses: actions/upload-artifact@v6
+        with:
+          name: neural-proof-${{ matrix.os }}-python-${{ matrix.python }}
+          path: artifacts/neural-proof/
+          if-no-files-found: error
+          retention-days: 14
