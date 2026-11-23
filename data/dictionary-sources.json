@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "purpose": "Track discoverable lexical, dictionary, language, and programming-language resources with provenance and explicit validation states.",
+  "status_values": ["DISCOVERED", "LICENSE_REVIEW", "READY_FOR_IMPORT", "IMPORTED", "TESTED", "BLOCKED", "NOT_VALIDATED"],
+  "resources": [
+    {
+      "id": "wiktionary-kaikki",
+      "name": "Kaikki / Wiktionary structured lexical data",
+      "domain": ["definitions", "translations", "pronunciation", "etymology", "part_of_speech", "inflection"],
+      "coverage": "Multilingual; coverage differs by language and entry type",
+      "url": "https://kaikki.org/",
+      "license_review": "REQUIRED_PER_DUMP_AND_FIELD",
+      "status": "DISCOVERED",
+      "import_policy": "Record source dump date, language code, license, attribution, parser version, and checksum before importing."
+    },
+    {
+      "id": "wordnet-princeton",
+      "name": "Princeton WordNet",
+      "domain": ["synonyms", "synsets", "hypernyms", "hyponyms", "semantic_relations"],
+      "coverage": "English",
+      "url": "https://wordnet.princeton.edu/",
+      "license_review": "REQUIRED",
+      "status": "DISCOVERED",
+      "import_policy": "Preserve version, license, source identifiers, and semantic relation types."
+    },
+    {
+      "id": "open-multilingual-wordnet",
+      "name": "Open Multilingual Wordnet",
+      "domain": ["multilingual_lexical_semantics", "synsets", "translations"],
+      "coverage": "Multiple languages; per-resource coverage and licensing vary",
+      "url": "https://omwn.org/",
+      "license_review": "REQUIRED_PER_LANGUAGE_RESOURCE",
+      "status": "DISCOVERED",
+      "import_policy": "Track each language resource independently; do not assume one license applies to all."
+    },
+    {
+      "id": "unimorph",
+      "name": "UniMorph",
+      "domain": ["inflection", "morphological_features", "paradigms"],
+      "coverage": "Multiple languages; dataset completeness varies",
+      "url": "https://unimorph.github.io/",
+      "license_review": "REQUIRED_PER_DATASET",
+      "status": "DISCOVERED",
+      "import_policy": "Keep language identifiers, feature schema, dataset revision, and provenance."
+    },
+    {
+      "id": "unicode-cldr",
+      "name": "Unicode Common Locale Data Repository",
+      "domain": ["locale_names", "plural_rules", "collation", "date_time", "number_formats", "language_tags"],
+      "coverage": "Locale-oriented data, not a general dictionary",
+      "url": "https://cldr.unicode.org/",
+      "license_review": "REQUIRED",
+      "status": "DISCOVERED",
+      "import_policy": "Use versioned locale data; keep locale IDs and Unicode versions."
+    },
+    {
+      "id": "unicode-ucd",
+      "name": "Unicode Character Database",
+      "domain": ["unicode_properties", "normalization", "scripts", "case_mapping"],
+      "coverage": "Unicode code points and properties; not a word dictionary",
+      "url": "https://www.unicode.org/ucd/",
+      "license_review": "REQUIRED",
+      "status": "DISCOVERED",
+      "import_policy": "Version data and test normalization, combining marks, scripts, and supplementary planes."
+    },
+    {
+      "id": "wikidata-lexemes",
+      "name": "Wikidata Lexemes",
+      "domain": ["lexemes", "forms", "senses", "grammatical_features", "pronunciation"],
+      "coverage": "Community-maintained multilingual lexemes; coverage varies",
+      "url": "https://www.wikidata.org/wiki/Wikidata:Lexicographical_data",
+      "license_review": "REQUIRED",
+      "status": "DISCOVERED",
+      "import_policy": "Respect licensing, attribution, entity IDs, revisions, and incomplete records."
+    },
+    {
+      "id": "github-linguist",
+      "name": "GitHub Linguist language definitions",
+      "domain": ["programming_language_names", "extensions", "filenames", "language_detection"],
+      "coverage": "Languages recognized by Linguist; not all programming languages ever created",
+      "url": "https://github.com/github-linguist/linguist",
+      "license_review": "REQUIRED",
+      "status": "DISCOVERED",
+      "import_policy": "Pin source revision and distinguish detected languages from a complete historical language census."
+    },
+    {
+      "id": "language-agnostic-code-benchmarks",
+      "name": "Project-owned multilingual code benchmark registry",
+      "domain": ["programming_tasks", "compiler_tests", "runtime_tests", "code_generation"],
+      "coverage": "Only languages with a defined compiler/interpreter and reproducible harness",
+      "url": "https://github.com/ejjjkkjlkkj/ia",
+      "license_review": "PROJECT_DATA_REVIEW",
+      "status": "NOT_VALIDATED",
+      "import_policy": "Use original or permissively licensed tasks; record task license, expected output, timeout, resource limits, and test provenance."
+    },
+    {
+      "id": "nexora-project-lexicon",
+      "name": "NEXORA language specification and built-in vocabulary",
+      "domain": ["keywords", "operators", "types", "builtins", "diagnostics", "grammar"],
+      "coverage": "Project language; only the implemented specification is authoritative",
+      "url": "https://github.com/ejjjkkjlkkj/ia",
+      "license_review": "PROJECT_OWNED",
+      "status": "NOT_VALIDATED",
+      "import_policy": "Generate keyword and builtin registries from the language specification where possible; test lexer/parser agreement."
+    }
+  ]
+}

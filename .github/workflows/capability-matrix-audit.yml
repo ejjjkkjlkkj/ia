@@ -1,0 +1,51 @@
+name: Multimodal capability matrix audit
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - "data/capability-matrix.json"
+      - "tools/validate_capability_matrix.py"
+      - "docs/GLOBAL-MULTIMODAL-CAPABILITY-ROADMAP.md"
+      - ".github/workflows/capability-matrix-audit.yml"
+  pull_request:
+    paths:
+      - "data/capability-matrix.json"
+      - "tools/validate_capability_matrix.py"
+      - "docs/GLOBAL-MULTIMODAL-CAPABILITY-ROADMAP.md"
+      - ".github/workflows/capability-matrix-audit.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "37 5 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: capability-matrix-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate capability matrix
+        run: python tools/validate_capability_matrix.py
+      - name: Validate JSON syntax
+        run: python -m json.tool data/capability-matrix.json > /dev/null
+      - name: Upload capability registry and roadmap
+        uses: actions/upload-artifact@v4
+        with:
+          name: multimodal-capability-audit-${{ github.run_id }}
+          path: |
+            data/capability-matrix.json
+            docs/GLOBAL-MULTIMODAL-CAPABILITY-ROADMAP.md
+          if-no-files-found: error
+          retention-days: 30

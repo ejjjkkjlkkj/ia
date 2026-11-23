@@ -1,0 +1,295 @@
+{
+  "schema_version": 1,
+  "catalogue": "LANGUAGE-CATALOG.md",
+  "catalogue_version": 2,
+  "status_vocabulary": [
+    "PASS",
+    "PARTIAL",
+    "NOT_IMPLEMENTED",
+    "BLOCKED",
+    "NOT_VALIDATED"
+  ],
+  "generated_by": "tools/generate_language_status_manifest.py",
+  "claim_scope": "Repository evidence inventory only. A catalogue entry is not proof of an implementation.",
+  "language_count": 39,
+  "languages": [
+    {
+      "id": "c",
+      "language": "C",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "cpp",
+      "language": "C++",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "rust",
+      "language": "Rust",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "zig",
+      "language": "Zig",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "ada",
+      "language": "Ada",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "asm-x86_64",
+      "language": "x86-64 Assembly",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "asm-aarch64",
+      "language": "AArch64 Assembly",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "asm-riscv64",
+      "language": "RISC-V Assembly",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "go",
+      "language": "Go",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "d",
+      "language": "D",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "nim",
+      "language": "Nim",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "swift",
+      "language": "Swift",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "pascal",
+      "language": "Free Pascal / Object Pascal",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "odin",
+      "language": "Odin",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "fortran",
+      "language": "Fortran",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "csharp",
+      "language": "C#",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "objc",
+      "language": "Objective-C",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "v",
+      "language": "V",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "crystal",
+      "language": "Crystal",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "modula2",
+      "language": "Modula-2",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "cobol",
+      "language": "COBOL",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "pli",
+      "language": "PL/I",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "java",
+      "language": "Java",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "kotlin",
+      "language": "Kotlin",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "python",
+      "language": "Python",
+      "status": "PARTIAL",
+      "evidence": [
+        "src/ia_reference/numeric.py",
+        "src/ia_reference/causal_attention.py",
+        "src/ia_reference/tiny_neural.py",
+        "tools/run_neural_proof.py"
+      ],
+      "limits": "Python reference kernels and a tiny neural byte model only; no complete Transformer or production LLM."
+    },
+    {
+      "id": "javascript",
+      "language": "JavaScript",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "typescript",
+      "language": "TypeScript",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "scratch",
+      "language": "Scratch",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "u",
+      "language": "U (ulanguage.org)",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "nexora",
+      "language": "NEXORA (langage universel expérimental du projet)",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "julia",
+      "language": "Julia",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "mojo",
+      "language": "Mojo",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "chapel",
+      "language": "Chapel",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "r",
+      "language": "R",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "apl",
+      "language": "APL",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "j",
+      "language": "J",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "k",
+      "language": "K",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "q",
+      "language": "q",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    },
+    {
+      "id": "lua",
+      "language": "Lua",
+      "status": "NOT_IMPLEMENTED",
+      "evidence": [],
+      "limits": "No language-specific implementation of the shared trained model has been evidenced in this repository."
+    }
+  ]
+}

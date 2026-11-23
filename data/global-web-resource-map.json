@@ -1,0 +1,444 @@
+{
+  "schema_version": 1,
+  "purpose": "Machine-readable map of public web sources for discovering dictionaries, languages, datasets, models, software, multimodal tools, and scientific knowledge. Discovery is not endorsement or permission to redistribute.",
+  "status_values": [
+    "DISCOVERED",
+    "ENDPOINT_DOCUMENTED",
+    "LICENSE_REVIEW_REQUIRED",
+    "ACCESS_RESTRICTED",
+    "NOT_VALIDATED"
+  ],
+  "collection_policy": {
+    "no_api_key_required_by_default": true,
+    "do_not_download_large_artifacts_during_discovery": true,
+    "do_not_execute_remote_code": true,
+    "record_source_revision_and_retrieval_time": true,
+    "verify_license_per_artifact_and_version": true,
+    "respect_rate_limits_and_terms": true,
+    "store_checksums_for_downloaded_artifacts": true
+  },
+  "categories": [
+    {
+      "id": "programming-languages-and-code",
+      "resources": [
+        {
+          "id": "github-search-api",
+          "name": "GitHub REST API and repository search",
+          "url": "https://docs.github.com/en/rest",
+          "interfaces": [
+            "REST API",
+            "repository search",
+            "code search subject to access/index limits",
+            "license endpoints"
+          ],
+          "use": [
+            "language implementations",
+            "compilers",
+            "interpreters",
+            "test suites",
+            "libraries",
+            "agents",
+            "actions"
+          ],
+          "status": "ENDPOINT_DOCUMENTED",
+          "license_policy": "Inspect repository license and dependencies separately; GitHub license detection is not a complete legal analysis.",
+          "evidence_url": "https://docs.github.com/en/rest/licenses/licenses"
+        },
+        {
+          "id": "github-linguist",
+          "name": "GitHub Linguist",
+          "url": "https://github.com/github-linguist/linguist",
+          "use": [
+            "language names",
+            "file extensions",
+            "language detection"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Pin revision and verify license before reuse."
+        },
+        {
+          "id": "libraries-io",
+          "name": "Libraries.io",
+          "url": "https://libraries.io/",
+          "use": [
+            "package ecosystem discovery",
+            "dependency metadata"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Verify API access terms and each package license."
+        },
+        {
+          "id": "repology",
+          "name": "Repology",
+          "url": "https://repology.org/",
+          "use": [
+            "package versions",
+            "distribution/package cross-reference"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Metadata is not a substitute for upstream package licensing."
+        }
+      ]
+    },
+    {
+      "id": "dictionaries-lexicons-and-language",
+      "resources": [
+        {
+          "id": "kaikki-wiktionary",
+          "name": "Kaikki structured Wiktionary data",
+          "url": "https://kaikki.org/",
+          "use": [
+            "definitions",
+            "translations",
+            "pronunciation",
+            "etymology",
+            "inflection"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Review source dump and each data component's attribution/license."
+        },
+        {
+          "id": "wordnet",
+          "name": "Princeton WordNet",
+          "url": "https://wordnet.princeton.edu/",
+          "use": [
+            "synsets",
+            "semantic relations",
+            "English lexical semantics"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Check current distribution license and attribution."
+        },
+        {
+          "id": "omwn",
+          "name": "Open Multilingual Wordnet",
+          "url": "https://omwn.org/",
+          "use": [
+            "multilingual synsets",
+            "lexical semantics"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Review each language resource independently."
+        },
+        {
+          "id": "wikidata-lexemes",
+          "name": "Wikidata Lexicographical Data",
+          "url": "https://www.wikidata.org/wiki/Wikidata:Lexicographical_data",
+          "use": [
+            "lexemes",
+            "forms",
+            "senses",
+            "grammatical features"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Preserve attribution and entity/revision identifiers."
+        },
+        {
+          "id": "unimorph",
+          "name": "UniMorph",
+          "url": "https://unimorph.github.io/",
+          "use": [
+            "inflectional morphology",
+            "morphological feature schemas"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Check each dataset and revision."
+        },
+        {
+          "id": "unicode-cldr",
+          "name": "Unicode CLDR",
+          "url": "https://cldr.unicode.org/",
+          "use": [
+            "locale data",
+            "plural rules",
+            "collation",
+            "date/time and number formatting"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Pin version and preserve required notices."
+        },
+        {
+          "id": "unicode-ucd",
+          "name": "Unicode Character Database",
+          "url": "https://www.unicode.org/ucd/",
+          "use": [
+            "Unicode properties",
+            "scripts",
+            "normalization",
+            "case mapping"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Follow the license and notice shipped with the exact release."
+        }
+      ]
+    },
+    {
+      "id": "models-datasets-and-ml",
+      "resources": [
+        {
+          "id": "huggingface-hub",
+          "name": "Hugging Face Hub API",
+          "url": "https://huggingface.co/docs/hub/api",
+          "api_spec_url": "https://huggingface.co/.well-known/openapi.json",
+          "use": [
+            "model cards",
+            "datasets",
+            "Spaces",
+            "revisions",
+            "metadata"
+          ],
+          "status": "ENDPOINT_DOCUMENTED",
+          "license_policy": "Inspect each model/dataset card, license, access gate, revision, and code-execution risk."
+        },
+        {
+          "id": "pytorch-hub",
+          "name": "PyTorch",
+          "url": "https://pytorch.org/",
+          "use": [
+            "training",
+            "inference",
+            "compile/runtime optimization"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Review framework and model licenses separately."
+        },
+        {
+          "id": "onnx",
+          "name": "ONNX",
+          "url": "https://onnx.ai/",
+          "use": [
+            "portable model interchange",
+            "runtime compatibility"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Verify model and operator implementation licenses separately."
+        },
+        {
+          "id": "paperswithcode",
+          "name": "Papers with Code",
+          "url": "https://paperswithcode.com/",
+          "use": [
+            "research tasks",
+            "benchmarks",
+            "paper-to-code discovery"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Follow links to original papers, datasets and repositories; do not assume linked assets are open."
+        }
+      ]
+    },
+    {
+      "id": "research-papers-and-metadata",
+      "resources": [
+        {
+          "id": "openalex",
+          "name": "OpenAlex REST API",
+          "url": "https://help.openalex.org/api/",
+          "api_base_url": "https://api.openalex.org",
+          "use": [
+            "works",
+            "authors",
+            "sources",
+            "institutions",
+            "topics",
+            "datasets and scholarly metadata"
+          ],
+          "status": "ENDPOINT_DOCUMENTED",
+          "access": "Public API; current limits and pricing must be checked before bulk harvesting.",
+          "license_policy": "OpenAlex metadata is documented as CC0; linked full text and underlying works have their own rights."
+        },
+        {
+          "id": "crossref",
+          "name": "Crossref REST API",
+          "url": "https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/",
+          "api_base_url": "https://api.crossref.org/v1",
+          "use": [
+            "DOIs",
+            "publication metadata",
+            "publisher records"
+          ],
+          "status": "ENDPOINT_DOCUMENTED",
+          "access": "Public access without registration; polite usage recommended.",
+          "license_policy": "Metadata access does not grant rights to article full text."
+        },
+        {
+          "id": "arxiv",
+          "name": "arXiv",
+          "url": "https://info.arxiv.org/help/api/index.html",
+          "use": [
+            "preprint metadata",
+            "paper discovery"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Check each paper's license and reuse rights."
+        }
+      ]
+    },
+    {
+      "id": "multimodal-and-media",
+      "resources": [
+        {
+          "id": "common-voice",
+          "name": "Mozilla Common Voice",
+          "url": "https://commonvoice.mozilla.org/",
+          "use": [
+            "speech recognition data",
+            "multilingual speech"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Verify dataset release, locale-specific coverage, and license."
+        },
+        {
+          "id": "openslr",
+          "name": "OpenSLR",
+          "url": "https://www.openslr.org/",
+          "use": [
+            "speech corpora",
+            "ASR/TTS resources"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "License and consent terms differ per corpus."
+        },
+        {
+          "id": "freesound",
+          "name": "Freesound",
+          "url": "https://freesound.org/",
+          "use": [
+            "sound effects",
+            "audio event datasets"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Check each recording's license and attribution."
+        },
+        {
+          "id": "wikimedia-commons",
+          "name": "Wikimedia Commons",
+          "url": "https://commons.wikimedia.org/wiki/Main_Page",
+          "use": [
+            "images",
+            "audio",
+            "video",
+            "media metadata"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Check each file's license, attribution and any non-copyright restrictions."
+        },
+        {
+          "id": "open-images",
+          "name": "Open Images Dataset",
+          "url": "https://storage.googleapis.com/openimages/web/index.html",
+          "use": [
+            "image classification",
+            "detection",
+            "visual grounding"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Review image, annotation, and person/privacy conditions."
+        },
+        {
+          "id": "webdataset",
+          "name": "WebDataset",
+          "url": "https://github.com/webdataset/webdataset",
+          "use": [
+            "streaming large-scale multimodal datasets"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Format tooling license does not cover data stored in the format."
+        }
+      ]
+    },
+    {
+      "id": "knowledge-graphs-and-ontologies",
+      "resources": [
+        {
+          "id": "wikidata-query-service",
+          "name": "Wikidata Query Service",
+          "url": "https://query.wikidata.org/",
+          "use": [
+            "entity relationships",
+            "languages",
+            "software",
+            "scientific concepts"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Respect service limits; preserve entity IDs and attribution."
+        },
+        {
+          "id": "dbpedia",
+          "name": "DBpedia",
+          "url": "https://www.dbpedia.org/",
+          "use": [
+            "structured knowledge graph",
+            "entity linking"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Check dataset and endpoint-specific terms."
+        },
+        {
+          "id": "schema-org",
+          "name": "Schema.org",
+          "url": "https://schema.org/",
+          "use": [
+            "common metadata vocabularies",
+            "structured web data"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Check vocabulary license and version."
+        }
+      ]
+    },
+    {
+      "id": "security-and-software-supply-chain",
+      "resources": [
+        {
+          "id": "osv",
+          "name": "OSV vulnerability database/API",
+          "url": "https://osv.dev/",
+          "use": [
+            "known vulnerabilities",
+            "package/version advisories"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Respect API usage and source-specific advisory terms."
+        },
+        {
+          "id": "cve",
+          "name": "CVE Program",
+          "url": "https://www.cve.org/",
+          "use": [
+            "vulnerability identifiers and records"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Use official feeds and their documented terms."
+        },
+        {
+          "id": "spdx",
+          "name": "SPDX",
+          "url": "https://spdx.dev/",
+          "use": [
+            "license identifiers",
+            "SBOM formats",
+            "license expression syntax"
+          ],
+          "status": "DISCOVERED",
+          "license_policy": "Use SPDX identifiers as metadata; do not treat automated license matching as legal advice."
+        }
+      ]
+    }
+  ],
+  "harvest_plan": [
+    "Seed discovery from official APIs and maintained project registries.",
+    "Normalize URLs, source IDs, language tags, package coordinates, model/dataset IDs and versions.",
+    "Deduplicate by canonical ID first, then normalized URL and content checksum where applicable.",
+    "Record retrieved_at_utc, source_revision, access_method, license_url, license_expression, attribution, gated_status and checksum.",
+    "Keep discovery separate from import, validation, redistribution and model-training approval.",
+    "Use bounded pagination, conditional requests, backoff and per-host rate limits.",
+    "Never treat HTTP 200, a README badge, or a repository topic as proof of quality, completeness, safety or license compatibility.",
+    "Generate deterministic JSON/CSV reports and retain CI logs as artifacts."
+  ],
+  "notes": [
+    "This is a researched seed map, not a complete census of the web.",
+    "The resources have not all been fetched, imported, checked for availability, or license-reviewed in this commit.",
+    "Bulk discovery should be incremental and respect API terms, rate limits, robots policies where applicable, and privacy law."
+  ]
+}
